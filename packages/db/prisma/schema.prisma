@@ -1,0 +1,150 @@
+// Prisma schema for the Discord + Google Calendar reminder bot.
+// The dashboard is the only writer; the worker (bot + scheduler) reads and acts.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum EventKind {
+  MEETING
+  EVENT
+  CUSTOM
+}
+
+enum ReminderStatus {
+  PENDING
+  SENT
+  FAILED
+  CANCELLED
+}
+
+enum RsvpStatus {
+  GOING
+  INTERESTED
+  NO
+}
+
+/// A Discord server. This instance is single-guild, but the model supports more.
+model Guild {
+  id               String   @id // Discord guild id
+  name             String
+  defaultChannelId String?
+  timezone         String   @default("Europe/Bucharest")
+  memberCount      Int      @default(0) // updated by the bot, used for reach %
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  channels         Channel[]
+  events           Event[]
+  reminderDefaults ReminderDefault[]
+}
+
+/// Cache of Discord channels, kept in sync by the bot so the dashboard has a
+/// live channel picker without needing to call Discord directly.
+model Channel {
+  id         String   @id // Discord channel id
+  guildId    String
+  name       String
+  type       String // e.g. GuildText, GuildAnnouncement
+  position   Int      @default(0)
+  isTextable Boolean  @default(true)
+  archived   Boolean  @default(false)
+  updatedAt  DateTime @updatedAt
+
+  guild Guild @relation(fields: [guildId], references: [id], onDelete: Cascade)
+
+  @@index([guildId])
+}
+
+/// A calendar event or meeting created from the dashboard.
+model Event {
+  id                      String    @id @default(cuid())
+  guildId                 String
+  title                   String
+  description             String?
+  kind                    EventKind @default(EVENT)
+  startAt                 DateTime
+  endAt                   DateTime?
+  location                String?
+  url                     String?
+  channelId               String // default target channel for announcements/reminders
+  announceOnCreate        Boolean   @default(true)
+  gcalEventId             String?
+  discordScheduledEventId String?
+  interestedCount         Int       @default(0) // snapshot of Discord "interested" count
+  createdBy               String? // Discord user id of the admin who created it
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+
+  guild     Guild      @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  reminders Reminder[]
+  rsvps     Rsvp[]
+
+  @@index([guildId])
+  @@index([startAt])
+}
+
+/// A single reminder for an event. Stored as an absolute `dueAt` (precomputed
+/// from startAt - offset) so the scheduler query is a trivial index scan.
+model Reminder {
+  id             String         @id @default(cuid())
+  eventId        String
+  offsetMinutes  Int // minutes before startAt (0 = at start time)
+  channelId      String? // optional per-reminder channel override
+  status         ReminderStatus @default(PENDING)
+  dueAt          DateTime
+  sentAt         DateTime?
+  messageId      String?
+  error          String?
+  label          String? // human label e.g. "1 day before"
+  isAnnouncement Boolean        @default(false) // the initial "event created" post
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([status, dueAt])
+  @@index([eventId])
+}
+
+/// Per-kind default reminder offsets that pre-fill the event creation form.
+model ReminderDefault {
+  id            String    @id @default(cuid())
+  guildId       String
+  kind          EventKind
+  offsetMinutes Int
+  label         String?
+
+  guild Guild @relation(fields: [guildId], references: [id], onDelete: Cascade)
+
+  @@unique([guildId, kind, offsetMinutes])
+  @@index([guildId, kind])
+}
+
+/// RSVP state per user per event, driven by Discord buttons (outreach tracking).
+model Rsvp {
+  id        String     @id @default(cuid())
+  eventId   String
+  userId    String // Discord user id
+  username  String?
+  status    RsvpStatus
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
+  @@index([eventId])
+}
+
+/// Simple key/value store for misc settings and feature flags.
+model Setting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}

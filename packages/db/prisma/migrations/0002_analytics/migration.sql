@@ -1,0 +1,5 @@
+-- AlterTable
+ALTER TABLE "Guild" ADD COLUMN "memberCount" INTEGER NOT NULL DEFAULT 0;
+
+-- AlterTable
+ALTER TABLE "Event" ADD COLUMN "interestedCount" INTEGER NOT NULL DEFAULT 0;

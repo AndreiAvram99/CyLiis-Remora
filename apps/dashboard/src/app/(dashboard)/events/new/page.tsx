@@ -1,0 +1,25 @@
+import { getGuild, getTextChannels } from "@/lib/guild";
+import { getKindDefaults } from "@/lib/defaults";
+import { EventForm } from "../event-form";
+
+export const dynamic = "force-dynamic";
+
+export default async function NewEventPage() {
+  const [guild, channels, kindDefaults] = await Promise.all([
+    getGuild(),
+    getTextChannels(),
+    getKindDefaults(),
+  ]);
+
+  return (
+    <div className="mx-auto max-w-2xl space-y-6">
+      <h1 className="text-2xl font-semibold">New event</h1>
+      <EventForm
+        mode="create"
+        channels={channels.map((c) => ({ id: c.id, name: c.name }))}
+        kindDefaults={kindDefaults}
+        defaultChannelId={guild.defaultChannelId}
+      />
+    </div>
+  );
+}
