@@ -3,11 +3,13 @@ import type { EventKindName } from "@repo/shared";
 import { getGuild, getTextChannels } from "@/lib/guild";
 import { env } from "@/lib/env";
 import { isCalendarEnabled } from "@/lib/gcal";
+import { requireManager } from "@/lib/session";
 import { SettingsForm } from "./settings-form";
 
 export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
+  await requireManager();
   const [guild, channels, defaults] = await Promise.all([
     getGuild(),
     getTextChannels(),

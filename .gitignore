@@ -33,3 +33,6 @@ npm-debug.log*
 
 # secrets
 google-service-account*.json
+
+# local dev database (embedded postgres)
+.devdb/

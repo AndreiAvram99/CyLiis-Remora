@@ -1,10 +1,12 @@
 import { getGuild, getTextChannels } from "@/lib/guild";
 import { getKindDefaults } from "@/lib/defaults";
+import { requireManager } from "@/lib/session";
 import { EventForm } from "../event-form";
 
 export const dynamic = "force-dynamic";
 
 export default async function NewEventPage() {
+  await requireManager();
   const [guild, channels, kindDefaults] = await Promise.all([
     getGuild(),
     getTextChannels(),

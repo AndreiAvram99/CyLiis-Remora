@@ -14,6 +14,8 @@
     "db:migrate": "npm run migrate -w @repo/db",
     "db:deploy": "npm run deploy -w @repo/db",
     "db:seed": "npm run seed -w @repo/db",
+    "dev:db": "node scripts/dev-db.mjs",
+    "db:seed:demo": "node scripts/seed-demo.mjs",
     "dev:dashboard": "npm run dev -w @repo/dashboard",
     "dev:worker": "npm run dev -w @repo/worker",
     "build": "npm run db:generate && npm run build -w @repo/dashboard && npm run build -w @repo/worker",

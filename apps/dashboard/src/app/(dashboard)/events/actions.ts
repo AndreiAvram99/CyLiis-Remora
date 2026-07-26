@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma, ReminderStatus, type Prisma } from "@repo/db";
 import { computeDueAt, offsetLabel } from "@repo/shared";
-import { requireAdmin } from "@/lib/session";
+import { assertManager } from "@/lib/session";
 import { getGuild } from "@/lib/guild";
 import { localInputToDate } from "@/lib/time";
 import {
@@ -47,7 +47,7 @@ function buildReminderCreates(
 }
 
 export async function createEvent(input: EventFormValues) {
-  const session = await requireAdmin();
+  const session = await assertManager();
   const values = eventFormSchema.parse(input);
   const guild = await getGuild();
 
@@ -85,12 +85,12 @@ export async function createEvent(input: EventFormValues) {
   });
 
   revalidatePath("/events");
-  revalidatePath("/analytics");
+  revalidatePath("/presence");
   return { id: event.id };
 }
 
 export async function updateEvent(id: string, input: EventFormValues) {
-  await requireAdmin();
+  await assertManager();
   const values = eventFormSchema.parse(input);
   const guild = await getGuild();
   const existing = await prisma.event.findUnique({ where: { id } });
@@ -142,12 +142,12 @@ export async function updateEvent(id: string, input: EventFormValues) {
 
   revalidatePath("/events");
   revalidatePath(`/events/${id}`);
-  revalidatePath("/analytics");
+  revalidatePath("/presence");
   return { id };
 }
 
 export async function deleteEvent(id: string) {
-  await requireAdmin();
+  await assertManager();
   const existing = await prisma.event.findUnique({ where: { id } });
   if (!existing) return;
 
@@ -158,5 +158,5 @@ export async function deleteEvent(id: string) {
   await prisma.event.delete({ where: { id } });
 
   revalidatePath("/events");
-  revalidatePath("/analytics");
+  revalidatePath("/presence");
 }

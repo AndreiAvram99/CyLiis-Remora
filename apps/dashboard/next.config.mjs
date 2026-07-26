@@ -2,7 +2,12 @@
 const nextConfig = {
   reactStrictMode: true,
   transpilePackages: ["@repo/db", "@repo/shared"],
-  serverExternalPackages: ["@prisma/client", ".prisma/client", "googleapis"],
+  serverExternalPackages: [
+    "@prisma/client",
+    ".prisma/client",
+    "googleapis",
+    "pdfkit",
+  ],
   eslint: {
     ignoreDuringBuilds: true,
   },

@@ -3,12 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@repo/db";
 import { offsetLabel } from "@repo/shared";
-import { requireAdmin } from "@/lib/session";
+import { assertManager } from "@/lib/session";
 import { env } from "@/lib/env";
 import { settingsSchema, type SettingsValues } from "@/lib/validation";
 
 export async function updateSettings(input: SettingsValues) {
-  await requireAdmin();
+  await assertManager();
   const values = settingsSchema.parse(input);
   const guildId = env.guildId();
 

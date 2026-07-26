@@ -1,9 +1,9 @@
-# Kali — Discord Events & Meetings Manager
+# CyLiis Remora — Discord Events & Meetings Manager
 
-**Kali turns a busy Discord server into an organized, calendar-driven community.**
+**CyLiis Remora turns a busy Discord server into an organized, calendar-driven community.**
 Plan meetings and events from a clean web dashboard, let a bot handle the
 reminders in the right channels at the right time, keep everything mirrored in
-Google Calendar, and actually _measure_ whether people show up.
+Google Calendar, and see exactly which members show up.
 
 ## Why this exists
 
@@ -14,15 +14,15 @@ measure. Different things also need different lead times: a stand-up meeting
 needs a nudge **15 minutes** before, while a festival or workshop needs a heads-up
 **days** in advance.
 
-Kali fixes this by separating _planning_ from _delivery_:
+CyLiis Remora fixes this by separating _planning_ from _delivery_:
 
 - You **plan once** in a dashboard (what, when, which channel, how far ahead to
   remind).
 - The bot **delivers reliably** — posting announcements and timed reminders,
   collecting RSVPs, and creating native Discord events — without anyone lifting a
   finger.
-- You **learn from it** — a per-event outreach view shows reach and engagement so
-  you can see what actually landed.
+- You **see who's in** — a per-event Presence view lists exactly which members
+  are going, interested, or can't make it.
 
 ## What makes it different
 
@@ -33,9 +33,9 @@ Kali fixes this by separating _planning_ from _delivery_:
   reminders can even be redirected to a different channel.
 - **Two-way visibility.** Events are mirrored to Google Calendar so they show up
   in everyone's normal calendar app, not just in Discord.
-- **Built-in outreach analytics.** RSVP buttons + native Discord Scheduled Events
-  feed an engagement dashboard, so "did anyone care?" becomes a number instead of
-  a guess.
+- **Named presence tracking.** RSVP buttons + native Discord Scheduled Events
+  feed a Presence tab that lists the actual members participating in each event —
+  not just counts, but names.
 - **A design that can't drift.** The dashboard is the single source of truth and
   the only writer; the bot is the only actor. They never call each other — they
   meet in the database. That makes the system easy to reason about, cheap to host,
@@ -49,9 +49,9 @@ Kali fixes this by separating _planning_ from _delivery_:
 | Reminders | Unlimited reminders per event, `minutes` / `hours` / `days` lead times, per-type defaults |
 | Announcements | Optional instant announcement post with RSVP buttons on save |
 | Google Calendar | Automatic create/update/delete sync via a service account |
-| Outreach | Going / Interested / Can't tallies, Discord "interested" count, engagement % vs member count |
+| Presence | Per-event list of who is going / interested / can't, by member name |
 | Reliability | Delivery status per reminder (sent / pending / failed), idempotent polling scheduler |
-| Access control | Discord OAuth login restricted to an admin allowlist |
+| Access control | Login limited to server members; an `Event Manager` role grants full management, everyone else is view-only |
 
 ## Architecture
 
@@ -65,7 +65,7 @@ Dashboard (Next.js)  --writes-->  Postgres  <--reads--  Worker (discord.js + sch
      +--> Google Calendar API                                +--> Discord channels / scheduled events
 ```
 
-- `apps/dashboard` - Next.js dashboard (events CRUD, settings, outreach), Discord
+- `apps/dashboard` - Next.js dashboard (events CRUD, settings, presence), Discord
   OAuth login, Google Calendar sync.
 - `apps/worker` - discord.js bot: syncs channels, posts reminders/announcements,
   handles RSVP buttons, creates Discord Scheduled Events, and runs the polling
@@ -84,8 +84,9 @@ Dashboard (Next.js)  --writes-->  Postgres  <--reads--  Worker (discord.js + sch
   passed is delivered to its channel with an embed and RSVP buttons, then marked
   `SENT`.
 - RSVP button clicks are stored per user and shown live on the message and in the
-  **Outreach** tab. Each event also gets a native Discord Scheduled Event so you
-  benefit from Discord's built-in "interested" count and notifications.
+  **Presence** tab, which lists exactly which members are going / interested /
+  can't for each event. Each event also gets a native Discord Scheduled Event so
+  you benefit from Discord's built-in "interested" count and notifications.
 
 ## 1. Discord app setup
 
@@ -104,8 +105,19 @@ Dashboard (Next.js)  --writes-->  Postgres  <--reads--  Worker (discord.js + sch
 6. Get your **server (guild) id** (enable Developer Mode -> right-click server ->
    Copy Server ID) -> `DISCORD_GUILD_ID`.
 7. Get your own **user id** (right-click yourself -> Copy User ID) ->
-   `ADMIN_DISCORD_IDS` (comma-separated for multiple admins). Only these users
-   can log into the dashboard.
+   `ADMIN_DISCORD_IDS` (comma-separated). These users are always full managers.
+
+### Access control
+
+- **Login is limited to members of your server.** At sign-in the app checks
+  membership via the Discord OAuth `guilds.members.read` scope (no extra setup —
+  NextAuth requests it automatically). Non-members are rejected.
+- **Create a role named `Event Manager`** in your Discord server. Members with
+  that role (plus anyone in `ADMIN_DISCORD_IDS`) can create/edit/delete events
+  and change settings. All other members can log in but only **view** Events and
+  Presence.
+- The role is matched by name using the bot token. To use a different name set
+  `MANAGER_ROLE_NAME`, or pin exact ids with `MANAGER_ROLE_ID`.
 
 ## 2. Google Calendar setup (service account)
 
@@ -173,18 +185,23 @@ Steps:
 
 See [`.env.example`](.env.example) for the full annotated list.
 
-## Outreach measurement
+## Presence tracking
 
 - **RSVP buttons** (Going / Interested / Can't) on every announcement and
-  reminder, tallied per user.
-- **Discord Scheduled Events** created per event for native interest tracking and
-  notifications; the "interested" count is snapshotted into the dashboard.
-- **Engagement %** on the Outreach tab = (unique RSVPs + Discord interested) /
-  server member count.
+  reminder record each member's response.
+- The **Presence** tab lists, per event, exactly which members are going,
+  interested, or can't make it — by name, not just counts.
+- **Managers can correct presence.** If a member's RSVP doesn't match reality, a
+  manager can change their status or remove them directly from the Presence tab;
+  admin-adjusted entries are flagged.
+- **Discord Scheduled Events** are created per event for native interest tracking
+  and notifications.
 - **Reminder delivery status** (sent / pending / failed) is tracked per reminder.
+- **PDF export.** Download a presence report for a single event or for all events
+  straight from the Presence tab (`Export all (PDF)` / per-event `PDF` link).
 
-Ideas to extend: a post-event attendance poll, and a link-redirect service to
-measure click-through on event links.
+Ideas to extend: a post-event "who actually attended" check-in, and importing
+participation from Discord voice-channel presence during the event.
 
 ## Useful scripts
 

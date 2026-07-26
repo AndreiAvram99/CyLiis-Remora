@@ -4,6 +4,7 @@ import { prisma, RsvpStatus } from "@repo/db";
 import { Badge, Button, Card } from "@/components/ui";
 import { getGuild } from "@/lib/guild";
 import { env } from "@/lib/env";
+import { getSession } from "@/lib/session";
 import { formatInTz, relativeTo } from "@/lib/time";
 import { DeleteEventButton } from "./delete-button";
 
@@ -17,6 +18,8 @@ const KIND_STYLES: Record<string, string> = {
 
 export default async function EventsPage() {
   const guild = await getGuild();
+  const session = await getSession();
+  const isManager = Boolean(session?.user?.isManager);
   const now = new Date();
 
   const events = await prisma.event.findMany({
@@ -47,11 +50,13 @@ export default async function EventsPage() {
             Times shown in {guild.timezone}.
           </p>
         </div>
-        <Link href="/events/new">
-          <Button>
-            <Plus size={16} /> New event
-          </Button>
-        </Link>
+        {isManager ? (
+          <Link href="/events/new">
+            <Button>
+              <Plus size={16} /> New event
+            </Button>
+          </Link>
+        ) : null}
       </div>
 
       <section className="space-y-3">
@@ -60,7 +65,7 @@ export default async function EventsPage() {
         </h2>
         {upcoming.length === 0 ? (
           <Card className="text-sm text-neutral-400">
-            No upcoming events. Create one to get started.
+            No upcoming events.{isManager ? " Create one to get started." : ""}
           </Card>
         ) : (
           upcoming.map((e) => {
@@ -78,12 +83,18 @@ export default async function EventsPage() {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <Badge className={KIND_STYLES[e.kind]}>{e.kind}</Badge>
-                    <Link
-                      href={`/events/${e.id}`}
-                      className="truncate text-lg font-medium hover:underline"
-                    >
-                      {e.title}
-                    </Link>
+                    {isManager ? (
+                      <Link
+                        href={`/events/${e.id}`}
+                        className="truncate text-lg font-medium hover:underline"
+                      >
+                        {e.title}
+                      </Link>
+                    ) : (
+                      <span className="truncate text-lg font-medium">
+                        {e.title}
+                      </span>
+                    )}
                   </div>
                   <div className="mt-1 text-sm text-neutral-300">
                     {formatInTz(e.startAt, guild.timezone)}{" "}
@@ -111,12 +122,14 @@ export default async function EventsPage() {
                     </span>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Link href={`/events/${e.id}`}>
-                    <Button variant="secondary">Edit</Button>
-                  </Link>
-                  <DeleteEventButton id={e.id} title={e.title} />
-                </div>
+                {isManager ? (
+                  <div className="flex items-center gap-2">
+                    <Link href={`/events/${e.id}`}>
+                      <Button variant="secondary">Edit</Button>
+                    </Link>
+                    <DeleteEventButton id={e.id} title={e.title} />
+                  </div>
+                ) : null}
               </Card>
             );
           })
@@ -137,18 +150,24 @@ export default async function EventsPage() {
                 className="flex items-center justify-between gap-4 opacity-70"
               >
                 <div className="min-w-0">
-                  <Link
-                    href={`/events/${e.id}`}
-                    className="truncate font-medium hover:underline"
-                  >
-                    {e.title}
-                  </Link>
+                  {isManager ? (
+                    <Link
+                      href={`/events/${e.id}`}
+                      className="truncate font-medium hover:underline"
+                    >
+                      {e.title}
+                    </Link>
+                  ) : (
+                    <span className="truncate font-medium">{e.title}</span>
+                  )}
                   <div className="text-xs text-neutral-500">
                     {formatInTz(e.startAt, guild.timezone)} ·{" "}
                     {e._count.rsvps} RSVPs
                   </div>
                 </div>
-                <DeleteEventButton id={e.id} title={e.title} />
+                {isManager ? (
+                  <DeleteEventButton id={e.id} title={e.title} />
+                ) : null}
               </Card>
             ))}
         </section>

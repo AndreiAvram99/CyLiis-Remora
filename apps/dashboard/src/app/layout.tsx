@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Event Reminder Dashboard",
+  title: "CyLiis Remora",
   description: "Schedule Discord events and reminders synced with Google Calendar.",
 };
 
