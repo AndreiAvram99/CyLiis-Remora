@@ -14,12 +14,19 @@ export const env = {
   guildId: () => required("DISCORD_GUILD_ID"),
   discordClientId: () => required("DISCORD_CLIENT_ID"),
   discordClientSecret: () => required("DISCORD_CLIENT_SECRET"),
+  botToken: () => optional("DISCORD_BOT_TOKEN"),
   defaultTimezone: () => optional("DEFAULT_TIMEZONE", "Europe/Bucharest"),
   adminDiscordIds: () =>
     optional("ADMIN_DISCORD_IDS")
       .split(",")
       .map((s) => s.trim())
       .filter(Boolean),
+  managerRoleIds: () =>
+    optional("MANAGER_ROLE_ID")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean),
+  managerRoleName: () => optional("MANAGER_ROLE_NAME", "Event Manager"),
   googleCalendarEnabled: () =>
     optional("GOOGLE_CALENDAR_ENABLED", "true").toLowerCase() !== "false",
   googleCalendarId: () => optional("GOOGLE_CALENDAR_ID", "primary"),

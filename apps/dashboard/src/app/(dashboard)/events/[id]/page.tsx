@@ -3,6 +3,7 @@ import { prisma, ReminderStatus } from "@repo/db";
 import type { EventKindName } from "@repo/shared";
 import { getGuild, getTextChannels } from "@/lib/guild";
 import { getKindDefaults } from "@/lib/defaults";
+import { requireManager } from "@/lib/session";
 import { dateToLocalInput } from "@/lib/time";
 import { EventForm, type EventFormInitial } from "../event-form";
 
@@ -13,6 +14,7 @@ export default async function EditEventPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  await requireManager();
   const { id } = await params;
   const [guild, channels, kindDefaults, event] = await Promise.all([
     getGuild(),

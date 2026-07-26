@@ -8,7 +8,8 @@ declare module "next-auth" {
       email?: string | null;
       image?: string | null;
       discordId?: string;
-      isAdmin?: boolean;
+      isMember?: boolean;
+      isManager?: boolean;
     };
   }
 }
@@ -17,5 +18,7 @@ declare module "next-auth/jwt" {
   interface JWT {
     discordId?: string;
     discordName?: string;
+    isMember?: boolean;
+    isManager?: boolean;
   }
 }

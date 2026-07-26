@@ -126,15 +126,16 @@ model ReminderDefault {
   @@index([guildId, kind])
 }
 
-/// RSVP state per user per event, driven by Discord buttons (outreach tracking).
+/// RSVP state per user per event, driven by Discord buttons (presence tracking).
 model Rsvp {
-  id        String     @id @default(cuid())
-  eventId   String
-  userId    String // Discord user id
-  username  String?
-  status    RsvpStatus
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  id           String     @id @default(cuid())
+  eventId      String
+  userId       String // Discord user id
+  username     String?
+  status       RsvpStatus
+  overriddenBy String? // Discord id of the manager who last corrected this
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
 
   event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
 

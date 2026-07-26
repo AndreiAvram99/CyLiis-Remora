@@ -26,6 +26,7 @@
     "@prisma/client": "^6.2.1"
   },
   "devDependencies": {
+    "embedded-postgres": "^18.4.0-beta.17",
     "prisma": "^6.2.1",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2"
