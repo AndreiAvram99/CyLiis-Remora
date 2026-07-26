@@ -1,0 +1,28 @@
+{
+  "name": "discord-calendar-bot",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "db:generate": "npm run generate -w @repo/db",
+    "db:migrate": "npm run migrate -w @repo/db",
+    "db:deploy": "npm run deploy -w @repo/db",
+    "db:seed": "npm run seed -w @repo/db",
+    "dev:dashboard": "npm run dev -w @repo/dashboard",
+    "dev:worker": "npm run dev -w @repo/worker",
+    "build": "npm run db:generate && npm run build -w @repo/dashboard && npm run build -w @repo/worker",
+    "build:dashboard": "npm run db:generate && npm run build -w @repo/dashboard",
+    "build:worker": "npm run db:generate && npm run build -w @repo/worker",
+    "start:dashboard": "npm run start -w @repo/dashboard",
+    "start:worker": "npm run start -w @repo/worker"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2"
+  }
+}

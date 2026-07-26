@@ -1,0 +1,70 @@
+# Render blueprint: 1 Postgres, 1 Web Service (dashboard), 1 Background Worker.
+# Docs: https://render.com/docs/blueprint-spec
+
+databases:
+  - name: discord-cal-db
+    databaseName: discordcal
+    plan: basic-256mb
+
+envVarGroups:
+  - name: discord-cal-shared
+    envVars:
+      - key: DISCORD_GUILD_ID
+        sync: false
+      - key: DISCORD_BOT_TOKEN
+        sync: false
+      - key: DISCORD_CLIENT_ID
+        sync: false
+      - key: DISCORD_CLIENT_SECRET
+        sync: false
+      - key: DEFAULT_TIMEZONE
+        value: Europe/Bucharest
+      - key: GOOGLE_SERVICE_ACCOUNT_JSON
+        sync: false
+      - key: GOOGLE_CALENDAR_ID
+        sync: false
+      - key: GOOGLE_CALENDAR_ENABLED
+        value: "true"
+
+services:
+  - type: web
+    name: discord-cal-dashboard
+    runtime: node
+    plan: starter
+    # --include=dev so prisma / typescript / next are available at build time
+    # even though NODE_ENV=production.
+    buildCommand: npm install --include=dev && npm run build:dashboard
+    preDeployCommand: npm run db:deploy && npm run db:seed
+    startCommand: npm run start:dashboard
+    healthCheckPath: /api/health
+    envVars:
+      - fromGroup: discord-cal-shared
+      - key: DATABASE_URL
+        fromDatabase:
+          name: discord-cal-db
+          property: connectionString
+      - key: NEXTAUTH_URL
+        sync: false
+      - key: NEXTAUTH_SECRET
+        generateValue: true
+      - key: ADMIN_DISCORD_IDS
+        sync: false
+      - key: NODE_ENV
+        value: production
+
+  - type: worker
+    name: discord-cal-worker
+    runtime: node
+    plan: starter
+    buildCommand: npm install --include=dev && npm run build:worker
+    startCommand: npm run start:worker
+    envVars:
+      - fromGroup: discord-cal-shared
+      - key: DATABASE_URL
+        fromDatabase:
+          name: discord-cal-db
+          property: connectionString
+      - key: REMINDER_POLL_SECONDS
+        value: "30"
+      - key: NODE_ENV
+        value: production

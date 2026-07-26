@@ -1,0 +1,24 @@
+{
+  "name": "@repo/worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc --noEmit -p tsconfig.json",
+    "start": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "@repo/db": "*",
+    "@repo/shared": "*",
+    "discord.js": "^14.16.3",
+    "dotenv": "^16.4.7",
+    "luxon": "^3.5.0",
+    "tsx": "^4.19.2"
+  },
+  "devDependencies": {
+    "@types/luxon": "^3.4.2",
+    "@types/node": "^22.10.2",
+    "typescript": "^5.7.2"
+  }
+}
