@@ -13,8 +13,14 @@ export const dynamic = "force-dynamic";
 interface Person {
   userId: string;
   username: string | null;
+  displayName: string | null;
+  avatarUrl: string | null;
   status: RsvpStatus;
   overriddenBy: string | null;
+}
+
+function displayNameOf(p: Person): string {
+  return p.displayName || p.username || p.userId;
 }
 
 const KIND_STYLES: Record<string, string> = {
@@ -38,14 +44,45 @@ function initials(name: string): string {
   return name.slice(0, 2).toUpperCase();
 }
 
-function MemberChip({ name }: { name: string }) {
+/** The member's Discord avatar, or their initials when we don't have one. */
+function MemberAvatar({
+  name,
+  avatarUrl,
+}: {
+  name: string;
+  avatarUrl?: string | null;
+}) {
+  if (avatarUrl) {
+    // eslint-disable-next-line @next/next/no-img-element
+    return (
+      <img
+        src={avatarUrl}
+        alt={name}
+        width={24}
+        height={24}
+        className="h-6 w-6 shrink-0 rounded-full object-cover"
+      />
+    );
+  }
+  return (
+    <span
+      className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold ${AVATAR_NEUTRAL}`}
+    >
+      {initials(name)}
+    </span>
+  );
+}
+
+function MemberChip({
+  name,
+  avatarUrl,
+}: {
+  name: string;
+  avatarUrl?: string | null;
+}) {
   return (
     <span className="flex max-w-full items-center gap-2 rounded-full border border-neutral-800 bg-neutral-950 py-1 pl-1 pr-3 text-sm">
-      <span
-        className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold ${AVATAR_NEUTRAL}`}
-      >
-        {initials(name)}
-      </span>
+      <MemberAvatar name={name} avatarUrl={avatarUrl} />
       <span className="min-w-0 truncate">{name}</span>
     </span>
   );
@@ -82,12 +119,17 @@ function Group({
                 key={p.userId}
                 eventId={eventId}
                 userId={p.userId}
-                name={p.username ?? p.userId}
+                name={displayNameOf(p)}
+                avatarUrl={p.avatarUrl}
                 status={p.status as RsvpStatusName}
                 overridden={Boolean(p.overriddenBy)}
               />
             ) : (
-              <MemberChip key={p.userId} name={p.username ?? p.userId} />
+              <MemberChip
+                key={p.userId}
+                name={displayNameOf(p)}
+                avatarUrl={p.avatarUrl}
+              />
             ),
           )}
         </div>
@@ -110,10 +152,12 @@ export default async function PresencePage() {
         select: {
           userId: true,
           username: true,
+          displayName: true,
+          avatarUrl: true,
           status: true,
           overriddenBy: true,
         },
-        orderBy: { username: "asc" },
+        orderBy: { displayName: "asc" },
       },
     },
   });

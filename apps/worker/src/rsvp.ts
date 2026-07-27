@@ -19,6 +19,38 @@ import {
 import { env } from "./env.js";
 import { buildEventEmbed, emptyCounts, type RsvpCounts } from "./messages.js";
 
+interface MemberIdentity {
+  username: string;
+  displayName: string;
+  avatarUrl: string;
+}
+
+/**
+ * Resolve the member's guild display name (nickname → global name → username)
+ * and avatar. Falls back to the plain user if the member fetch fails.
+ */
+async function resolveIdentity(
+  interaction: ButtonInteraction | ModalSubmitInteraction,
+): Promise<MemberIdentity> {
+  const user = interaction.user;
+  const identity: MemberIdentity = {
+    username: user.username,
+    displayName: user.globalName ?? user.username,
+    avatarUrl: user.displayAvatarURL({ size: 64 }),
+  };
+  try {
+    const guild =
+      interaction.guild ??
+      (await interaction.client.guilds.fetch(env.guildId()));
+    const member = await guild.members.fetch(user.id);
+    identity.displayName = member.displayName;
+    identity.avatarUrl = member.displayAvatarURL({ size: 64 });
+  } catch {
+    // Keep the user-level fallback.
+  }
+  return identity;
+}
+
 export async function getRsvpCounts(eventId: string): Promise<RsvpCounts> {
   const grouped = await prisma.rsvp.groupBy({
     by: ["status"],
@@ -71,16 +103,25 @@ export async function handleRsvpButton(interaction: ButtonInteraction) {
     return;
   }
 
+  const identity = await resolveIdentity(interaction);
   await prisma.rsvp.upsert({
     where: { eventId_userId: { eventId, userId: interaction.user.id } },
     create: {
       eventId,
       userId: interaction.user.id,
-      username: interaction.user.username,
+      username: identity.username,
+      displayName: identity.displayName,
+      avatarUrl: identity.avatarUrl,
       status,
     },
     // Switching away from "Motivation" clears any previous reason.
-    update: { status, username: interaction.user.username, note: null },
+    update: {
+      status,
+      username: identity.username,
+      displayName: identity.displayName,
+      avatarUrl: identity.avatarUrl,
+      note: null,
+    },
   });
 
   const counts = await getRsvpCounts(eventId);
@@ -119,18 +160,23 @@ export async function handleMotivationModal(
     interaction.fields.getTextInputValue(MOTIVATION_INPUT_ID).trim() ||
     "(no reason given)";
 
+  const identity = await resolveIdentity(interaction);
   await prisma.rsvp.upsert({
     where: { eventId_userId: { eventId, userId: interaction.user.id } },
     create: {
       eventId,
       userId: interaction.user.id,
-      username: interaction.user.username,
+      username: identity.username,
+      displayName: identity.displayName,
+      avatarUrl: identity.avatarUrl,
       status: "MOTIVATED",
       note: reason,
     },
     update: {
       status: "MOTIVATED",
-      username: interaction.user.username,
+      username: identity.username,
+      displayName: identity.displayName,
+      avatarUrl: identity.avatarUrl,
       note: reason,
     },
   });
