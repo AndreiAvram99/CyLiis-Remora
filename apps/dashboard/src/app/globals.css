@@ -2,11 +2,88 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Theme tokens. The default (:root) is the LIGHT theme; adding the `.dark`
+ * class on <html> switches to the DARK theme. Every neutral and palette
+ * utility resolves through these RGB-channel variables, so the whole app
+ * flips theme by toggling a single class. The accent (--brand) is chosen
+ * per-user and is theme-independent.
+ */
 :root {
+  color-scheme: light;
+  /* Clean light-blue palette. */
+  --brand: #3b82f6; /* primary accent */
+  --brand-fg: #ffffff;
+
+  /* Dark-gray typography (inks) for readability on light surfaces. */
+  --n-50: 15 23 42;
+  --n-100: 31 41 55; /* primary text */
+  --n-200: 51 65 85;
+  --n-300: 71 85 105; /* secondary text */
+  --n-400: 100 116 139;
+  --n-500: 113 128 150; /* muted */
+  --n-600: 148 163 184; /* disabled */
+
+  /* White base with soft blue-tinted cards/sections. */
+  --n-700: 224 234 250; /* subtle fills */
+  --n-800: 232 240 254; /* hover / neutral fill */
+  --n-900: 245 249 255; /* cards #F5F9FF */
+  --n-950: 255 255 255; /* white surface (chips, cells) */
+
+  /* Status colors adapted for light mode: blue / amber / yellow. */
+  --pal-sky: 59 130 246; /* light blue */
+  --pal-azure: 37 99 235; /* blue */
+  --pal-navy: 32 48 71;
+  --pal-sun: 202 138 4; /* yellow */
+  --pal-flame: 217 119 6; /* amber */
+
+  --nav: 255 255 255; /* navbar white */
+  --input: 255 255 255; /* inputs white */
+  --line: 214 230 255; /* light borders #D6E6FF */
+  --hairline: 32 48 71; /* legacy */
+
+  /* Subtle shadow for depth (blue-tinted, soft). */
+  --shadow-card: 0 8px 24px rgba(30, 58, 138, 0.1);
+
+  --bg-base: #ffffff; /* white page */
+}
+
+.dark {
   color-scheme: dark;
-  /* Default accent from the palette (sky blue). Overridden per-user at runtime. */
-  --brand: #8ecae6;
-  --brand-fg: #023047;
+
+  /*
+   * Dark theme — premium SaaS palette (Linear/Vercel/GitHub-dark inspired).
+   * Surfaces climb 950 (app bg) -> 900 (cards) -> 800 (elevated/hover rows)
+   * -> 700 (hover). Text uses 100 (primary) -> 300 (secondary) -> 500 (muted)
+   * -> 600 (disabled).
+   */
+  --n-50: 255 255 255;
+  --n-100: 245 248 251; /* primary text  #F5F8FB */
+  --n-200: 205 221 234;
+  --n-300: 168 195 216; /* secondary text #A8C3D8 */
+  --n-400: 143 171 192;
+  --n-500: 115 148 172; /* muted / metadata #7394AC */
+  --n-600: 90 114 133; /* disabled #5A7285 */
+  --n-700: 10 30 50; /* quiet elevated */
+  --n-800: 16 38 58; /* card hover / neutral fill */
+  --n-900: 4 20 38; /* cards (solid) — matches the reference image */
+  --n-950: 1 15 29; /* app background (solid) — matches the reference image */
+
+  --pal-sky: 138 202 232; /* light blue #8ACAE8 */
+  --pal-azure: 32 158 219; /* primary blue #209EDB */
+  --pal-navy: 32 48 71; /* #203047 */
+  --pal-sun: 255 226 1; /* yellow #FFE201 */
+  --pal-flame: 252 165 12; /* orange #FCA50C */
+
+  /* Special surfaces + hairline (dark theme). */
+  --nav: 2 13 26; /* navbar — matches the reference image */
+  --input: 1 12 24; /* inputs — inset, a touch darker than cards */
+  --hairline: 138 202 232; /* legacy */
+  --line: 24 44 64; /* subtle solid border over dark cards */
+
+  --shadow-card: 0 12px 32px rgba(0, 0, 0, 0.35);
+
+  --bg-base: #010f1d;
 }
 
 html,
@@ -16,19 +93,8 @@ body {
 }
 
 body {
-  @apply text-neutral-100 antialiased;
+  @apply font-sans text-neutral-100 antialiased;
   min-height: 100vh;
-  background:
-    radial-gradient(
-      1100px 560px at 15% -10%,
-      color-mix(in srgb, var(--brand) 16%, transparent),
-      transparent 60%
-    ),
-    radial-gradient(
-      900px 480px at 100% 0%,
-      rgba(252, 133, 0, 0.07),
-      transparent 55%
-    ),
-    #021620;
-  background-attachment: fixed;
+  /* Solid app background — no translucent wash, so surfaces read cleanly. */
+  background-color: var(--bg-base);
 }

@@ -6,7 +6,7 @@ export function LoginButton() {
   return (
     <button
       onClick={() => signIn("discord", { callbackUrl: "/events" })}
-      className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand px-4 py-3 font-medium text-brand-fg transition hover:opacity-90"
+      className="flex h-12 w-full items-center justify-center gap-2 rounded-[14px] bg-brand font-medium text-brand-fg shadow-soft transition hover:brightness-110"
     >
       <svg
         width="20"

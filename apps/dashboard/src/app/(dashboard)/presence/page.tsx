@@ -23,33 +23,31 @@ const KIND_STYLES: Record<string, string> = {
   CUSTOM: "bg-palette-flame/20 text-palette-flame",
 };
 
-const AVATAR_COLORS = [
-  "bg-palette-sky/20 text-palette-sky",
-  "bg-palette-sky/30 text-palette-sky",
-  "bg-palette-sun/20 text-palette-sun",
-  "bg-palette-flame/20 text-palette-flame",
-  "bg-palette-sky/15 text-palette-sky",
-];
+// Avatars stay neutral (understated); status is conveyed by the column header
+// color + dot, per the design system's "minimal use of color" rule.
+export const AVATAR_NEUTRAL =
+  "bg-neutral-800 text-neutral-300";
 
-function colorFor(key: string): string {
-  let hash = 0;
-  for (let i = 0; i < key.length; i++) hash = (hash * 31 + key.charCodeAt(i)) | 0;
-  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
-}
+// Status accents used for the group headers and dots.
+const STATUS_TONE: Record<string, { text: string; dot: string }> = {
+  GOING: { text: "text-palette-azure", dot: "bg-palette-azure" },
+  NO: { text: "text-palette-flame", dot: "bg-palette-flame" },
+  MOTIVATED: { text: "text-palette-sun", dot: "bg-palette-sun" },
+};
 
 function initials(name: string): string {
   return name.slice(0, 2).toUpperCase();
 }
 
-function MemberChip({ name, userId }: { name: string; userId: string }) {
+function MemberChip({ name }: { name: string }) {
   return (
-    <span className="flex items-center gap-2 rounded-full border border-neutral-800 bg-neutral-950 py-1 pl-1 pr-3 text-sm">
+    <span className="flex max-w-full items-center gap-2 rounded-full border border-neutral-800 bg-neutral-950 py-1 pl-1 pr-3 text-sm">
       <span
-        className={`flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-semibold ${colorFor(userId)}`}
+        className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold ${AVATAR_NEUTRAL}`}
       >
         {initials(name)}
       </span>
-      {name}
+      <span className="min-w-0 truncate">{name}</span>
     </span>
   );
 }
@@ -57,20 +55,22 @@ function MemberChip({ name, userId }: { name: string; userId: string }) {
 function Group({
   title,
   people,
-  tone,
+  statusKey,
   eventId,
   isManager,
 }: {
   title: string;
   people: Person[];
-  tone: string;
+  statusKey: keyof typeof STATUS_TONE;
   eventId: string;
   isManager: boolean;
 }) {
+  const tone = STATUS_TONE[statusKey];
   return (
     <div>
-      <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide">
-        <span className={tone}>{title}</span>
+      <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide">
+        <span className={`h-2 w-2 rounded-full ${tone.dot}`} />
+        <span className={tone.text}>{title}</span>
         <span className="text-neutral-600">{people.length}</span>
       </div>
       {people.length === 0 ? (
@@ -88,11 +88,7 @@ function Group({
                 overridden={Boolean(p.overriddenBy)}
               />
             ) : (
-              <MemberChip
-                key={p.userId}
-                userId={p.userId}
-                name={p.username ?? p.userId}
-              />
+              <MemberChip key={p.userId} name={p.username ?? p.userId} />
             ),
           )}
         </div>
@@ -136,10 +132,12 @@ export default async function PresencePage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold">Presence</h1>
-          <p className="text-sm text-neutral-400">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="space-y-1">
+          <h1 className="text-3xl font-bold tracking-tight sm:text-[38px] sm:leading-tight">
+            Presence
+          </h1>
+          <p className="max-w-2xl text-sm text-neutral-500">
             Who from the server is participating in each event.
             {isManager
               ? " You can correct a member's status or remove them; adjusted entries are marked."
@@ -189,13 +187,13 @@ export default async function PresencePage() {
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-2xl font-semibold text-palette-sky">
+                  <div className="text-2xl font-semibold text-palette-azure">
                     {participating}
                   </div>
                   <div className="text-xs text-neutral-500">participating</div>
                   <a
                     href={`/api/presence/pdf?eventId=${e.id}`}
-                    className="mt-1 inline-flex items-center gap-1 text-xs text-neutral-400 hover:text-white"
+                    className="mt-1 inline-flex items-center gap-1 text-xs text-neutral-400 hover:text-neutral-100"
                   >
                     <FileDown size={12} /> PDF
                   </a>
@@ -212,21 +210,21 @@ export default async function PresencePage() {
                   <Group
                     title="Going"
                     people={going}
-                    tone="text-palette-sky"
+                    statusKey="GOING"
                     eventId={e.id}
                     isManager={isManager}
                   />
                   <Group
                     title="Can't make it"
                     people={cant}
-                    tone="text-palette-flame"
+                    statusKey="NO"
                     eventId={e.id}
                     isManager={isManager}
                   />
                   <Group
                     title="Motivation"
                     people={motivated}
-                    tone="text-palette-sun"
+                    statusKey="MOTIVATED"
                     eventId={e.id}
                     isManager={isManager}
                   />

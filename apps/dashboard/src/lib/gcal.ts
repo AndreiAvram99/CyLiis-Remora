@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { google, type calendar_v3 } from "googleapis";
 import { env } from "./env";
 
@@ -11,7 +12,39 @@ export interface CalendarEventInput {
   timezone: string;
 }
 
+/** A normalized calendar entry pulled from Google, for display in the app. */
+export interface CalendarItem {
+  id: string;
+  title: string;
+  description: string | null;
+  location: string | null;
+  start: Date;
+  end: Date | null;
+  allDay: boolean;
+  htmlLink: string | null;
+}
+
 let cached: calendar_v3.Calendar | null | undefined;
+
+/** Resolve the raw service-account JSON from either the inline env or a file. */
+function readServiceAccountJson(): string | null {
+  const inline = env.googleServiceAccountJson();
+  if (inline) {
+    return inline.trim().startsWith("{")
+      ? inline
+      : Buffer.from(inline, "base64").toString("utf8");
+  }
+  const file = env.googleServiceAccountFile();
+  if (file) {
+    try {
+      return readFileSync(file, "utf8");
+    } catch (err) {
+      console.error("[gcal] Failed to read service account file:", err);
+      return null;
+    }
+  }
+  return null;
+}
 
 function getCalendar(): calendar_v3.Calendar | null {
   if (cached !== undefined) return cached;
@@ -20,16 +53,13 @@ function getCalendar(): calendar_v3.Calendar | null {
     cached = null;
     return cached;
   }
-  const raw = env.googleServiceAccountJson();
-  if (!raw) {
+  const json = readServiceAccountJson();
+  if (!json) {
     cached = null;
     return cached;
   }
 
   try {
-    const json = raw.trim().startsWith("{")
-      ? raw
-      : Buffer.from(raw, "base64").toString("utf8");
     const creds = JSON.parse(json) as {
       client_email: string;
       private_key: string;
@@ -109,6 +139,57 @@ export async function deleteCalendarEvent(eventId: string): Promise<void> {
     });
   } catch (err) {
     console.error("[gcal] delete failed (ignored):", err);
+  }
+}
+
+function toCalendarItem(e: calendar_v3.Schema$Event): CalendarItem | null {
+  const startRaw = e.start?.dateTime ?? e.start?.date;
+  if (!startRaw || !e.id) return null;
+  const allDay = !e.start?.dateTime;
+  const endRaw = e.end?.dateTime ?? e.end?.date ?? null;
+  return {
+    id: e.id,
+    title: e.summary?.trim() || "(no title)",
+    description: e.description ?? null,
+    location: e.location ?? null,
+    start: new Date(startRaw),
+    end: endRaw ? new Date(endRaw) : null,
+    allDay,
+    htmlLink: e.htmlLink ?? null,
+  };
+}
+
+/**
+ * Pull upcoming events from the connected Google Calendar so they can be
+ * shown directly in the app. Returns an empty list if calendar sync is off
+ * or the request fails (never throws).
+ */
+export async function listCalendarEvents(options?: {
+  timeMin?: Date;
+  timeMax?: Date;
+  maxResults?: number;
+}): Promise<CalendarItem[]> {
+  const cal = getCalendar();
+  if (!cal) return [];
+  const timeMin = options?.timeMin ?? new Date();
+  const timeMax =
+    options?.timeMax ??
+    new Date(timeMin.getTime() + 90 * 24 * 60 * 60 * 1000);
+  try {
+    const res = await cal.events.list({
+      calendarId: env.googleCalendarId(),
+      timeMin: timeMin.toISOString(),
+      timeMax: timeMax.toISOString(),
+      singleEvents: true,
+      orderBy: "startTime",
+      maxResults: options?.maxResults ?? 50,
+    });
+    return (res.data.items ?? [])
+      .map(toCalendarItem)
+      .filter((i): i is CalendarItem => i !== null);
+  } catch (err) {
+    console.error("[gcal] list failed:", err);
+    return [];
   }
 }
 

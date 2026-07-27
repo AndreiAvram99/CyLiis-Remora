@@ -14,8 +14,10 @@ export default async function NewEventPage() {
   ]);
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
-      <h1 className="text-2xl font-semibold">New event</h1>
+    <div className="mx-auto max-w-2xl space-y-8">
+      <h1 className="text-3xl font-bold tracking-tight sm:text-[38px] sm:leading-tight">
+        New schedule
+      </h1>
       <EventForm
         mode="create"
         channels={channels.map((c) => ({ id: c.id, name: c.name }))}
