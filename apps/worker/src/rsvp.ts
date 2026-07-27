@@ -96,6 +96,15 @@ export async function handleRsvpButton(interaction: ButtonInteraction) {
     return;
   }
 
+  // Responses close once it has started.
+  if (event.startAt.getTime() <= Date.now()) {
+    await interaction.reply({
+      content: "This has already started — responses are closed.",
+      flags: MessageFlags.Ephemeral,
+    });
+    return;
+  }
+
   // "Motivation" opens a modal so the member can explain their absence; the RSVP
   // is only recorded once they submit that form (see handleMotivationModal).
   if (status === "MOTIVATED") {
@@ -151,6 +160,15 @@ export async function handleMotivationModal(
   if (!event) {
     await interaction.reply({
       content: "This event no longer exists.",
+      flags: MessageFlags.Ephemeral,
+    });
+    return;
+  }
+
+  // Responses close once it has started (in case the modal was opened earlier).
+  if (event.startAt.getTime() <= Date.now()) {
+    await interaction.reply({
+      content: "This has already started — responses are closed.",
       flags: MessageFlags.Ephemeral,
     });
     return;
