@@ -77,6 +77,30 @@ function getCalendar(): calendar_v3.Calendar | null {
   return cached;
 }
 
+/**
+ * The calendar an event of the given kind should be pushed to. Uses the
+ * per-kind override when set, otherwise the shared GOOGLE_CALENDAR_ID.
+ */
+export function calendarIdForKind(kind: string): string {
+  const perKind: Record<string, string> = {
+    MEETING: env.googleCalendarIdMeeting(),
+    EVENT: env.googleCalendarIdEvent(),
+    CUSTOM: env.googleCalendarIdCustom(),
+  };
+  return perKind[kind] || env.googleCalendarId();
+}
+
+/** Every distinct calendar the app reads from (per-kind + the default). */
+function configuredCalendarIds(): string[] {
+  const ids = [
+    env.googleCalendarIdMeeting(),
+    env.googleCalendarIdEvent(),
+    env.googleCalendarIdCustom(),
+    env.googleCalendarId(),
+  ].filter(Boolean);
+  return [...new Set(ids)];
+}
+
 function toResource(input: CalendarEventInput): calendar_v3.Schema$Event {
   const end = input.endAt ?? new Date(input.startAt.getTime() + 60 * 60 * 1000);
   const descriptionParts = [input.description ?? ""];
@@ -90,15 +114,19 @@ function toResource(input: CalendarEventInput): calendar_v3.Schema$Event {
   };
 }
 
-/** Create a calendar event. Returns the Google event id, or null on failure. */
+/**
+ * Create a calendar event in the given calendar (defaults to GOOGLE_CALENDAR_ID).
+ * Returns the Google event id, or null on failure.
+ */
 export async function createCalendarEvent(
   input: CalendarEventInput,
+  calendarId: string = env.googleCalendarId(),
 ): Promise<string | null> {
   const cal = getCalendar();
   if (!cal) return null;
   try {
     const res = await cal.events.insert({
-      calendarId: env.googleCalendarId(),
+      calendarId,
       requestBody: toResource(input),
     });
     return res.data.id ?? null;
@@ -108,8 +136,9 @@ export async function createCalendarEvent(
   }
 }
 
-/** Update a calendar event. Returns true on success. */
+/** Update a calendar event in a specific calendar. Returns true on success. */
 export async function updateCalendarEvent(
+  calendarId: string,
   eventId: string,
   input: CalendarEventInput,
 ): Promise<boolean> {
@@ -117,7 +146,7 @@ export async function updateCalendarEvent(
   if (!cal) return false;
   try {
     await cal.events.update({
-      calendarId: env.googleCalendarId(),
+      calendarId,
       eventId,
       requestBody: toResource(input),
     });
@@ -128,15 +157,15 @@ export async function updateCalendarEvent(
   }
 }
 
-/** Delete a calendar event. Swallows 404/410 (already gone). */
-export async function deleteCalendarEvent(eventId: string): Promise<void> {
+/** Delete a calendar event from a specific calendar. Swallows 404/410. */
+export async function deleteCalendarEvent(
+  calendarId: string,
+  eventId: string,
+): Promise<void> {
   const cal = getCalendar();
   if (!cal) return;
   try {
-    await cal.events.delete({
-      calendarId: env.googleCalendarId(),
-      eventId,
-    });
+    await cal.events.delete({ calendarId, eventId });
   } catch (err) {
     console.error("[gcal] delete failed (ignored):", err);
   }
@@ -175,22 +204,29 @@ export async function listCalendarEvents(options?: {
   const timeMax =
     options?.timeMax ??
     new Date(timeMin.getTime() + 90 * 24 * 60 * 60 * 1000);
-  try {
-    const res = await cal.events.list({
-      calendarId: env.googleCalendarId(),
-      timeMin: timeMin.toISOString(),
-      timeMax: timeMax.toISOString(),
-      singleEvents: true,
-      orderBy: "startTime",
-      maxResults: options?.maxResults ?? 50,
-    });
-    return (res.data.items ?? [])
-      .map(toCalendarItem)
-      .filter((i): i is CalendarItem => i !== null);
-  } catch (err) {
-    console.error("[gcal] list failed:", err);
-    return [];
+
+  const byId = new Map<string, CalendarItem>();
+  for (const calendarId of configuredCalendarIds()) {
+    try {
+      const res = await cal.events.list({
+        calendarId,
+        timeMin: timeMin.toISOString(),
+        timeMax: timeMax.toISOString(),
+        singleEvents: true,
+        orderBy: "startTime",
+        maxResults: options?.maxResults ?? 50,
+      });
+      for (const raw of res.data.items ?? []) {
+        const item = toCalendarItem(raw);
+        if (item) byId.set(item.id, item);
+      }
+    } catch (err) {
+      console.error(`[gcal] list failed for ${calendarId}:`, err);
+    }
   }
+  return [...byId.values()].sort(
+    (a, b) => a.start.getTime() - b.start.getTime(),
+  );
 }
 
 export function isCalendarEnabled(): boolean {

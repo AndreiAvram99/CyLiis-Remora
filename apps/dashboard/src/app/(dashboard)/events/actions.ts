@@ -5,11 +5,13 @@ import { prisma, ReminderStatus, type Prisma } from "@repo/db";
 import { computeDueAt, offsetLabel } from "@repo/shared";
 import { assertManager } from "@/lib/session";
 import { getGuild } from "@/lib/guild";
+import { env } from "@/lib/env";
 import { localInputToDate } from "@/lib/time";
 import {
   createCalendarEvent,
   updateCalendarEvent,
   deleteCalendarEvent,
+  calendarIdForKind,
 } from "@/lib/gcal";
 import { eventFormSchema, type EventFormValues } from "@/lib/validation";
 
@@ -56,15 +58,19 @@ export async function createEvent(input: EventFormValues) {
     ? localInputToDate(values.endAt, guild.timezone)
     : null;
 
-  const gcalEventId = await createCalendarEvent({
-    title: values.title,
-    description: values.description,
-    location: values.location,
-    url: values.url || null,
-    startAt,
-    endAt,
-    timezone: guild.timezone,
-  });
+  const calendarId = calendarIdForKind(values.kind);
+  const gcalEventId = await createCalendarEvent(
+    {
+      title: values.title,
+      description: values.description,
+      location: values.location,
+      url: values.url || null,
+      startAt,
+      endAt,
+      timezone: guild.timezone,
+    },
+    calendarId,
+  );
 
   const event = await prisma.event.create({
     data: {
@@ -80,6 +86,7 @@ export async function createEvent(input: EventFormValues) {
       announceOnCreate: values.announceOnCreate,
       createdBy: session.user?.discordId,
       gcalEventId,
+      gcalCalendarId: gcalEventId ? calendarId : null,
       reminders: { create: buildReminderCreates(startAt, values) },
     },
   });
@@ -101,16 +108,35 @@ export async function updateEvent(id: string, input: EventFormValues) {
     ? localInputToDate(values.endAt, guild.timezone)
     : null;
 
+  const calInput = {
+    title: values.title,
+    description: values.description,
+    location: values.location,
+    url: values.url || null,
+    startAt,
+    endAt,
+    timezone: guild.timezone,
+  };
+  const targetCalendar = calendarIdForKind(values.kind);
+  let gcalEventId = existing.gcalEventId;
+  let gcalCalendarId = existing.gcalCalendarId;
+
   if (existing.gcalEventId) {
-    await updateCalendarEvent(existing.gcalEventId, {
-      title: values.title,
-      description: values.description,
-      location: values.location,
-      url: values.url || null,
-      startAt,
-      endAt,
-      timezone: guild.timezone,
-    });
+    // Where the event currently lives (old rows predate gcalCalendarId).
+    const currentCalendar = existing.gcalCalendarId ?? env.googleCalendarId();
+    if (currentCalendar !== targetCalendar) {
+      // The type changed, so it belongs in a different calendar now: move it.
+      await deleteCalendarEvent(currentCalendar, existing.gcalEventId);
+      gcalEventId = await createCalendarEvent(calInput, targetCalendar);
+      gcalCalendarId = gcalEventId ? targetCalendar : null;
+    } else {
+      await updateCalendarEvent(currentCalendar, existing.gcalEventId, calInput);
+      gcalCalendarId = currentCalendar;
+    }
+  } else {
+    // Never pushed (e.g. created while sync was off) — try now.
+    gcalEventId = await createCalendarEvent(calInput, targetCalendar);
+    gcalCalendarId = gcalEventId ? targetCalendar : null;
   }
 
   // Replace all not-yet-sent reminders; keep SENT ones for the audit trail.
@@ -130,6 +156,8 @@ export async function updateEvent(id: string, input: EventFormValues) {
         url: values.url || null,
         channelId: values.channelId,
         announceOnCreate: values.announceOnCreate,
+        gcalEventId,
+        gcalCalendarId,
         reminders: {
           create: buildReminderCreates(startAt, values).filter(
             // Don't re-announce on edit if it was already announced.
@@ -152,7 +180,8 @@ export async function deleteEvent(id: string) {
   if (!existing) return;
 
   if (existing.gcalEventId) {
-    await deleteCalendarEvent(existing.gcalEventId);
+    const calendarId = existing.gcalCalendarId ?? env.googleCalendarId();
+    await deleteCalendarEvent(calendarId, existing.gcalEventId);
   }
   // The worker reconciles/removes the matching Discord scheduled event.
   await prisma.event.delete({ where: { id } });

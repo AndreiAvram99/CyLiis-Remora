@@ -75,6 +75,7 @@ model Event {
   channelId               String // default target channel for announcements/reminders
   announceOnCreate        Boolean   @default(true)
   gcalEventId             String?
+  gcalCalendarId          String? // which Google calendar the event was pushed to
   discordScheduledEventId String?
   interestedCount         Int       @default(0) // snapshot of Discord "interested" count
   createdBy               String? // Discord user id of the admin who created it
