@@ -85,10 +85,11 @@ export function EditableMember({
         type="button"
         onClick={remove}
         disabled={isPending}
-        className="shrink-0 rounded-md p-1 text-neutral-500 hover:bg-neutral-800 hover:text-red-400"
+        className="shrink-0 rounded-md border border-[rgba(224,92,92,0.28)] p-1 text-[#E56D6D] transition hover:bg-[rgba(229,109,109,0.14)] hover:text-red-400"
         aria-label="Remove"
+        title="Remove"
       >
-        <X size={13} />
+        <X size={14} strokeWidth={2.5} />
       </button>
     </span>
   );
