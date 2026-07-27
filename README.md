@@ -51,7 +51,7 @@ CyLiis Remora fixes this by separating _planning_ from _delivery_:
 | Google Calendar | Automatic create/update/delete sync via a service account |
 | Presence | Per-event list of who is going / can't make it / motivation, by member name |
 | Reliability | Delivery status per reminder (sent / pending / failed), idempotent polling scheduler |
-| Access control | Login limited to server members; a `Remora` role grants full management, everyone else is view-only |
+| Access control | Login limited to server members; a `Remora-Admin` role grants full management, everyone else is view-only |
 
 ## Architecture
 
@@ -112,12 +112,14 @@ Dashboard (Next.js)  --writes-->  Postgres  <--reads--  Worker (discord.js + sch
 - **Login is limited to members of your server.** At sign-in the app checks
   membership via the Discord OAuth `guilds.members.read` scope (no extra setup —
   NextAuth requests it automatically). Non-members are rejected.
-- **Create a role named `Remora`** in your Discord server. Members with
+- **Create a role named `Remora-Admin`** in your Discord server. Members with
   that role (plus anyone in `ADMIN_DISCORD_IDS`) can create/edit/delete events
   and change settings. All other members can log in but only **view** Events and
-  Presence.
+  Presence. (Don't name it after the bot itself — Discord creates a managed
+  `Remora` role for the bot that the name lookup would collide with.)
 - The role is matched by name using the bot token. To use a different name set
-  `MANAGER_ROLE_NAME`, or pin exact ids with `MANAGER_ROLE_ID`.
+  `MANAGER_ROLE_NAME`, or pin exact ids with `MANAGER_ROLE_ID` (recommended —
+  immune to renames and name collisions).
 
 ## 2. Google Calendar setup (service account)
 

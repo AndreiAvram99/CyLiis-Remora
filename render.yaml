@@ -26,7 +26,7 @@ envVarGroups:
       - key: APOLOGY_CHANNEL_ID
         sync: false
       - key: MANAGER_ROLE_NAME
-        value: Remora
+        value: Remora-Admin
       - key: MANAGER_ROLE_ID
         sync: false
       - key: GOOGLE_SERVICE_ACCOUNT_JSON

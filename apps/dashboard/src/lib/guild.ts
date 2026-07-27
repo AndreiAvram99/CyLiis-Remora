@@ -12,12 +12,10 @@ export async function getGuild(): Promise<Guild> {
 }
 
 /**
- * Channels offered in the announcement/reminder pickers. We deliberately show
- * only the content channels (from the server's category screenshots) and hide
- * everything else (general chat, off-topic, apology channel, etc.). Override at
- * runtime with ALLOWED_CHANNEL_NAMES (comma-separated); empty uses this list.
+ * Channels shown in the picker by default. Set CHANNEL_ALLOWLIST to override.
+ * Names are matched case-insensitively against the synced Discord channels.
  */
-const DEFAULT_ALLOWED_CHANNELS = [
+const DEFAULT_CHANNEL_ALLOWLIST = [
   "announcements",
   "hardware",
   "robot-ideas-and-sketches",
@@ -29,18 +27,18 @@ const DEFAULT_ALLOWED_CHANNELS = [
   "sustenability",
   "branding",
   "pagination",
+  "andrei-fun",
 ];
 
-/** Text channels the bot has cached, filtered to the allowlist and ordered. */
+/** Text channels the bot has cached, filtered to the allowlist, for a picker. */
 export async function getTextChannels() {
+  const override = env.channelAllowlist();
+  const allow = new Set(override.length ? override : DEFAULT_CHANNEL_ALLOWLIST);
+
   const channels = await prisma.channel.findMany({
     where: { guildId: env.guildId(), isTextable: true, archived: false },
     orderBy: [{ position: "asc" }, { name: "asc" }],
   });
 
-  const override = env.allowedChannelNames();
-  const allowed = new Set(
-    override.length ? override : DEFAULT_ALLOWED_CHANNELS,
-  );
-  return channels.filter((c) => allowed.has(c.name.toLowerCase()));
+  return channels.filter((c) => allow.has(c.name.toLowerCase()));
 }

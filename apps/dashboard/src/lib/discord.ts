@@ -31,7 +31,7 @@ let cachedManagerRoleIds: string[] | null = null;
 
 /**
  * The role id(s) that grant management access. Uses MANAGER_ROLE_ID if set,
- * otherwise resolves MANAGER_ROLE_NAME (default "Remora") to an id via
+ * otherwise resolves MANAGER_ROLE_NAME (default "Remora-Admin") to an id via
  * the bot token. Cached for the process lifetime.
  */
 export async function resolveManagerRoleIds(): Promise<string[]> {
