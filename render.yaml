@@ -38,7 +38,7 @@ envVarGroups:
 
 services:
   - type: web
-    name: discord-cal-dashboard
+    name: cyremora
     runtime: node
     plan: starter
     # --include=dev so prisma / typescript / next are available at build time
