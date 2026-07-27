@@ -382,7 +382,7 @@ export function EventForm({
           {isPending
             ? "Saving..."
             : mode === "create"
-              ? "Create event"
+              ? "Create schedule"
               : "Save changes"}
         </Button>
         <Button
