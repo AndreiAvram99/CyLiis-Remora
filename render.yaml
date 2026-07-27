@@ -19,6 +19,12 @@ envVarGroups:
         sync: false
       - key: DEFAULT_TIMEZONE
         value: Europe/Bucharest
+      # Channel where "Motivation" (excused absence) reasons are posted. The bot
+      # looks it up by name; set APOLOGY_CHANNEL_ID to target a specific channel.
+      - key: APOLOGY_CHANNEL_NAME
+        value: chat-de-scuze
+      - key: APOLOGY_CHANNEL_ID
+        sync: false
       - key: MANAGER_ROLE_NAME
         value: Remora
       - key: MANAGER_ROLE_ID
