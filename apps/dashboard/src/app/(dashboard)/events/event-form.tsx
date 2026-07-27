@@ -10,6 +10,7 @@ import {
   type ReminderUnit,
 } from "@repo/shared";
 import { Button, Card, Input, Label, Select, Textarea } from "@/components/ui";
+import { channelEmoji } from "@/lib/channel-emoji";
 import { createEvent, updateEvent } from "./actions";
 
 interface ChannelOption {
@@ -221,7 +222,7 @@ export function EventForm({
             >
               {channels.map((c) => (
                 <option key={c.id} value={c.id}>
-                  #{c.name}
+                  {channelEmoji(c.name)} #{c.name}
                 </option>
               ))}
             </Select>
@@ -342,7 +343,7 @@ export function EventForm({
                   <option value="">same channel</option>
                   {channels.map((c) => (
                     <option key={c.id} value={c.id}>
-                      #{channelName.get(c.id) ?? c.id}
+                      {channelEmoji(c.name)} #{channelName.get(c.id) ?? c.id}
                     </option>
                   ))}
                 </Select>
