@@ -50,8 +50,10 @@ export default async function EditEventPage({
   };
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
-      <h1 className="text-2xl font-semibold">Edit event</h1>
+    <div className="mx-auto max-w-2xl space-y-8">
+      <h1 className="text-3xl font-bold tracking-tight sm:text-[38px] sm:leading-tight">
+        Edit schedule
+      </h1>
       <EventForm
         mode="edit"
         eventId={event.id}

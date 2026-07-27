@@ -16,22 +16,22 @@ export default async function LoginPage({
 
   return (
     <main className="flex min-h-screen items-center justify-center p-6">
-      <div className="w-full max-w-sm rounded-2xl border border-neutral-800 bg-neutral-900 p-8 shadow-xl">
+      <div className="w-full max-w-sm rounded-3xl border border-[rgb(var(--line))] bg-neutral-900 p-8 shadow-[var(--shadow-card)]">
         <Image
           src="/logo.png"
           alt="CyLiis Remora"
-          width={72}
-          height={72}
-          className="mb-4"
+          width={76}
+          height={76}
+          className="mb-5"
           priority
         />
-        <h1 className="text-2xl font-semibold">CyLiis Remora</h1>
-        <p className="mt-2 text-sm text-neutral-400">
+        <h1 className="text-2xl font-bold tracking-tight">CyLiis Remora</h1>
+        <p className="mt-2 text-sm text-neutral-500">
           Sign in with Discord to manage events, reminders and presence for your
           server.
         </p>
         {error ? (
-          <p className="mt-4 rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-400">
+          <p className="mt-5 rounded-xl border border-[rgba(224,92,92,0.28)] bg-[rgba(229,109,109,0.1)] px-3 py-2 text-sm text-[#E56D6D]">
             {error === "AccessDenied"
               ? "You need to be a member of the Discord server to sign in."
               : "Sign in failed. Please try again."}

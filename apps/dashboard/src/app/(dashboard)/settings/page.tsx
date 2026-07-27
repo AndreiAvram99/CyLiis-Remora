@@ -27,14 +27,16 @@ export default async function SettingsPage() {
   for (const d of defaults) grouped[d.kind as EventKindName].push(d.offsetMinutes);
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Settings</h1>
-        <p className="text-sm text-neutral-400">
+    <div className="mx-auto max-w-2xl space-y-8">
+      <div className="space-y-1">
+        <h1 className="text-3xl font-bold tracking-tight sm:text-[38px] sm:leading-tight">
+          Settings
+        </h1>
+        <p className="text-sm text-neutral-500">
           Google Calendar sync is{" "}
           <span
             className={
-              isCalendarEnabled() ? "text-palette-sky" : "text-neutral-400"
+              isCalendarEnabled() ? "text-palette-azure" : "text-neutral-400"
             }
           >
             {isCalendarEnabled() ? "connected" : "not configured"}

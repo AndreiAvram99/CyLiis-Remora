@@ -31,4 +31,9 @@ export const env = {
     optional("GOOGLE_CALENDAR_ENABLED", "true").toLowerCase() !== "false",
   googleCalendarId: () => optional("GOOGLE_CALENDAR_ID", "primary"),
   googleServiceAccountJson: () => optional("GOOGLE_SERVICE_ACCOUNT_JSON"),
+  // Alternative to the inline JSON: an absolute path to the key file on disk.
+  // Handy for local dev so the secret never lands in a checked-in file.
+  googleServiceAccountFile: () =>
+    optional("GOOGLE_SERVICE_ACCOUNT_FILE") ||
+    optional("GOOGLE_APPLICATION_CREDENTIALS"),
 };

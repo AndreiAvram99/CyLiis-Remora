@@ -9,23 +9,23 @@ export default async function AccountPage() {
   const isManager = Boolean(session.user?.isManager);
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
-      <div>
-        <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-semibold">
+    <div className="mx-auto max-w-2xl space-y-8">
+      <div className="space-y-2">
+        <div className="flex flex-wrap items-center gap-3">
+          <h1 className="text-3xl font-bold tracking-tight sm:text-[38px] sm:leading-tight">
             {session.user?.name ?? "Account"}
           </h1>
           <Badge
             className={
               isManager
-                ? "bg-palette-sky/20 text-palette-sky"
+                ? "bg-palette-azure/10 text-palette-sky"
                 : "bg-neutral-800 text-neutral-400"
             }
           >
             {isManager ? "Manager" : "View only"}
           </Badge>
         </div>
-        <p className="text-sm text-neutral-400">
+        <p className="text-sm text-neutral-500">
           Personalize how the dashboard looks for you.
         </p>
       </div>

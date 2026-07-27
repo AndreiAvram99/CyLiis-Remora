@@ -1,6 +1,10 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 
+// Shared input styling: dedicated input surface, soft line border, quiet focus.
+const fieldClass =
+  "w-full rounded-xl border border-[rgb(var(--line))] bg-[rgb(var(--input))] px-3.5 py-2.5 text-sm text-neutral-100 outline-none transition placeholder:text-neutral-500 focus:border-brand focus:shadow-[0_0_0_3px_rgba(59,130,246,0.18)] disabled:cursor-not-allowed disabled:opacity-50";
+
 export function Card({
   className,
   ...props
@@ -8,7 +12,8 @@ export function Card({
   return (
     <div
       className={cn(
-        "rounded-2xl border border-neutral-800 bg-neutral-900 p-5",
+        // Solid surface + soft, theme-aware shadow; a light, quiet border.
+        "rounded-3xl border border-[rgb(var(--line))] bg-neutral-900 p-7 shadow-[var(--shadow-card)]",
         className,
       )}
       {...props}
@@ -20,16 +25,7 @@ export const Input = React.forwardRef<
   HTMLInputElement,
   React.InputHTMLAttributes<HTMLInputElement>
 >(function Input({ className, ...props }, ref) {
-  return (
-    <input
-      ref={ref}
-      className={cn(
-        "w-full rounded-lg border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-neutral-100 outline-none transition placeholder:text-neutral-500 focus:border-brand",
-        className,
-      )}
-      {...props}
-    />
-  );
+  return <input ref={ref} className={cn(fieldClass, className)} {...props} />;
 });
 
 export const Textarea = React.forwardRef<
@@ -37,14 +33,7 @@ export const Textarea = React.forwardRef<
   React.TextareaHTMLAttributes<HTMLTextAreaElement>
 >(function Textarea({ className, ...props }, ref) {
   return (
-    <textarea
-      ref={ref}
-      className={cn(
-        "w-full rounded-lg border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-neutral-100 outline-none transition placeholder:text-neutral-500 focus:border-brand",
-        className,
-      )}
-      {...props}
-    />
+    <textarea ref={ref} className={cn(fieldClass, className)} {...props} />
   );
 });
 
@@ -52,16 +41,7 @@ export const Select = React.forwardRef<
   HTMLSelectElement,
   React.SelectHTMLAttributes<HTMLSelectElement>
 >(function Select({ className, ...props }, ref) {
-  return (
-    <select
-      ref={ref}
-      className={cn(
-        "w-full rounded-lg border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-neutral-100 outline-none transition focus:border-brand",
-        className,
-      )}
-      {...props}
-    />
-  );
+  return <select ref={ref} className={cn(fieldClass, className)} {...props} />;
 });
 
 type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
@@ -74,17 +54,19 @@ export function Button({
   ...props
 }: ButtonProps) {
   const variants: Record<string, string> = {
-    primary: "bg-brand text-brand-fg hover:opacity-90",
+    primary: "bg-brand text-brand-fg shadow-soft hover:bg-[#39aee8]",
+    // Success maps to the primary blue — the design system forbids green.
+    success: "bg-brand text-brand-fg shadow-soft hover:bg-[#39aee8]",
     secondary:
-      "border border-neutral-700 bg-neutral-800 text-neutral-100 hover:bg-neutral-700",
-    danger: "bg-red-600 text-white hover:bg-red-500",
-    ghost: "text-neutral-300 hover:bg-neutral-800",
-    success: "bg-emerald-600 text-white hover:bg-emerald-500",
+      "border border-[rgba(32,158,219,0.30)] bg-transparent text-neutral-100 hover:bg-neutral-800",
+    danger:
+      "border border-[rgba(224,92,92,0.28)] bg-transparent text-[#E56D6D] hover:bg-[rgba(229,109,109,0.10)]",
+    ghost: "text-neutral-300 hover:bg-neutral-800 hover:text-neutral-100",
   };
   return (
     <button
       className={cn(
-        "inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50",
+        "inline-flex h-11 items-center justify-center gap-2 rounded-[14px] px-5 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50",
         variants[variant],
         className,
       )}
@@ -99,7 +81,10 @@ export function Label({
 }: React.LabelHTMLAttributes<HTMLLabelElement>) {
   return (
     <label
-      className={cn("mb-1.5 block text-sm font-medium text-neutral-300", className)}
+      className={cn(
+        "mb-2 block text-[13px] font-medium text-neutral-300",
+        className,
+      )}
       {...props}
     />
   );
@@ -115,7 +100,7 @@ export function Badge({
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium",
+        "inline-flex items-center rounded-xl px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide",
         className,
       )}
     >

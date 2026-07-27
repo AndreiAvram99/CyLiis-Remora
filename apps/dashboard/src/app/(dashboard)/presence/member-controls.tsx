@@ -6,19 +6,8 @@ import { X, Pencil } from "lucide-react";
 import type { RsvpStatusName } from "@repo/shared";
 import { setRsvpStatus, removeRsvp } from "./actions";
 
-const AVATAR_COLORS = [
-  "bg-palette-sky/20 text-palette-sky",
-  "bg-palette-sky/30 text-palette-sky",
-  "bg-palette-sun/20 text-palette-sun",
-  "bg-palette-flame/20 text-palette-flame",
-  "bg-palette-sky/15 text-palette-sky",
-];
-
-function colorFor(key: string): string {
-  let hash = 0;
-  for (let i = 0; i < key.length; i++) hash = (hash * 31 + key.charCodeAt(i)) | 0;
-  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
-}
+// Neutral avatar fill — status is shown by the column header, not the avatar.
+const AVATAR_NEUTRAL = "bg-neutral-800 text-neutral-300";
 
 export function EditableMember({
   eventId,
@@ -53,22 +42,26 @@ export function EditableMember({
 
   return (
     <span
-      className={`flex items-center gap-2 rounded-full border border-neutral-800 bg-neutral-950 py-1 pl-1 pr-1.5 text-sm ${isPending ? "opacity-50" : ""}`}
+      className={`flex max-w-full items-center gap-2 rounded-full border border-neutral-800 bg-neutral-950 py-1 pl-1 pr-1.5 text-sm ${isPending ? "opacity-50" : ""}`}
     >
       <span
-        className={`flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-semibold ${colorFor(userId)}`}
+        className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold ${AVATAR_NEUTRAL}`}
       >
         {name.slice(0, 2).toUpperCase()}
       </span>
-      <span className="max-w-[10rem] truncate">{name}</span>
+      <span className="min-w-0 max-w-[10rem] truncate">{name}</span>
       {overridden ? (
-        <Pencil size={11} className="text-palette-sun" aria-label="Adjusted by admin" />
+        <Pencil
+          size={11}
+          className="shrink-0 text-palette-sun"
+          aria-label="Adjusted by admin"
+        />
       ) : null}
       <select
         value={status}
         disabled={isPending}
         onChange={(e) => change(e.target.value as RsvpStatusName)}
-        className="rounded-md border border-neutral-700 bg-neutral-900 px-1 py-0.5 text-xs text-neutral-200 outline-none focus:border-brand"
+        className="shrink-0 rounded-md border border-neutral-700 bg-neutral-900 px-1 py-0.5 text-xs text-neutral-200 outline-none focus:border-brand"
         title="Change status"
       >
         <option value="GOING">Going</option>
@@ -79,7 +72,7 @@ export function EditableMember({
         type="button"
         onClick={remove}
         disabled={isPending}
-        className="rounded-md p-1 text-neutral-500 hover:bg-neutral-800 hover:text-red-400"
+        className="shrink-0 rounded-md p-1 text-neutral-500 hover:bg-neutral-800 hover:text-red-400"
         aria-label="Remove"
       >
         <X size={13} />

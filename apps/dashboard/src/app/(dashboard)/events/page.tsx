@@ -1,19 +1,28 @@
 import Link from "next/link";
-import { Plus, MapPin, Hash, Bell } from "lucide-react";
+import {
+  Plus,
+  Pencil,
+  MapPin,
+  Hash,
+  Bell,
+  CalendarDays,
+  ExternalLink,
+} from "lucide-react";
 import { prisma, RsvpStatus } from "@repo/db";
 import { Badge, Button, Card } from "@/components/ui";
 import { getGuild } from "@/lib/guild";
 import { env } from "@/lib/env";
 import { getSession } from "@/lib/session";
 import { formatInTz, relativeTo } from "@/lib/time";
+import { listCalendarEvents, isCalendarEnabled } from "@/lib/gcal";
 import { DeleteEventButton } from "./delete-button";
 
 export const dynamic = "force-dynamic";
 
 const KIND_STYLES: Record<string, string> = {
-  MEETING: "bg-palette-sky/20 text-palette-sky",
-  EVENT: "bg-palette-sun/15 text-palette-sun",
-  CUSTOM: "bg-palette-flame/20 text-palette-flame",
+  MEETING: "bg-palette-sky/10 text-palette-sky",
+  EVENT: "bg-palette-sun/10 text-palette-sun",
+  CUSTOM: "bg-palette-flame/10 text-palette-flame",
 };
 
 export default async function EventsPage() {
@@ -41,20 +50,35 @@ export default async function EventsPage() {
   const upcoming = events.filter((e) => e.startAt >= now);
   const past = events.filter((e) => e.startAt < now);
 
+  // Pull the connected Google Calendar so its meetings/events show in the app.
+  // App-created events are already listed above, so we only surface the ones
+  // that were added directly in Google Calendar (deduped by Google event id).
+  const calendarEnabled = isCalendarEnabled();
+  const appGcalIds = new Set(
+    events.map((e) => e.gcalEventId).filter((id): id is string => Boolean(id)),
+  );
+  const gcalItems = calendarEnabled
+    ? (await listCalendarEvents({ timeMin: now })).filter(
+        (item) => !appGcalIds.has(item.id),
+      )
+    : [];
+
   return (
-    <div className="space-y-8">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">Events</h1>
-          <p className="text-sm text-neutral-400">
+    <div className="space-y-10">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="space-y-1">
+          <h1 className="text-3xl font-bold tracking-tight sm:text-[38px] sm:leading-tight">
+            Schedules
+          </h1>
+          <p className="text-sm text-neutral-500">
             Times shown in {guild.timezone}.
           </p>
         </div>
         {isManager ? (
           <Link href="/events/new">
-            <Button variant="success">
-              <Plus size={16} /> New event
-            </Button>
+              <Button variant="success">
+                <Plus size={16} /> New schedule
+              </Button>
           </Link>
         ) : null}
       </div>
@@ -117,15 +141,26 @@ export default async function EventsPage() {
                       <Bell size={12} />
                       {pending} reminder{pending === 1 ? "" : "s"} scheduled
                     </span>
-                    <span>
-                      {going} going · {cant} can&apos;t
+                    <span className="flex items-center gap-1.5">
+                      <span className="h-1.5 w-1.5 rounded-full bg-palette-azure" />
+                      {going} going
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <span className="h-1.5 w-1.5 rounded-full bg-palette-flame" />
+                      {cant} can&apos;t
                     </span>
                   </div>
                 </div>
                 {isManager ? (
                   <div className="flex items-center gap-2">
-                    <Link href={`/events/${e.id}`}>
-                      <Button variant="secondary">Edit</Button>
+                    <Link href={`/events/${e.id}`} title="Edit" aria-label="Edit">
+                      <Button
+                        variant="secondary"
+                        className="w-11 px-0 sm:w-auto sm:px-5"
+                      >
+                        <Pencil size={16} />
+                        <span className="hidden sm:inline">Edit</span>
+                      </Button>
                     </Link>
                     <DeleteEventButton id={e.id} title={e.title} />
                   </div>
@@ -135,6 +170,58 @@ export default async function EventsPage() {
           })
         )}
       </section>
+
+      {calendarEnabled && gcalItems.length > 0 ? (
+        <section className="space-y-3">
+          <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-neutral-500">
+            <CalendarDays size={14} /> From Google Calendar ({gcalItems.length})
+          </h2>
+          <p className="text-xs text-neutral-500">
+            Meetings and events added directly in Google Calendar.
+          </p>
+          {gcalItems.map((item) => (
+            <Card
+              key={item.id}
+              className="flex flex-wrap items-start gap-x-4 gap-y-2"
+            >
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <Badge className="bg-palette-azure/10 text-palette-sky">
+                    GOOGLE
+                  </Badge>
+                  <span className="truncate text-lg font-medium">
+                    {item.title}
+                  </span>
+                </div>
+                <div className="mt-1 text-sm text-neutral-300">
+                  {item.allDay
+                    ? formatInTz(item.start, guild.timezone).split(",")[0]
+                    : formatInTz(item.start, guild.timezone)}{" "}
+                  <span className="text-neutral-500">
+                    ({relativeTo(item.start)})
+                  </span>
+                </div>
+                {item.location ? (
+                  <div className="mt-2 flex items-center gap-1 text-xs text-neutral-500">
+                    <MapPin size={12} />
+                    <span className="truncate">{item.location}</span>
+                  </div>
+                ) : null}
+              </div>
+              {item.htmlLink ? (
+                <a
+                  href={item.htmlLink}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1 text-xs text-neutral-400 transition hover:text-neutral-100"
+                >
+                  <ExternalLink size={12} /> Open
+                </a>
+              ) : null}
+            </Card>
+          ))}
+        </section>
+      ) : null}
 
       {past.length > 0 ? (
         <section className="space-y-3">

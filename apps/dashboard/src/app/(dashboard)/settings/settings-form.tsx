@@ -170,7 +170,7 @@ export function SettingsForm({
           ) : (
             <ul className="space-y-2">
               {rows[key].map((r, idx) => (
-                <li key={idx} className="flex items-center gap-2">
+                <li key={idx} className="flex flex-wrap items-center gap-2">
                   <Input
                     type="number"
                     min={0}

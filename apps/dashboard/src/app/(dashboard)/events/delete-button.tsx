@@ -20,9 +20,18 @@ export function DeleteEventButton({ id, title }: { id: string; title: string }) 
   }
 
   return (
-    <Button variant="danger" onClick={handleDelete} disabled={isPending}>
+    <Button
+      variant="danger"
+      onClick={handleDelete}
+      disabled={isPending}
+      className="w-11 px-0 sm:w-auto sm:px-5"
+      title="Delete"
+      aria-label="Delete"
+    >
       <Trash2 size={16} />
-      {isPending ? "Deleting..." : "Delete"}
+      <span className="hidden sm:inline">
+        {isPending ? "Deleting..." : "Delete"}
+      </span>
     </Button>
   );
 }

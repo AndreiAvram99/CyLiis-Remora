@@ -1,14 +1,25 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Upload, Trash2, Check } from "lucide-react";
+import { Upload, Trash2, Check, Sun, Moon, Monitor } from "lucide-react";
 import { Card } from "@/components/ui";
 import {
   usePersonalization,
   Avatar,
   PALETTE_SWATCHES,
   DEFAULT_ACCENT,
+  type ThemePreference,
 } from "@/components/personalization";
+
+const THEME_OPTIONS: {
+  value: ThemePreference;
+  label: string;
+  icon: typeof Sun;
+}[] = [
+  { value: "light", label: "Light", icon: Sun },
+  { value: "dark", label: "Dark", icon: Moon },
+  { value: "system", label: "System", icon: Monitor },
+];
 
 /** Downscale an uploaded image to a small square data URL to keep storage light. */
 function fileToAvatar(file: File): Promise<string> {
@@ -38,7 +49,8 @@ function fileToAvatar(file: File): Promise<string> {
 }
 
 export function AccountForm({ name }: { name?: string | null }) {
-  const { accent, setAccent, avatar, setAvatar } = usePersonalization();
+  const { accent, setAccent, avatar, setAvatar, theme, setTheme } =
+    usePersonalization();
   const [busy, setBusy] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -58,6 +70,34 @@ export function AccountForm({ name }: { name?: string | null }) {
 
   return (
     <div className="space-y-6">
+      <Card className="space-y-4">
+        <div>
+          <h2 className="text-lg font-medium">Appearance</h2>
+          <p className="text-sm text-neutral-400">
+            Choose a light or dark look, or follow your device setting.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {THEME_OPTIONS.map(({ value, label, icon: Icon }) => {
+            const selected = theme === value;
+            return (
+              <button
+                key={value}
+                onClick={() => setTheme(value)}
+                aria-pressed={selected}
+                className={
+                  selected
+                    ? "inline-flex items-center gap-2 rounded-lg border border-brand bg-brand px-4 py-2 text-sm font-medium text-brand-fg transition"
+                    : "inline-flex items-center gap-2 rounded-lg border border-neutral-700 bg-neutral-800 px-4 py-2 text-sm text-neutral-200 transition hover:bg-neutral-700"
+                }
+              >
+                <Icon size={15} /> {label}
+              </button>
+            );
+          })}
+        </div>
+      </Card>
+
       <Card className="space-y-4">
         <div>
           <h2 className="text-lg font-medium">Your picture</h2>
@@ -96,9 +136,10 @@ export function AccountForm({ name }: { name?: string | null }) {
 
       <Card className="space-y-4">
         <div>
-          <h2 className="text-lg font-medium">Accent color</h2>
+          <h2 className="text-lg font-medium">Avatar color</h2>
           <p className="text-sm text-neutral-400">
-            Used for buttons, highlights and your avatar across the dashboard.
+            Colors your avatar icon in the header. It doesn&apos;t change buttons
+            or anything else.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -112,7 +153,7 @@ export function AccountForm({ name }: { name?: string | null }) {
                 style={{
                   backgroundColor: hex,
                   boxShadow: selected
-                    ? "0 0 0 2px #04222f, 0 0 0 4px #e4f1f6"
+                    ? `0 0 0 2px rgb(var(--n-900)), 0 0 0 4px ${hex}`
                     : "none",
                 }}
                 title={hex}
