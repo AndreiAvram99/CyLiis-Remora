@@ -41,10 +41,11 @@ export async function GET(req: NextRequest) {
         select: {
           userId: true,
           username: true,
+          displayName: true,
           status: true,
           overriddenBy: true,
         },
-        orderBy: { username: "asc" },
+        orderBy: { displayName: "asc" },
       },
     },
   });

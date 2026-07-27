@@ -4,6 +4,7 @@ import { formatInTz } from "./time";
 export interface PdfPerson {
   userId: string;
   username: string | null;
+  displayName: string | null;
   status: string;
   overriddenBy: string | null;
 }
@@ -29,7 +30,11 @@ const RIGHT = 545;
 function names(people: PdfPerson[]): string {
   if (people.length === 0) return "—";
   return people
-    .map((p) => (p.username ?? p.userId) + (p.overriddenBy ? " (adjusted)" : ""))
+    .map(
+      (p) =>
+        (p.displayName || p.username || p.userId) +
+        (p.overriddenBy ? " (adjusted)" : ""),
+    )
     .join(", ");
 }
 

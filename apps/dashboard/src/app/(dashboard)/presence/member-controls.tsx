@@ -13,12 +13,14 @@ export function EditableMember({
   eventId,
   userId,
   name,
+  avatarUrl,
   status,
   overridden,
 }: {
   eventId: string;
   userId: string;
   name: string;
+  avatarUrl?: string | null;
   status: RsvpStatusName;
   overridden: boolean;
 }) {
@@ -44,11 +46,22 @@ export function EditableMember({
     <span
       className={`flex max-w-full items-center gap-2 rounded-full border border-neutral-800 bg-neutral-950 py-1 pl-1 pr-1.5 text-sm ${isPending ? "opacity-50" : ""}`}
     >
-      <span
-        className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold ${AVATAR_NEUTRAL}`}
-      >
-        {name.slice(0, 2).toUpperCase()}
-      </span>
+      {avatarUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={avatarUrl}
+          alt={name}
+          width={24}
+          height={24}
+          className="h-6 w-6 shrink-0 rounded-full object-cover"
+        />
+      ) : (
+        <span
+          className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold ${AVATAR_NEUTRAL}`}
+        >
+          {name.slice(0, 2).toUpperCase()}
+        </span>
+      )}
       <span className="min-w-0 max-w-[10rem] truncate">{name}</span>
       {overridden ? (
         <Pencil

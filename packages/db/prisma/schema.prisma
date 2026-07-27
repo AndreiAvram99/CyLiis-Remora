@@ -132,6 +132,8 @@ model Rsvp {
   eventId      String
   userId       String // Discord user id
   username     String?
+  displayName  String? // guild nickname / display name at RSVP time
+  avatarUrl    String? // Discord avatar URL captured at RSVP time
   status       RsvpStatus
   note         String? // free-text reason submitted with a "Motivation" RSVP
   overriddenBy String? // Discord id of the manager who last corrected this
