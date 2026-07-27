@@ -65,7 +65,7 @@ export const Select = React.forwardRef<
 });
 
 type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: "primary" | "secondary" | "danger" | "ghost";
+  variant?: "primary" | "secondary" | "danger" | "ghost" | "success";
 };
 
 export function Button({
@@ -79,6 +79,7 @@ export function Button({
       "border border-neutral-700 bg-neutral-800 text-neutral-100 hover:bg-neutral-700",
     danger: "bg-red-600 text-white hover:bg-red-500",
     ghost: "text-neutral-300 hover:bg-neutral-800",
+    success: "bg-emerald-600 text-white hover:bg-emerald-500",
   };
   return (
     <button

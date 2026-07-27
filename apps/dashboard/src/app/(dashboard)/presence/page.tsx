@@ -18,18 +18,17 @@ interface Person {
 }
 
 const KIND_STYLES: Record<string, string> = {
-  MEETING: "bg-blue-500/15 text-blue-300",
-  EVENT: "bg-emerald-500/15 text-emerald-300",
-  CUSTOM: "bg-purple-500/15 text-purple-300",
+  MEETING: "bg-palette-sky/20 text-palette-sky",
+  EVENT: "bg-palette-sun/15 text-palette-sun",
+  CUSTOM: "bg-palette-flame/20 text-palette-flame",
 };
 
 const AVATAR_COLORS = [
-  "bg-rose-500/20 text-rose-300",
-  "bg-amber-500/20 text-amber-300",
-  "bg-emerald-500/20 text-emerald-300",
-  "bg-sky-500/20 text-sky-300",
-  "bg-violet-500/20 text-violet-300",
-  "bg-teal-500/20 text-teal-300",
+  "bg-palette-sky/20 text-palette-sky",
+  "bg-palette-sky/30 text-palette-sky",
+  "bg-palette-sun/20 text-palette-sun",
+  "bg-palette-flame/20 text-palette-flame",
+  "bg-palette-sky/15 text-palette-sky",
 ];
 
 function colorFor(key: string): string {
@@ -162,11 +161,11 @@ export default async function PresencePage() {
       ) : (
         ordered.map((e) => {
           const going = e.rsvps.filter((r) => r.status === RsvpStatus.GOING);
-          const interested = e.rsvps.filter(
-            (r) => r.status === RsvpStatus.INTERESTED,
-          );
           const cant = e.rsvps.filter((r) => r.status === RsvpStatus.NO);
-          const participating = going.length + interested.length;
+          const motivated = e.rsvps.filter(
+            (r) => r.status === RsvpStatus.MOTIVATED,
+          );
+          const participating = going.length;
           const isPast = e.startAt < now;
 
           return (
@@ -190,7 +189,7 @@ export default async function PresencePage() {
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-2xl font-semibold text-emerald-400">
+                  <div className="text-2xl font-semibold text-palette-sky">
                     {participating}
                   </div>
                   <div className="text-xs text-neutral-500">participating</div>
@@ -213,21 +212,21 @@ export default async function PresencePage() {
                   <Group
                     title="Going"
                     people={going}
-                    tone="text-emerald-400"
-                    eventId={e.id}
-                    isManager={isManager}
-                  />
-                  <Group
-                    title="Interested"
-                    people={interested}
-                    tone="text-blue-400"
+                    tone="text-palette-sky"
                     eventId={e.id}
                     isManager={isManager}
                   />
                   <Group
                     title="Can't make it"
                     people={cant}
-                    tone="text-neutral-400"
+                    tone="text-palette-flame"
+                    eventId={e.id}
+                    isManager={isManager}
+                  />
+                  <Group
+                    title="Motivation"
+                    people={motivated}
+                    tone="text-palette-sun"
                     eventId={e.id}
                     isManager={isManager}
                   />

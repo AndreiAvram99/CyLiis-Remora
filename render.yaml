@@ -20,7 +20,7 @@ envVarGroups:
       - key: DEFAULT_TIMEZONE
         value: Europe/Bucharest
       - key: MANAGER_ROLE_NAME
-        value: Event Manager
+        value: Remora
       - key: MANAGER_ROLE_ID
         sync: false
       - key: GOOGLE_SERVICE_ACCOUNT_JSON

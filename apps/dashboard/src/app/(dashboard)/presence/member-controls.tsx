@@ -7,12 +7,11 @@ import type { RsvpStatusName } from "@repo/shared";
 import { setRsvpStatus, removeRsvp } from "./actions";
 
 const AVATAR_COLORS = [
-  "bg-rose-500/20 text-rose-300",
-  "bg-amber-500/20 text-amber-300",
-  "bg-emerald-500/20 text-emerald-300",
-  "bg-sky-500/20 text-sky-300",
-  "bg-violet-500/20 text-violet-300",
-  "bg-teal-500/20 text-teal-300",
+  "bg-palette-sky/20 text-palette-sky",
+  "bg-palette-sky/30 text-palette-sky",
+  "bg-palette-sun/20 text-palette-sun",
+  "bg-palette-flame/20 text-palette-flame",
+  "bg-palette-sky/15 text-palette-sky",
 ];
 
 function colorFor(key: string): string {
@@ -63,7 +62,7 @@ export function EditableMember({
       </span>
       <span className="max-w-[10rem] truncate">{name}</span>
       {overridden ? (
-        <Pencil size={11} className="text-amber-400" aria-label="Adjusted by admin" />
+        <Pencil size={11} className="text-palette-sun" aria-label="Adjusted by admin" />
       ) : null}
       <select
         value={status}
@@ -73,8 +72,8 @@ export function EditableMember({
         title="Change status"
       >
         <option value="GOING">Going</option>
-        <option value="INTERESTED">Interested</option>
-        <option value="NO">Can&apos;t</option>
+        <option value="NO">Can&apos;t make it</option>
+        <option value="MOTIVATED">Motivation</option>
       </select>
       <button
         type="button"

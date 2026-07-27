@@ -22,7 +22,7 @@ CyLiis Remora fixes this by separating _planning_ from _delivery_:
   collecting RSVPs, and creating native Discord events — without anyone lifting a
   finger.
 - You **see who's in** — a per-event Presence view lists exactly which members
-  are going, interested, or can't make it.
+  are going, can't make it, or have a motivated absence.
 
 ## What makes it different
 
@@ -49,9 +49,9 @@ CyLiis Remora fixes this by separating _planning_ from _delivery_:
 | Reminders | Unlimited reminders per event, `minutes` / `hours` / `days` lead times, per-type defaults |
 | Announcements | Optional instant announcement post with RSVP buttons on save |
 | Google Calendar | Automatic create/update/delete sync via a service account |
-| Presence | Per-event list of who is going / interested / can't, by member name |
+| Presence | Per-event list of who is going / can't make it / motivation, by member name |
 | Reliability | Delivery status per reminder (sent / pending / failed), idempotent polling scheduler |
-| Access control | Login limited to server members; an `Event Manager` role grants full management, everyone else is view-only |
+| Access control | Login limited to server members; a `Remora` role grants full management, everyone else is view-only |
 
 ## Architecture
 
@@ -84,9 +84,9 @@ Dashboard (Next.js)  --writes-->  Postgres  <--reads--  Worker (discord.js + sch
   passed is delivered to its channel with an embed and RSVP buttons, then marked
   `SENT`.
 - RSVP button clicks are stored per user and shown live on the message and in the
-  **Presence** tab, which lists exactly which members are going / interested /
-  can't for each event. Each event also gets a native Discord Scheduled Event so
-  you benefit from Discord's built-in "interested" count and notifications.
+  **Presence** tab, which lists exactly which members are going / can't make it /
+  motivation for each event. Each event also gets a native Discord Scheduled Event
+  so you benefit from Discord's built-in "interested" count and notifications.
 
 ## 1. Discord app setup
 
@@ -112,7 +112,7 @@ Dashboard (Next.js)  --writes-->  Postgres  <--reads--  Worker (discord.js + sch
 - **Login is limited to members of your server.** At sign-in the app checks
   membership via the Discord OAuth `guilds.members.read` scope (no extra setup —
   NextAuth requests it automatically). Non-members are rejected.
-- **Create a role named `Event Manager`** in your Discord server. Members with
+- **Create a role named `Remora`** in your Discord server. Members with
   that role (plus anyone in `ADMIN_DISCORD_IDS`) can create/edit/delete events
   and change settings. All other members can log in but only **view** Events and
   Presence.
@@ -187,10 +187,10 @@ See [`.env.example`](.env.example) for the full annotated list.
 
 ## Presence tracking
 
-- **RSVP buttons** (Going / Interested / Can't) on every announcement and
-  reminder record each member's response.
-- The **Presence** tab lists, per event, exactly which members are going,
-  interested, or can't make it — by name, not just counts.
+- **RSVP buttons** (Going / Can't make it / Motivation) on every announcement and
+  reminder record each member's response. "Motivation" marks an excused absence.
+- The **Presence** tab lists, per event, exactly which members are going, can't
+  make it, or have a motivated absence — by name, not just counts.
 - **Managers can correct presence.** If a member's RSVP doesn't match reality, a
   manager can change their status or remove them directly from the Presence tab;
   admin-adjusted entries are flagged.

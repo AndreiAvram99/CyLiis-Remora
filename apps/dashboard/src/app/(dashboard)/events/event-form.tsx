@@ -165,7 +165,7 @@ export function EventForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {noChannels ? (
-        <Card className="border-amber-700/50 bg-amber-500/10 text-sm text-amber-300">
+        <Card className="border-palette-sun/40 bg-palette-sun/10 text-sm text-palette-sun">
           No channels found yet. Start the bot worker and make sure it can see
           your server so channels appear here.
         </Card>

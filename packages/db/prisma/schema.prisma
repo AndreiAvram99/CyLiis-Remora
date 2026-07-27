@@ -25,8 +25,8 @@ enum ReminderStatus {
 
 enum RsvpStatus {
   GOING
-  INTERESTED
   NO
+  MOTIVATED
 }
 
 /// A Discord server. This instance is single-guild, but the model supports more.

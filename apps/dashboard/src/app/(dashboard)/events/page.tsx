@@ -11,9 +11,9 @@ import { DeleteEventButton } from "./delete-button";
 export const dynamic = "force-dynamic";
 
 const KIND_STYLES: Record<string, string> = {
-  MEETING: "bg-blue-500/15 text-blue-300",
-  EVENT: "bg-emerald-500/15 text-emerald-300",
-  CUSTOM: "bg-purple-500/15 text-purple-300",
+  MEETING: "bg-palette-sky/20 text-palette-sky",
+  EVENT: "bg-palette-sun/15 text-palette-sun",
+  CUSTOM: "bg-palette-flame/20 text-palette-flame",
 };
 
 export default async function EventsPage() {
@@ -52,7 +52,7 @@ export default async function EventsPage() {
         </div>
         {isManager ? (
           <Link href="/events/new">
-            <Button>
+            <Button variant="success">
               <Plus size={16} /> New event
             </Button>
           </Link>
@@ -72,8 +72,8 @@ export default async function EventsPage() {
             const going = e.rsvps.filter(
               (r) => r.status === RsvpStatus.GOING,
             ).length;
-            const interested = e.rsvps.filter(
-              (r) => r.status === RsvpStatus.INTERESTED,
+            const cant = e.rsvps.filter(
+              (r) => r.status === RsvpStatus.NO,
             ).length;
             const pending = e.reminders.filter(
               (r) => r.status === "PENDING",
@@ -118,7 +118,7 @@ export default async function EventsPage() {
                       {pending} reminder{pending === 1 ? "" : "s"} scheduled
                     </span>
                     <span>
-                      {going} going · {interested} interested
+                      {going} going · {cant} can&apos;t
                     </span>
                   </div>
                 </div>

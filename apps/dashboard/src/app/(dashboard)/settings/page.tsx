@@ -34,7 +34,7 @@ export default async function SettingsPage() {
           Google Calendar sync is{" "}
           <span
             className={
-              isCalendarEnabled() ? "text-emerald-400" : "text-neutral-400"
+              isCalendarEnabled() ? "text-palette-sky" : "text-neutral-400"
             }
           >
             {isCalendarEnabled() ? "connected" : "not configured"}
