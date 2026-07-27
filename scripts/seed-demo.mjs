@@ -40,7 +40,7 @@ function reminders(startAt, offsetsMin, { markSent = false } = {}) {
   });
 }
 
-function rsvps(going, interested, no) {
+function rsvps(going, cant, motivated) {
   const out = [];
   let n = 0;
   const push = (count, status) => {
@@ -54,8 +54,8 @@ function rsvps(going, interested, no) {
     }
   };
   push(going, "GOING");
-  push(interested, "INTERESTED");
-  push(no, "NO");
+  push(cant, "NO");
+  push(motivated, "MOTIVATED");
   return out;
 }
 
@@ -120,7 +120,7 @@ async function main() {
       channelId: "c_hardware",
       location: "tehnic-voice",
       offsets: [60, 15],
-      rsvp: [9, 4, 1],
+      rsvp: [9, 1, 4],
       interested: 6,
     },
     {
@@ -133,7 +133,7 @@ async function main() {
       location: "City Expo Hall",
       url: "https://example.com/festival",
       offsets: [3 * 24 * 60, 24 * 60],
-      rsvp: [58, 31, 4],
+      rsvp: [58, 4, 31],
       interested: 47,
     },
     {
@@ -143,7 +143,7 @@ async function main() {
       startAt: new Date(now + 6 * HOUR),
       channelId: "c_branding",
       offsets: [60, 15],
-      rsvp: [4, 1, 0],
+      rsvp: [4, 0, 1],
       interested: 2,
     },
     {
@@ -154,7 +154,7 @@ async function main() {
       channelId: "c_printing",
       location: "Lab 2",
       offsets: [24 * 60, 60],
-      rsvp: [22, 8, 5],
+      rsvp: [22, 5, 8],
       interested: 18,
       past: true,
     },

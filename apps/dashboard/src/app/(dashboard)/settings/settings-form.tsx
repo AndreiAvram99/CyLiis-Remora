@@ -214,11 +214,11 @@ export function SettingsForm({
       ) : null}
 
       <div className="flex items-center gap-3">
-        <Button type="submit" disabled={isPending}>
+        <Button type="submit" variant="success" disabled={isPending}>
           {isPending ? "Saving..." : "Save settings"}
         </Button>
         {saved ? (
-          <span className="text-sm text-emerald-400">Saved.</span>
+          <span className="text-sm text-palette-sky">Saved.</span>
         ) : null}
       </div>
     </form>

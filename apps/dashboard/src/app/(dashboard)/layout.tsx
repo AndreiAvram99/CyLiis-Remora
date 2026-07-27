@@ -4,6 +4,7 @@ import { CalendarDays, Users, Settings } from "lucide-react";
 import { requireMember } from "@/lib/session";
 import { Providers } from "@/components/providers";
 import { SignOutButton } from "@/components/sign-out-button";
+import { Avatar } from "@/components/personalization";
 
 const navItems = [
   { href: "/events", label: "Events", icon: CalendarDays, managerOnly: false },
@@ -49,15 +50,20 @@ export default async function DashboardLayout({
                 ))}
               </nav>
             </div>
-            <div className="flex items-center gap-3 text-sm text-neutral-400">
-              <span className="hidden items-center gap-2 sm:flex">
-                {session.user?.name}
-                {!isManager ? (
-                  <span className="rounded-full bg-neutral-800 px-2 py-0.5 text-xs text-neutral-400">
-                    View only
-                  </span>
-                ) : null}
-              </span>
+            <div className="flex items-center gap-2 text-sm text-neutral-400">
+              {!isManager ? (
+                <span className="hidden rounded-full bg-neutral-800 px-2 py-0.5 text-xs text-neutral-400 sm:inline">
+                  View only
+                </span>
+              ) : null}
+              <Link
+                href="/account"
+                className="flex items-center gap-2 rounded-lg px-1.5 py-1 transition hover:bg-neutral-800"
+                title="Account & personalization"
+              >
+                <span className="hidden sm:inline">{session.user?.name}</span>
+                <Avatar name={session.user?.name} />
+              </Link>
               <SignOutButton />
             </div>
           </div>

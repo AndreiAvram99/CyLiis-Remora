@@ -4,6 +4,9 @@
 
 :root {
   color-scheme: dark;
+  /* Default accent from the palette (sky blue). Overridden per-user at runtime. */
+  --brand: #8ecae6;
+  --brand-fg: #023047;
 }
 
 html,
@@ -13,5 +16,19 @@ body {
 }
 
 body {
-  @apply bg-neutral-950 text-neutral-100 antialiased;
+  @apply text-neutral-100 antialiased;
+  min-height: 100vh;
+  background:
+    radial-gradient(
+      1100px 560px at 15% -10%,
+      color-mix(in srgb, var(--brand) 16%, transparent),
+      transparent 60%
+    ),
+    radial-gradient(
+      900px 480px at 100% 0%,
+      rgba(252, 133, 0, 0.07),
+      transparent 55%
+    ),
+    #021620;
+  background-attachment: fixed;
 }

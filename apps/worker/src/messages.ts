@@ -9,19 +9,19 @@ import type { Event } from "@repo/db";
 import { rsvpButtonId } from "@repo/shared";
 
 const KIND_COLORS: Record<string, number> = {
-  MEETING: 0x5865f2,
-  EVENT: 0x57f287,
-  CUSTOM: 0xeb459e,
+  MEETING: 0x209ebb,
+  EVENT: 0xffb701,
+  CUSTOM: 0xfc8500,
 };
 
 export interface RsvpCounts {
   GOING: number;
-  INTERESTED: number;
   NO: number;
+  MOTIVATED: number;
 }
 
 export function emptyCounts(): RsvpCounts {
-  return { GOING: 0, INTERESTED: 0, NO: 0 };
+  return { GOING: 0, NO: 0, MOTIVATED: 0 };
 }
 
 export function buildRsvpRow(eventId: string): ActionRowBuilder<ButtonBuilder> {
@@ -32,14 +32,14 @@ export function buildRsvpRow(eventId: string): ActionRowBuilder<ButtonBuilder> {
       .setEmoji("✅")
       .setStyle(ButtonStyle.Success),
     new ButtonBuilder()
-      .setCustomId(rsvpButtonId(eventId, "INTERESTED"))
-      .setLabel("Interested")
-      .setEmoji("⭐")
-      .setStyle(ButtonStyle.Primary),
-    new ButtonBuilder()
       .setCustomId(rsvpButtonId(eventId, "NO"))
       .setLabel("Can't make it")
       .setEmoji("❌")
+      .setStyle(ButtonStyle.Danger),
+    new ButtonBuilder()
+      .setCustomId(rsvpButtonId(eventId, "MOTIVATED"))
+      .setLabel("Motivation")
+      .setEmoji("📝")
       .setStyle(ButtonStyle.Secondary),
   );
 }
@@ -60,11 +60,11 @@ export function buildEventEmbed(
 
   return new EmbedBuilder()
     .setTitle(event.title)
-    .setColor(KIND_COLORS[event.kind] ?? 0x5865f2)
+    .setColor(KIND_COLORS[event.kind] ?? 0x209ebb)
     .setDescription(description)
     .addFields({
       name: "\u200b",
-      value: `✅ **${counts.GOING}** going  ·  ⭐ **${counts.INTERESTED}** interested  ·  ❌ **${counts.NO}** can't`,
+      value: `✅ **${counts.GOING}** going  ·  ❌ **${counts.NO}** can't  ·  📝 **${counts.MOTIVATED}** motivation`,
     })
     .setFooter({ text: footer });
 }

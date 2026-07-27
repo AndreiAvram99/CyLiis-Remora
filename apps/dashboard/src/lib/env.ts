@@ -26,7 +26,7 @@ export const env = {
       .split(",")
       .map((s) => s.trim())
       .filter(Boolean),
-  managerRoleName: () => optional("MANAGER_ROLE_NAME", "Event Manager"),
+  managerRoleName: () => optional("MANAGER_ROLE_NAME", "Remora"),
   googleCalendarEnabled: () =>
     optional("GOOGLE_CALENDAR_ENABLED", "true").toLowerCase() !== "false",
   googleCalendarId: () => optional("GOOGLE_CALENDAR_ID", "primary"),

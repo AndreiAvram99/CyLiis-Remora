@@ -50,9 +50,9 @@ function renderEvent(doc: PDFKit.PDFDocument, e: PdfEvent, tz: string) {
   if (doc.y > 720) doc.addPage();
 
   const going = e.rsvps.filter((r) => r.status === "GOING");
-  const interested = e.rsvps.filter((r) => r.status === "INTERESTED");
   const cant = e.rsvps.filter((r) => r.status === "NO");
-  const participating = going.length + interested.length;
+  const motivated = e.rsvps.filter((r) => r.status === "MOTIVATED");
+  const participating = going.length;
 
   doc.moveDown(0.6);
   doc.fontSize(14).fillColor("#111827").text(`${e.title}  [${e.kind}]`);
@@ -66,13 +66,13 @@ function renderEvent(doc: PDFKit.PDFDocument, e: PdfEvent, tz: string) {
     .fontSize(9)
     .fillColor("#374151")
     .text(
-      `Participating: ${participating}  (Going ${going.length}, Interested ${interested.length}, Can't ${cant.length})`,
+      `Participating: ${participating}  (Going ${going.length}, Can't ${cant.length}, Motivation ${motivated.length})`,
     );
   doc.moveDown(0.4);
 
   renderList(doc, "Going", going);
-  renderList(doc, "Interested", interested);
   renderList(doc, "Can't make it", cant);
+  renderList(doc, "Motivation", motivated);
 
   doc.moveDown(0.2);
   doc
