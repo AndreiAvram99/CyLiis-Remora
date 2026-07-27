@@ -25,8 +25,7 @@ const KIND_STYLES: Record<string, string> = {
 
 // Avatars stay neutral (understated); status is conveyed by the column header
 // color + dot, per the design system's "minimal use of color" rule.
-export const AVATAR_NEUTRAL =
-  "bg-neutral-800 text-neutral-300";
+const AVATAR_NEUTRAL = "bg-neutral-800 text-neutral-300";
 
 // Status accents used for the group headers and dots.
 const STATUS_TONE: Record<string, { text: string; dot: string }> = {
