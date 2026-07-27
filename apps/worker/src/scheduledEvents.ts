@@ -3,17 +3,21 @@ import {
   GuildScheduledEventPrivacyLevel,
   type Client,
 } from "discord.js";
-import { prisma, type Event } from "@repo/db";
+import { prisma, EventKind, type Event } from "@repo/db";
 
 /**
  * Create a native Discord Scheduled Event so members get Discord's built-in
  * "interested" count and notifications. Idempotent per event.
+ *
+ * Meetings are intentionally skipped — a native Discord scheduled event is
+ * meant for community-facing events, not internal meetings.
  */
 export async function ensureScheduledEvent(
   client: Client,
   guildId: string,
   event: Event,
 ): Promise<string | null> {
+  if (event.kind === EventKind.MEETING) return null;
   if (event.discordScheduledEventId) return event.discordScheduledEventId;
   if (event.startAt.getTime() <= Date.now()) return null;
 

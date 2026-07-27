@@ -100,7 +100,7 @@ export default async function EventsPage() {
               (r) => r.status === RsvpStatus.NO,
             ).length;
             const pending = e.reminders.filter(
-              (r) => r.status === "PENDING",
+              (r) => r.status === "PENDING" && !r.isAnnouncement,
             ).length;
             return (
               <Card key={e.id} className="flex flex-wrap items-start gap-4">

@@ -18,7 +18,8 @@ interface ChannelOption {
 }
 
 interface ReminderRow {
-  value: number;
+  // Empty string while the user is typing/clearing; validated on save.
+  value: number | "";
   unit: ReminderUnit;
   channelId: string;
 }
@@ -127,6 +128,18 @@ export function EventForm({
     e.preventDefault();
     setError(null);
 
+    // Every reminder needs a positive number — reject blank/0 fields instead of
+    // silently coercing them to 0.
+    const invalid = reminders.some(
+      (r) => r.value === "" || Number(r.value) < 1,
+    );
+    if (invalid) {
+      setError(
+        "Enter a number (1 or more) for every reminder, or remove the empty row.",
+      );
+      return;
+    }
+
     const payload = {
       title: title.trim(),
       description: description.trim() || null,
@@ -138,7 +151,7 @@ export function EventForm({
       channelId,
       announceOnCreate,
       reminders: reminders.map((r) => ({
-        offsetMinutes: toOffsetMinutes(Number(r.value) || 0, r.unit),
+        offsetMinutes: toOffsetMinutes(Number(r.value), r.unit),
         channelId: r.channelId || null,
       })),
     };
@@ -295,10 +308,13 @@ export function EventForm({
               >
                 <Input
                   type="number"
-                  min={0}
+                  min={1}
                   value={r.value}
                   onChange={(e) =>
-                    updateReminder(idx, { value: Number(e.target.value) })
+                    updateReminder(idx, {
+                      value:
+                        e.target.value === "" ? "" : Number(e.target.value),
+                    })
                   }
                   className="w-20"
                 />
