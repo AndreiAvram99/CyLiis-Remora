@@ -67,3 +67,19 @@ export function parseRsvpButtonId(
   if (!RSVP_STATUSES.includes(status)) return null;
   return { eventId: parts[1], status };
 }
+
+/**
+ * Custom ID for the "Motivation" reason modal, encoded as motiv:<eventId>.
+ * The text input inside the modal always uses the id below.
+ */
+export const MOTIVATION_INPUT_ID = "reason";
+
+export function motivationModalId(eventId: string): string {
+  return `motiv:${eventId}`;
+}
+
+export function parseMotivationModalId(customId: string): string | null {
+  const parts = customId.split(":");
+  if (parts.length !== 2 || parts[0] !== "motiv") return null;
+  return parts[1];
+}

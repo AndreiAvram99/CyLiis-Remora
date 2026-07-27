@@ -133,6 +133,7 @@ model Rsvp {
   userId       String // Discord user id
   username     String?
   status       RsvpStatus
+  note         String? // free-text reason submitted with a "Motivation" RSVP
   overriddenBy String? // Discord id of the manager who last corrected this
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt

@@ -1,7 +1,7 @@
 import { Client, Events, GatewayIntentBits } from "discord.js";
 import { env } from "./env.js";
 import { syncChannels } from "./channels.js";
-import { handleRsvpButton } from "./rsvp.js";
+import { handleRsvpButton, handleMotivationModal } from "./rsvp.js";
 import { reconcileScheduledEvents } from "./scheduledEvents.js";
 
 export function createClient(): Client {
@@ -34,6 +34,10 @@ export function createClient(): Client {
     if (interaction.isButton()) {
       await handleRsvpButton(interaction).catch((err) =>
         console.error("[bot] button handler error:", err),
+      );
+    } else if (interaction.isModalSubmit()) {
+      await handleMotivationModal(interaction).catch((err) =>
+        console.error("[bot] modal handler error:", err),
       );
     }
   });
