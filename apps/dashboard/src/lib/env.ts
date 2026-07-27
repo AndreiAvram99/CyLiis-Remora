@@ -26,11 +26,11 @@ export const env = {
       .split(",")
       .map((s) => s.trim())
       .filter(Boolean),
-  managerRoleName: () => optional("MANAGER_ROLE_NAME", "Remora"),
-  // Optional allowlist (comma-separated channel names) for the channel pickers.
-  // Empty means "use the built-in default list" (see lib/guild.ts).
-  allowedChannelNames: () =>
-    optional("ALLOWED_CHANNEL_NAMES")
+  managerRoleName: () => optional("MANAGER_ROLE_NAME", "Remora-Admin"),
+  // Optional comma-separated channel names to expose in the picker. Overrides
+  // the built-in default list when set.
+  channelAllowlist: () =>
+    optional("CHANNEL_ALLOWLIST")
       .split(",")
       .map((s) => s.trim().toLowerCase())
       .filter(Boolean),
