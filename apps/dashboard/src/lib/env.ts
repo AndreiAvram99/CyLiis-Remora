@@ -27,6 +27,13 @@ export const env = {
       .map((s) => s.trim())
       .filter(Boolean),
   managerRoleName: () => optional("MANAGER_ROLE_NAME", "Remora"),
+  // Optional allowlist (comma-separated channel names) for the channel pickers.
+  // Empty means "use the built-in default list" (see lib/guild.ts).
+  allowedChannelNames: () =>
+    optional("ALLOWED_CHANNEL_NAMES")
+      .split(",")
+      .map((s) => s.trim().toLowerCase())
+      .filter(Boolean),
   googleCalendarEnabled: () =>
     optional("GOOGLE_CALENDAR_ENABLED", "true").toLowerCase() !== "false",
   googleCalendarId: () => optional("GOOGLE_CALENDAR_ID", "primary"),
