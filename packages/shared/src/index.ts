@@ -100,12 +100,67 @@ export function parsePrintButtonId(customId: string): string | null {
   return parts[1];
 }
 
+export const PRINT_PRIORITIES = ["LOW", "NORMAL", "HIGH", "URGENT"] as const;
+export type PrintPriority = (typeof PRINT_PRIORITIES)[number];
+
+export const PRINT_PRIORITY_LABELS: Record<PrintPriority, string> = {
+  LOW: "Low",
+  NORMAL: "Normal",
+  HIGH: "High",
+  URGENT: "Urgent",
+};
+
+export const PRINT_PRIORITY_EMOJI: Record<PrintPriority, string> = {
+  LOW: "⚪",
+  NORMAL: "🔵",
+  HIGH: "🟠",
+  URGENT: "🔴",
+};
+
+/** Higher = more important; used for sorting the print queue. */
+export const PRINT_PRIORITY_WEIGHT: Record<PrintPriority, number> = {
+  LOW: 0,
+  NORMAL: 1,
+  HIGH: 2,
+  URGENT: 3,
+};
+
+export const PRINT_STATUSES = ["PENDING", "PRINTING", "DONE"] as const;
+export type PrintStatus = (typeof PRINT_STATUSES)[number];
+
+export const PRINT_STATUS_LABELS: Record<PrintStatus, string> = {
+  PENDING: "Pending",
+  PRINTING: "Printing",
+  DONE: "Done",
+};
+
+export const PRINT_STATUS_EMOJI: Record<PrintStatus, string> = {
+  PENDING: "🕓",
+  PRINTING: "🖨️",
+  DONE: "✅",
+};
+
+function asPriority(value?: string | null): PrintPriority {
+  return PRINT_PRIORITIES.includes(value as PrintPriority)
+    ? (value as PrintPriority)
+    : "NORMAL";
+}
+
+function asStatus(value?: string | null): PrintStatus {
+  return PRINT_STATUSES.includes(value as PrintStatus)
+    ? (value as PrintStatus)
+    : "PENDING";
+}
+
 export interface PrintMessageParams {
   eventId: string;
   title: string;
   description?: string | null;
   requesterName?: string | null;
   claimedByName?: string | null;
+  priority?: string | null;
+  order?: number | null;
+  status?: string | null;
 }
 
 /**
@@ -114,12 +169,28 @@ export interface PrintMessageParams {
  * can rebuild it when the claim state changes — keeping both in sync.
  */
 export function buildPrintMessagePayload(p: PrintMessageParams) {
+  const priority = asPriority(p.priority);
+  const status = asStatus(p.status);
   const fields: { name: string; value: string; inline?: boolean }[] = [];
+
   if (p.requesterName) {
     fields.push({ name: "Requested by", value: p.requesterName, inline: true });
   }
   fields.push({
+    name: "Importance",
+    value: `${PRINT_PRIORITY_EMOJI[priority]} ${PRINT_PRIORITY_LABELS[priority]}`,
+    inline: true,
+  });
+  if (p.order && p.order > 0) {
+    fields.push({ name: "Print order", value: `#${p.order}`, inline: true });
+  }
+  fields.push({
     name: "Status",
+    value: `${PRINT_STATUS_EMOJI[status]} ${PRINT_STATUS_LABELS[status]}`,
+    inline: true,
+  });
+  fields.push({
+    name: "\u200b",
     value: p.claimedByName
       ? `✅ **${p.claimedByName}** is taking care of it`
       : "🖐️ Up for grabs — tap below if you'll print it",
