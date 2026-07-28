@@ -256,7 +256,7 @@ export function buildPrintMessagePayload(p: PrintMessageParams) {
   // scan the color at a glance and read the slice settings clearly.
   const fileBlocks = sortPrintFiles(p.files).map((f) => {
     const color = printColorMeta(f.color ?? DEFAULT_PRINT_COLOR);
-    const qty = f.copies && f.copies > 1 ? `  ·  ×${f.copies}` : "";
+    const qty = `  ·  ×${f.copies ?? 1}`;
     const specs = [
       asFilament(f.filamentType),
       `${f.infill ?? DEFAULT_INFILL}% infill`,
