@@ -174,6 +174,20 @@ export const PRINT_COLORS: string[] = [
   "#618B53", // green
 ];
 
+/** Name + circle emoji for each palette color, for human-readable labels. */
+export const PRINT_COLOR_META: Record<string, { name: string; dot: string }> = {
+  "#FFFFFF": { name: "White", dot: "⚪" },
+  "#000000": { name: "Black", dot: "⚫" },
+  "#A54433": { name: "Red", dot: "🔴" },
+  "#132884": { name: "Blue", dot: "🔵" },
+  "#618B53": { name: "Green", dot: "🟢" },
+};
+
+export function printColorMeta(hex?: string | null): { name: string; dot: string } {
+  const key = (hex ?? "").toUpperCase();
+  return PRINT_COLOR_META[key] ?? { name: hex ?? "Custom", dot: "🎨" };
+}
+
 function asFilament(value?: string | null): FilamentType {
   return FILAMENT_TYPES.includes(value as FilamentType)
     ? (value as FilamentType)
@@ -238,21 +252,22 @@ export interface PrintMessageParams {
 export function buildPrintMessagePayload(p: PrintMessageParams) {
   const status = asStatus(p.status);
 
-  // Files listed in print order, each with its 3D-print settings so whoever
-  // prints them knows exactly how to slice each one.
-  const fileLines = sortPrintFiles(p.files).flatMap((f) => {
-    const qty = f.copies && f.copies > 1 ? ` \`×${f.copies}\`` : "";
+  // One roomy block per file, listed in print order, so whoever prints them can
+  // scan the color at a glance and read the slice settings clearly.
+  const fileBlocks = sortPrintFiles(p.files).map((f) => {
+    const color = printColorMeta(f.color ?? DEFAULT_PRINT_COLOR);
+    const qty = f.copies && f.copies > 1 ? `  ·  ×${f.copies}` : "";
     const specs = [
       asFilament(f.filamentType),
       `${f.infill ?? DEFAULT_INFILL}% infill`,
       `${f.wallCount ?? DEFAULT_WALL_COUNT} walls`,
-      f.needsSupport ? "needs support" : "no support",
-      `🎨 ${(f.color ?? DEFAULT_PRINT_COLOR).toUpperCase()}`,
-    ].join(" · ");
-    return [`🧩 **${f.name}**${qty}`, `└ ${specs}`];
+    ];
+    if (f.needsSupport) specs.push("needs support");
+    specs.push(color.name);
+    return `${color.dot} **${f.name}**${qty}\n　${specs.join(" · ")}`;
   });
 
-  const description = [p.description?.trim(), fileLines.join("\n")]
+  const description = [p.description?.trim(), fileBlocks.join("\n\n")]
     .filter(Boolean)
     .join("\n\n");
 
