@@ -251,12 +251,42 @@ export function buildPrintMessagePayload(p: PrintMessageParams) {
     value: `${PRINT_STATUS_EMOJI[status]} ${PRINT_STATUS_LABELS[status]}`,
     inline: true,
   });
+  const done = status === "DONE";
+  const claimed = !!p.claimedByName;
   fields.push({
     name: "\u200b",
-    value: p.claimedByName
-      ? `✅ **${p.claimedByName}** is taking care of it`
-      : "🖐️ Up for grabs — tap below if you'll print it",
+    value: done
+      ? `✅ **${p.claimedByName ?? "Someone"}** finished printing it`
+      : claimed
+        ? `🖨️ **${p.claimedByName}** is printing it`
+        : "🖐️ Up for grabs — tap below if you'll print it",
   });
+
+  // Two-tap flow: claim (→ Printing) then confirm done (→ Done).
+  const button = done
+    ? {
+        type: 2,
+        style: 3,
+        label: "Printed",
+        custom_id: printClaimButtonId(p.eventId),
+        emoji: { name: "✅" },
+        disabled: true,
+      }
+    : claimed
+      ? {
+          type: 2,
+          style: 3,
+          label: "Mark as printed",
+          custom_id: printClaimButtonId(p.eventId),
+          emoji: { name: "✅" },
+        }
+      : {
+          type: 2,
+          style: 1,
+          label: "I'll take care of it",
+          custom_id: printClaimButtonId(p.eventId),
+          emoji: { name: "🖨️" },
+        };
 
   return {
     embeds: [
@@ -271,17 +301,7 @@ export function buildPrintMessagePayload(p: PrintMessageParams) {
     components: [
       {
         type: 1,
-        components: [
-          {
-            type: 2,
-            style: p.claimedByName ? 3 : 1,
-            label: p.claimedByName
-              ? "I've got it — tap to release"
-              : "I'll take care of it",
-            custom_id: printClaimButtonId(p.eventId),
-            emoji: { name: p.claimedByName ? "✅" : "🖨️" },
-          },
-        ],
+        components: [button],
       },
     ],
   };

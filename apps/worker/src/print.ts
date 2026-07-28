@@ -4,9 +4,11 @@ import { buildPrintMessagePayload, parsePrintButtonId } from "@repo/shared";
 import { resolveIdentity } from "./rsvp.js";
 
 /**
- * Toggle who's taking care of a print request. Tapping when unclaimed marks you
- * as the printer; tapping again (as the same person) releases it. The original
- * message — including its file attachments — is edited in place to show state.
+ * Two-tap print flow driven by one button:
+ *   1. Unclaimed → the tapper claims it and the request moves to Printing.
+ *   2. Claimed   → the same person taps again to mark it Done for everyone.
+ * The original message (with its file attachments) is edited in place so the
+ * whole channel sees the current state.
  */
 export async function handlePrintClaim(interaction: ButtonInteraction) {
   const eventId = parsePrintButtonId(interaction.customId);
@@ -24,18 +26,42 @@ export async function handlePrintClaim(interaction: ButtonInteraction) {
     return;
   }
 
-  const mine = event.printClaimedById === interaction.user.id;
-  let claimedById: string | null = null;
-  let claimedByName: string | null = null;
-  if (!mine) {
+  if (event.printStatus === "DONE") {
+    await interaction.reply({
+      content: "This print is already marked as done.",
+      flags: MessageFlags.Ephemeral,
+    });
+    return;
+  }
+
+  let claimedById = event.printClaimedById;
+  let claimedByName = event.printClaimedByName;
+  let status = event.printStatus;
+
+  if (!claimedById) {
+    // First tap: claim it and start printing.
     const identity = await resolveIdentity(interaction);
     claimedById = interaction.user.id;
     claimedByName = identity.displayName;
+    status = "PRINTING";
+  } else if (claimedById === interaction.user.id) {
+    // Claimer's second tap: it's done.
+    status = "DONE";
+  } else {
+    await interaction.reply({
+      content: `**${event.printClaimedByName ?? "Someone else"}** is already printing this.`,
+      flags: MessageFlags.Ephemeral,
+    });
+    return;
   }
 
   await prisma.event.update({
     where: { id: eventId },
-    data: { printClaimedById: claimedById, printClaimedByName: claimedByName },
+    data: {
+      printClaimedById: claimedById,
+      printClaimedByName: claimedByName,
+      printStatus: status,
+    },
   });
 
   // Preserve the "Requested by" line from the existing embed.
@@ -55,7 +81,7 @@ export async function handlePrintClaim(interaction: ButtonInteraction) {
     description: event.description,
     requesterName,
     claimedByName,
-    status: event.printStatus,
+    status,
   });
 
   try {
@@ -66,9 +92,10 @@ export async function handlePrintClaim(interaction: ButtonInteraction) {
   } catch (err) {
     console.error("[print] failed to update message:", err);
     await interaction.reply({
-      content: claimedByName
-        ? "You're now taking care of this print."
-        : "Released — it's up for grabs again.",
+      content:
+        status === "DONE"
+          ? "Marked as printed — thanks!"
+          : "You're now taking care of this print.",
       flags: MessageFlags.Ephemeral,
     });
   }
