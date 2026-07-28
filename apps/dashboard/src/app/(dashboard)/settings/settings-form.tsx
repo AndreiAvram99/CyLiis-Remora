@@ -27,7 +27,6 @@ interface Row {
 const KINDS: { key: EventKindName; label: string; hint: string }[] = [
   { key: "MEETING", label: "Meetings", hint: "usually minutes / hours" },
   { key: "EVENT", label: "Events", hint: "usually days" },
-  { key: "CUSTOM", label: "Custom", hint: "anything" },
 ];
 
 const COMMON_TIMEZONES = [

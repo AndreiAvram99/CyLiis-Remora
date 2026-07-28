@@ -12,80 +12,68 @@ import {
 } from "@repo/shared";
 import { updatePrintRequest } from "./actions";
 
-const selectClass =
+const fieldClass =
   "rounded-md border border-[rgb(var(--line))] bg-[rgb(var(--input))] px-2 py-1 text-xs text-neutral-200 outline-none focus:border-brand";
+
+interface FileRow {
+  id: string;
+  name: string;
+  priority: string;
+  order: number;
+}
 
 export function PrintControls({
   id,
-  priority,
-  order,
   status,
+  files,
 }: {
   id: string;
-  priority: string;
-  order: number;
   status: string;
+  files: FileRow[];
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const [p, setP] = useState(priority);
-  const [o, setO] = useState(String(order));
-  const [s, setS] = useState(status);
+  const [st, setSt] = useState(status);
+  const [edits, setEdits] = useState<Record<string, { priority: string; order: string }>>(
+    Object.fromEntries(
+      files.map((f) => [f.id, { priority: f.priority, order: String(f.order) }]),
+    ),
+  );
 
   const dirty =
-    p !== priority || s !== status || Number(o || 0) !== order;
+    st !== status ||
+    files.some((f) => {
+      const e = edits[f.id];
+      return e && (e.priority !== f.priority || Number(e.order || 0) !== f.order);
+    });
+
+  function setFile(fid: string, patch: Partial<{ priority: string; order: string }>) {
+    setEdits((m) => ({ ...m, [fid]: { ...m[fid], ...patch } }));
+  }
 
   function save() {
     startTransition(async () => {
       await updatePrintRequest(id, {
-        priority: p,
-        order: Number(o || 0),
-        status: s,
+        status: st,
+        files: files.map((f) => ({
+          id: f.id,
+          priority: edits[f.id]?.priority ?? f.priority,
+          order: Number(edits[f.id]?.order || 0),
+        })),
       });
       router.refresh();
     });
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <label className="flex items-center gap-1 text-xs text-neutral-500">
-        <span className="hidden sm:inline">Importance</span>
+    <div className="space-y-2">
+      <div className="flex items-center gap-2">
+        <span className="text-xs text-neutral-500">Status</span>
         <select
-          className={selectClass}
-          value={p}
-          onChange={(e) => setP(e.target.value)}
+          className={fieldClass}
+          value={st}
+          onChange={(e) => setSt(e.target.value)}
           disabled={isPending}
-          title="Importance"
-        >
-          {PRINT_PRIORITIES.map((v) => (
-            <option key={v} value={v}>
-              {PRINT_PRIORITY_EMOJI[v]} {PRINT_PRIORITY_LABELS[v]}
-            </option>
-          ))}
-        </select>
-      </label>
-
-      <label className="flex items-center gap-1 text-xs text-neutral-500">
-        <span className="hidden sm:inline">Order</span>
-        <input
-          type="number"
-          min={0}
-          className={`${selectClass} w-16`}
-          value={o}
-          onChange={(e) => setO(e.target.value)}
-          disabled={isPending}
-          title="Print order (lower prints first)"
-        />
-      </label>
-
-      <label className="flex items-center gap-1 text-xs text-neutral-500">
-        <span className="hidden sm:inline">Status</span>
-        <select
-          className={selectClass}
-          value={s}
-          onChange={(e) => setS(e.target.value)}
-          disabled={isPending}
-          title="Status"
         >
           {PRINT_STATUSES.map((v) => (
             <option key={v} value={v}>
@@ -93,7 +81,39 @@ export function PrintControls({
             </option>
           ))}
         </select>
-      </label>
+      </div>
+
+      <ul className="space-y-1.5">
+        {files.map((f) => (
+          <li key={f.id} className="flex flex-wrap items-center gap-2 text-xs">
+            <span className="min-w-0 flex-1 truncate text-neutral-300">
+              {f.name}
+            </span>
+            <select
+              className={fieldClass}
+              value={edits[f.id]?.priority ?? f.priority}
+              onChange={(e) => setFile(f.id, { priority: e.target.value })}
+              disabled={isPending}
+              title="Importance"
+            >
+              {PRINT_PRIORITIES.map((v) => (
+                <option key={v} value={v}>
+                  {PRINT_PRIORITY_EMOJI[v]} {PRINT_PRIORITY_LABELS[v]}
+                </option>
+              ))}
+            </select>
+            <input
+              type="number"
+              min={0}
+              className={`${fieldClass} w-14`}
+              value={edits[f.id]?.order ?? String(f.order)}
+              onChange={(e) => setFile(f.id, { order: e.target.value })}
+              disabled={isPending}
+              title="Print order (lower prints first)"
+            />
+          </li>
+        ))}
+      </ul>
 
       <button
         type="button"

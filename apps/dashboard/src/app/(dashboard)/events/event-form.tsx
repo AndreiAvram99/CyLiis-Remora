@@ -51,11 +51,11 @@ interface EventFormProps {
   initial?: EventFormInitial;
 }
 
-const KIND_LABELS: Record<EventKindName, string> = {
-  MEETING: "Meeting",
-  EVENT: "Event",
-  CUSTOM: "Custom",
-};
+// Selectable schedule types in the Type dropdown (Custom is retired).
+const KIND_LABELS: { key: EventKindName; label: string }[] = [
+  { key: "MEETING", label: "Meeting" },
+  { key: "EVENT", label: "Event" },
+];
 
 function offsetsToRows(offsets: number[]): ReminderRow[] {
   return offsets.map((o) => {
@@ -201,9 +201,9 @@ export function EventForm({
             value={kind}
             onChange={(e) => handleKindChange(e.target.value as FormKind)}
           >
-            {(Object.keys(KIND_LABELS) as EventKindName[]).map((k) => (
-              <option key={k} value={k}>
-                {KIND_LABELS[k]}
+            {KIND_LABELS.map(({ key, label }) => (
+              <option key={key} value={key}>
+                {label}
               </option>
             ))}
             {mode === "create" ? (
