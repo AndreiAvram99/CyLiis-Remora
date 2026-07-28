@@ -40,6 +40,11 @@ export const authOptions: NextAuthOptions = {
         const p = profile as DiscordProfile;
         token.discordId = p.id;
         token.discordName = p.global_name || p.username || "member";
+        token.discordAvatar = p.avatar
+          ? `https://cdn.discordapp.com/avatars/${p.id}/${p.avatar}.${
+              p.avatar.startsWith("a_") ? "gif" : "png"
+            }?size=128`
+          : null;
       }
       // Runs on initial sign-in (account present): resolve membership + role.
       if (account?.access_token) {
@@ -62,6 +67,10 @@ export const authOptions: NextAuthOptions = {
         session.user.discordId = token.discordId as string | undefined;
         session.user.name =
           (token.discordName as string | undefined) ?? session.user.name;
+        session.user.image =
+          (token.discordAvatar as string | null | undefined) ??
+          session.user.image ??
+          null;
         session.user.isMember = Boolean(token.isMember);
         session.user.isManager = Boolean(token.isManager);
       }

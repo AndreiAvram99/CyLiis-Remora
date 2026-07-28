@@ -48,7 +48,13 @@ function fileToAvatar(file: File): Promise<string> {
   });
 }
 
-export function AccountForm({ name }: { name?: string | null }) {
+export function AccountForm({
+  name,
+  discordAvatar,
+}: {
+  name?: string | null;
+  discordAvatar?: string | null;
+}) {
   const { accent, setAccent, avatar, setAvatar, theme, setTheme } =
     usePersonalization();
   const [busy, setBusy] = useState(false);
@@ -106,7 +112,7 @@ export function AccountForm({ name }: { name?: string | null }) {
           </p>
         </div>
         <div className="flex items-center gap-4">
-          <Avatar name={name} size={72} />
+          <Avatar name={name} size={72} src={discordAvatar} />
           <div className="flex flex-col gap-2">
             <button
               onClick={() => fileRef.current?.click()}
@@ -122,6 +128,10 @@ export function AccountForm({ name }: { name?: string | null }) {
               >
                 <Trash2 size={14} /> Remove
               </button>
+            ) : discordAvatar ? (
+              <span className="text-xs text-neutral-500">
+                Using your Discord avatar.
+              </span>
             ) : null}
           </div>
           <input

@@ -77,7 +77,10 @@ export default async function DashboardLayout({
                   className="flex items-center gap-2 rounded-lg px-1.5 py-1 transition hover:bg-neutral-800"
                   title="Account & personalization"
                 >
-                  <Avatar name={session.user?.name} />
+                  <Avatar
+                    name={session.user?.name}
+                    src={session.user?.image}
+                  />
                 </Link>
                 <SignOutButton />
               </div>
