@@ -239,9 +239,9 @@ export function buildPrintMessagePayload(p: PrintMessageParams) {
   // knows what comes first and what's urgent.
   const fileLines = sortPrintFiles(p.files).map((f) => {
     const pr = asPriority(f.priority);
-    const ord = f.order && f.order > 0 ? `\`#${f.order}\` ` : "";
-    const qty = f.copies && f.copies > 1 ? ` **×${f.copies}**` : "";
-    return `${PRINT_PRIORITY_EMOJI[pr]} ${ord}${f.name}${qty}`;
+    const qty =
+      f.copies && f.copies > 1 ? ` — \`🖨️ ×${f.copies} copies\`` : "";
+    return `${PRINT_PRIORITY_EMOJI[pr]} ${f.name}${qty}`;
   });
 
   const description = [p.description?.trim(), fileLines.join("\n")]
