@@ -4,9 +4,12 @@ import { useRef, useState, useTransition, type DragEvent } from "react";
 import { useRouter } from "next/navigation";
 import { GripVertical, Trash2, UploadCloud } from "lucide-react";
 import {
-  PRINT_PRIORITIES,
-  PRINT_PRIORITY_EMOJI,
-  PRINT_PRIORITY_LABELS,
+  FILAMENT_TYPES,
+  DEFAULT_FILAMENT,
+  DEFAULT_INFILL,
+  DEFAULT_WALL_COUNT,
+  DEFAULT_PRINT_COLOR,
+  PRINT_COLORS,
 } from "@repo/shared";
 import { Button, Card, Label, Select, Textarea } from "@/components/ui";
 import { ChannelSelect } from "@/components/channel-select";
@@ -21,8 +24,44 @@ interface ChannelOption {
 interface FileRow {
   id: number;
   file: File;
-  priority: string;
   copies: number;
+  filamentType: string;
+  infill: number;
+  wallCount: number;
+  color: string;
+  needsSupport: boolean;
+}
+
+function ColorSwatches({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (hex: string) => void;
+}) {
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {PRINT_COLORS.map((hex) => {
+        const active = hex.toUpperCase() === value.toUpperCase();
+        return (
+          <button
+            key={hex}
+            type="button"
+            onClick={() => onChange(hex)}
+            title={hex}
+            aria-label={hex}
+            aria-pressed={active}
+            className={`h-6 w-6 rounded-full border transition ${
+              active
+                ? "ring-2 ring-brand ring-offset-1 ring-offset-[rgb(var(--card))]"
+                : "border-black/20 hover:scale-110"
+            }`}
+            style={{ backgroundColor: hex }}
+          />
+        );
+      })}
+    </div>
+  );
 }
 
 const MAX_BYTES = 8 * 1024 * 1024;
@@ -59,14 +98,18 @@ export function PrintForm({
     const added: FileRow[] = Array.from(list).map((file) => ({
       id: nextId.current++,
       file,
-      priority: "NORMAL",
       copies: 1,
+      filamentType: DEFAULT_FILAMENT,
+      infill: DEFAULT_INFILL,
+      wallCount: DEFAULT_WALL_COUNT,
+      color: DEFAULT_PRINT_COLOR,
+      needsSupport: false,
     }));
     setRows((r) => [...r, ...added]);
     setError(null);
   }
 
-  function patch(id: number, p: Partial<Pick<FileRow, "priority" | "copies">>) {
+  function patch(id: number, p: Partial<Omit<FileRow, "id" | "file">>) {
     setRows((r) => r.map((row) => (row.id === id ? { ...row, ...p } : row)));
   }
   function removeRow(id: number) {
@@ -105,9 +148,13 @@ export function PrintForm({
     // Order is the list position — first row prints first.
     rows.forEach((r, i) => {
       fd.append("files", r.file);
-      fd.append("priority", r.priority);
       fd.append("order", String(i + 1));
       fd.append("copies", String(r.copies));
+      fd.append("filamentType", r.filamentType);
+      fd.append("infill", String(r.infill));
+      fd.append("wallCount", String(r.wallCount));
+      fd.append("color", r.color);
+      fd.append("needsSupport", r.needsSupport ? "1" : "0");
     });
 
     startTransition(async () => {
@@ -125,7 +172,7 @@ export function PrintForm({
     <div className="space-y-6">
       <Card className="space-y-4">
         <p className="text-sm text-neutral-500">
-          Add the file(s) to print, set each one&apos;s importance and drag them
+          Add the file(s) to print, set each one&apos;s 3D settings and drag them
           into print order. We&apos;ll post them to the channel with a button
           teammates can tap to claim the job — no reminders, no RSVP.
         </p>
@@ -205,66 +252,123 @@ export function PrintForm({
                       }
                     }}
                     onDragEnd={() => setDragRow(null)}
-                    className={`grid grid-cols-[auto_1fr_auto_auto_auto] items-center gap-2 rounded-lg border border-neutral-800 bg-neutral-950 p-2 ${
+                    className={`space-y-3 rounded-lg border border-neutral-800 bg-neutral-950 p-3 ${
                       dragRow === i ? "opacity-60 ring-1 ring-brand" : ""
                     }`}
                   >
-                    <span
-                      className="flex h-7 w-6 shrink-0 cursor-grab items-center justify-center text-neutral-500 active:cursor-grabbing"
-                      title="Drag to reorder"
-                      aria-label="Drag to reorder"
-                    >
-                      <span className="mr-1 text-xs font-medium text-neutral-400">
-                        {i + 1}
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="flex h-7 shrink-0 cursor-grab items-center justify-center text-neutral-500 active:cursor-grabbing"
+                        title="Drag to reorder"
+                        aria-label="Drag to reorder"
+                      >
+                        <span className="mr-1 text-xs font-medium text-neutral-400">
+                          {i + 1}
+                        </span>
+                        <GripVertical size={16} />
                       </span>
-                      <GripVertical size={16} />
-                    </span>
-                    <div className="min-w-0">
-                      <div className="truncate text-sm text-neutral-200">
-                        {row.file.name}
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-sm text-neutral-200">
+                          {row.file.name}
+                        </div>
+                        <div className="text-xs text-neutral-500">
+                          {formatSize(row.file.size)}
+                        </div>
                       </div>
-                      <div className="text-xs text-neutral-500">
-                        {formatSize(row.file.size)}
+                      <button
+                        type="button"
+                        onClick={() => removeRow(row.id)}
+                        className="rounded-lg p-2 text-neutral-500 transition hover:bg-neutral-800 hover:text-red-400"
+                        aria-label="Remove file"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                      <div>
+                        <Label className="text-xs">Filament</Label>
+                        <Select
+                          value={row.filamentType}
+                          onChange={(e) =>
+                            patch(row.id, { filamentType: e.target.value })
+                          }
+                          aria-label="Filament type"
+                        >
+                          {FILAMENT_TYPES.map((t) => (
+                            <option key={t} value={t}>
+                              {t}
+                            </option>
+                          ))}
+                        </Select>
+                      </div>
+                      <div>
+                        <Label className="text-xs">Infill %</Label>
+                        <input
+                          type="number"
+                          min={0}
+                          max={100}
+                          value={row.infill}
+                          onChange={(e) =>
+                            patch(row.id, {
+                              infill: Math.max(
+                                0,
+                                Math.min(100, Number(e.target.value) || 0),
+                              ),
+                            })
+                          }
+                          className="w-full rounded-lg border border-[rgb(var(--line))] bg-[rgb(var(--input))] px-3 py-2 text-sm text-neutral-100 outline-none focus:border-brand"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Walls</Label>
+                        <input
+                          type="number"
+                          min={1}
+                          value={row.wallCount}
+                          onChange={(e) =>
+                            patch(row.id, {
+                              wallCount: Math.max(1, Number(e.target.value) || 1),
+                            })
+                          }
+                          className="w-full rounded-lg border border-[rgb(var(--line))] bg-[rgb(var(--input))] px-3 py-2 text-sm text-neutral-100 outline-none focus:border-brand"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Copies</Label>
+                        <input
+                          type="number"
+                          min={1}
+                          value={row.copies}
+                          onChange={(e) =>
+                            patch(row.id, {
+                              copies: Math.max(1, Number(e.target.value) || 1),
+                            })
+                          }
+                          className="w-full rounded-lg border border-[rgb(var(--line))] bg-[rgb(var(--input))] px-3 py-2 text-sm text-neutral-100 outline-none focus:border-brand"
+                        />
                       </div>
                     </div>
-                    <Select
-                      value={row.priority}
-                      onChange={(e) =>
-                        patch(row.id, { priority: e.target.value })
-                      }
-                      className="w-36"
-                      aria-label="Importance"
-                    >
-                      {PRINT_PRIORITIES.map((p) => (
-                        <option key={p} value={p}>
-                          {PRINT_PRIORITY_EMOJI[p]} {PRINT_PRIORITY_LABELS[p]}
-                        </option>
-                      ))}
-                    </Select>
-                    <div className="flex items-center gap-1">
-                      <span className="text-sm text-neutral-500">×</span>
-                      <input
-                        type="number"
-                        min={1}
-                        value={row.copies}
-                        onChange={(e) =>
-                          patch(row.id, {
-                            copies: Math.max(1, Number(e.target.value) || 1),
-                          })
-                        }
-                        title="Number of pieces to print"
-                        aria-label="Copies"
-                        className="w-16 rounded-lg border border-[rgb(var(--line))] bg-[rgb(var(--input))] px-2 py-2 text-sm text-neutral-100 outline-none focus:border-brand"
+
+                    <div>
+                      <Label className="text-xs">Color</Label>
+                      <ColorSwatches
+                        value={row.color}
+                        onChange={(hex) => patch(row.id, { color: hex })}
                       />
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => removeRow(row.id)}
-                      className="justify-self-end rounded-lg p-2 text-neutral-500 transition hover:bg-neutral-800 hover:text-red-400"
-                      aria-label="Remove file"
-                    >
-                      <Trash2 size={16} />
-                    </button>
+
+                    <label className="flex items-center gap-2 text-sm text-neutral-300">
+                      <input
+                        type="checkbox"
+                        checked={row.needsSupport}
+                        onChange={(e) =>
+                          patch(row.id, { needsSupport: e.target.checked })
+                        }
+                        className="h-4 w-4 rounded border-[rgb(var(--line))] bg-[rgb(var(--input))] accent-brand"
+                      />
+                      Needs support
+                    </label>
                   </li>
                 ))}
               </ul>

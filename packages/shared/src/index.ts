@@ -146,24 +146,64 @@ export function parsePrintButtonId(customId: string): string | null {
   return parts[1];
 }
 
-export const PRINT_PRIORITIES = ["NORMAL", "URGENT"] as const;
-export type PrintPriority = (typeof PRINT_PRIORITIES)[number];
+/** Filament materials offered per print file. */
+export const FILAMENT_TYPES = [
+  "PLA",
+  "PETG",
+  "ASA/ABS",
+  "TPU",
+  "PC",
+  "PA/PET",
+  "PPS",
+  "Support",
+  "Fiber Reinforced",
+] as const;
+export type FilamentType = (typeof FILAMENT_TYPES)[number];
 
-export const PRINT_PRIORITY_LABELS: Record<PrintPriority, string> = {
-  NORMAL: "Normal",
-  URGENT: "Urgent",
-};
+export const DEFAULT_FILAMENT: FilamentType = "PLA";
+export const DEFAULT_INFILL = 60;
+export const DEFAULT_WALL_COUNT = 4;
+export const DEFAULT_PRINT_COLOR = "#132884";
 
-export const PRINT_PRIORITY_EMOJI: Record<PrintPriority, string> = {
-  NORMAL: "🔵",
-  URGENT: "🔴",
-};
+/** Swatch palette for choosing a print color. */
+export const PRINT_COLORS: string[] = [
+  "#FFFFFF",
+  "#F4E7DF",
+  "#D2D3D5",
+  "#F3EE59",
+  "#F5C844",
+  "#DEBF75",
+  "#F0943B",
+  "#ED7433",
+  "#C1CF42",
+  "#5BC056",
+  "#548C4C",
+  "#E36576",
+  "#E3607E",
+  "#D92F8A",
+  "#B23B2B",
+  "#912E38",
+  "#5A44B1",
+  "#442B5D",
+  "#4FAFB6",
+  "#3A84D0",
+  "#2254B2",
+  "#132884",
+  "#924933",
+  "#6B5138",
+  "#837D4F",
+  "#8F908A",
+  "#A7A9AA",
+  "#5D6577",
+  "#545454",
+  "#000000",
+];
 
-/** Higher = more important; used for sorting the print queue. */
-export const PRINT_PRIORITY_WEIGHT: Record<PrintPriority, number> = {
-  NORMAL: 1,
-  URGENT: 3,
-};
+function asFilament(value?: string | null): FilamentType {
+  return FILAMENT_TYPES.includes(value as FilamentType)
+    ? (value as FilamentType)
+    : DEFAULT_FILAMENT;
+}
 
 export const PRINT_STATUSES = ["PENDING", "PRINTING", "DONE"] as const;
 export type PrintStatus = (typeof PRINT_STATUSES)[number];
@@ -180,12 +220,6 @@ export const PRINT_STATUS_EMOJI: Record<PrintStatus, string> = {
   DONE: "✅",
 };
 
-function asPriority(value?: string | null): PrintPriority {
-  return PRINT_PRIORITIES.includes(value as PrintPriority)
-    ? (value as PrintPriority)
-    : "NORMAL";
-}
-
 function asStatus(value?: string | null): PrintStatus {
   return PRINT_STATUSES.includes(value as PrintStatus)
     ? (value as PrintStatus)
@@ -194,21 +228,21 @@ function asStatus(value?: string | null): PrintStatus {
 
 export interface PrintFileLine {
   name: string;
-  priority?: string | null;
   order?: number | null;
   copies?: number | null;
+  filamentType?: string | null;
+  infill?: number | null;
+  color?: string | null;
+  wallCount?: number | null;
+  needsSupport?: boolean | null;
 }
 
-/** Sort files by print order (0/unset last), then by importance descending. */
+/** Sort files by print order (0/unset last), preserving list order otherwise. */
 export function sortPrintFiles<T extends PrintFileLine>(files: T[]): T[] {
   return [...files].sort((a, b) => {
     const ao = a.order && a.order > 0 ? a.order : Number.MAX_SAFE_INTEGER;
     const bo = b.order && b.order > 0 ? b.order : Number.MAX_SAFE_INTEGER;
-    if (ao !== bo) return ao - bo;
-    return (
-      PRINT_PRIORITY_WEIGHT[asPriority(b.priority)] -
-      PRINT_PRIORITY_WEIGHT[asPriority(a.priority)]
-    );
+    return ao - bo;
   });
 }
 
@@ -229,13 +263,18 @@ export interface PrintMessageParams {
 export function buildPrintMessagePayload(p: PrintMessageParams) {
   const status = asStatus(p.status);
 
-  // Files listed in print order with their importance, so whoever prints them
-  // knows what comes first and what's urgent.
-  const fileLines = sortPrintFiles(p.files).map((f) => {
-    const pr = asPriority(f.priority);
-    const qty =
-      f.copies && f.copies > 1 ? ` — \`🖨️ ×${f.copies} copies\`` : "";
-    return `${PRINT_PRIORITY_EMOJI[pr]} ${f.name}${qty}`;
+  // Files listed in print order, each with its 3D-print settings so whoever
+  // prints them knows exactly how to slice each one.
+  const fileLines = sortPrintFiles(p.files).flatMap((f) => {
+    const qty = f.copies && f.copies > 1 ? ` \`×${f.copies}\`` : "";
+    const specs = [
+      asFilament(f.filamentType),
+      `${f.infill ?? DEFAULT_INFILL}% infill`,
+      `${f.wallCount ?? DEFAULT_WALL_COUNT} walls`,
+      f.needsSupport ? "needs support" : "no support",
+      `🎨 ${(f.color ?? DEFAULT_PRINT_COLOR).toUpperCase()}`,
+    ].join(" · ");
+    return [`🧩 **${f.name}**${qty}`, `└ ${specs}`];
   });
 
   const description = [p.description?.trim(), fileLines.join("\n")]

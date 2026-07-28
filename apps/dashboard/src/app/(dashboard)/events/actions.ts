@@ -7,13 +7,16 @@ import {
   buildPrintMessagePayload,
   computeDueAt,
   offsetLabel,
-  PRINT_PRIORITIES,
-  PRINT_PRIORITY_EMOJI,
-  PRINT_PRIORITY_LABELS,
+  FILAMENT_TYPES,
+  DEFAULT_FILAMENT,
+  DEFAULT_INFILL,
+  DEFAULT_WALL_COUNT,
+  DEFAULT_PRINT_COLOR,
+  PRINT_COLORS,
   PRINT_STATUSES,
   PRINT_STATUS_EMOJI,
   PRINT_STATUS_LABELS,
-  type PrintPriority,
+  type FilamentType,
   type PrintStatus,
 } from "@repo/shared";
 import { assertManager } from "@/lib/session";
@@ -243,11 +246,34 @@ export interface PrintFormState {
 // Discord's default upload cap for a bot without server boosts.
 const MAX_PRINT_FILE_BYTES = 8 * 1024 * 1024;
 
-function normalizePriority(value: FormDataEntryValue | null): PrintPriority {
-  const v = String(value ?? "").toUpperCase();
-  return PRINT_PRIORITIES.includes(v as PrintPriority)
-    ? (v as PrintPriority)
-    : "NORMAL";
+function normalizeFilament(value: FormDataEntryValue | null): FilamentType {
+  const v = String(value ?? "");
+  return FILAMENT_TYPES.includes(v as FilamentType)
+    ? (v as FilamentType)
+    : DEFAULT_FILAMENT;
+}
+
+function normalizeInfill(value: FormDataEntryValue | null): number {
+  const n = Number(String(value ?? "").trim());
+  if (!Number.isFinite(n)) return DEFAULT_INFILL;
+  return Math.min(Math.max(Math.round(n), 0), 100);
+}
+
+function normalizeWalls(value: FormDataEntryValue | null): number {
+  const n = Number(String(value ?? "").trim());
+  if (!Number.isFinite(n) || n < 1) return DEFAULT_WALL_COUNT;
+  return Math.min(Math.floor(n), 999);
+}
+
+function normalizeColor(value: FormDataEntryValue | null): string {
+  const v = String(value ?? "").trim().toUpperCase();
+  const match = PRINT_COLORS.find((c) => c.toUpperCase() === v);
+  return match ?? DEFAULT_PRINT_COLOR;
+}
+
+function normalizeBool(value: FormDataEntryValue | null): boolean {
+  const v = String(value ?? "").trim().toLowerCase();
+  return v === "1" || v === "true" || v === "on" || v === "yes";
 }
 
 function normalizeStatus(value: FormDataEntryValue | null): PrintStatus {
@@ -280,7 +306,7 @@ function titleFromFiles(names: string[]): string {
  * Create a PRINT request: no reminders, no RSVP. Each file carries its own
  * importance + print order. Uploads the files straight to the chosen channel
  * with a "who's printing this?" claim button. Takes FormData (files[] aligned
- * with priority[] and order[]) and returns validation state.
+ * aligned with per-file 3D settings) and returns validation state.
  */
 export async function createPrintRequest(
   _prev: PrintFormState,
@@ -295,24 +321,36 @@ export async function createPrintRequest(
     if (!channelId) return { error: "Pick a channel to post in." };
 
     const rawFiles = formData.getAll("files");
-    const priorities = formData.getAll("priority");
     const orders = formData.getAll("order");
     const copies = formData.getAll("copies");
+    const filaments = formData.getAll("filamentType");
+    const infills = formData.getAll("infill");
+    const walls = formData.getAll("wallCount");
+    const colors = formData.getAll("color");
+    const supports = formData.getAll("needsSupport");
 
-    // files[] / priority[] / order[] / copies[] are appended together, so they align.
+    // All the per-file arrays are appended together, so they align by index.
     const rows = rawFiles
       .map((f, i) => ({
         file: f,
-        priority: normalizePriority(priorities[i] ?? null),
         order: normalizeOrder(orders[i] ?? null),
         copies: normalizeCopies(copies[i] ?? null),
+        filamentType: normalizeFilament(filaments[i] ?? null),
+        infill: normalizeInfill(infills[i] ?? null),
+        wallCount: normalizeWalls(walls[i] ?? null),
+        color: normalizeColor(colors[i] ?? null),
+        needsSupport: normalizeBool(supports[i] ?? null),
       }))
       .filter(
         (r): r is {
           file: File;
-          priority: PrintPriority;
           order: number;
           copies: number;
+          filamentType: FilamentType;
+          infill: number;
+          wallCount: number;
+          color: string;
+          needsSupport: boolean;
         } => r.file instanceof File && r.file.size > 0,
       );
 
@@ -347,9 +385,13 @@ export async function createPrintRequest(
         printFiles: {
           create: rows.map((r) => ({
             name: r.file.name,
-            priority: r.priority,
             order: r.order,
             copies: r.copies,
+            filamentType: r.filamentType,
+            infill: r.infill,
+            wallCount: r.wallCount,
+            color: r.color,
+            needsSupport: r.needsSupport,
           })),
         },
       },
@@ -359,9 +401,13 @@ export async function createPrintRequest(
       eventId: event.id,
       files: rows.map((r) => ({
         name: r.file.name,
-        priority: r.priority,
         order: r.order,
         copies: r.copies,
+        filamentType: r.filamentType,
+        infill: r.infill,
+        wallCount: r.wallCount,
+        color: r.color,
+        needsSupport: r.needsSupport,
       })),
       description: description || null,
       requesterName: session.user?.name ?? null,
@@ -401,9 +447,13 @@ export async function createPrintRequest(
 
 export interface PrintFileEdit {
   id: string;
-  priority: string;
   order: number;
   copies: number;
+  filamentType: string;
+  infill: number;
+  wallCount: number;
+  color: string;
+  needsSupport: boolean;
 }
 
 /**
@@ -438,26 +488,45 @@ export async function updatePrintRequest(
   for (const edit of input.files) {
     const current = byId.get(edit.id);
     if (!current) continue;
-    const priority = normalizePriority(edit.priority);
     const order = normalizeOrder(String(edit.order));
     const pieces = normalizeCopies(String(edit.copies));
+    const filamentType = normalizeFilament(edit.filamentType);
+    const infill = normalizeInfill(String(edit.infill));
+    const wallCount = normalizeWalls(String(edit.wallCount));
+    const color = normalizeColor(edit.color);
+    const needsSupport = !!edit.needsSupport;
     if (
-      priority !== current.priority ||
       order !== current.order ||
-      pieces !== current.copies
+      pieces !== current.copies ||
+      filamentType !== current.filamentType ||
+      infill !== current.infill ||
+      wallCount !== current.wallCount ||
+      color.toUpperCase() !== current.color.toUpperCase() ||
+      needsSupport !== current.needsSupport
     ) {
-      updates.push({ id: edit.id, priority, order, copies: pieces });
+      updates.push({
+        id: edit.id,
+        order,
+        copies: pieces,
+        filamentType,
+        infill,
+        wallCount,
+        color,
+        needsSupport,
+      });
       const bits: string[] = [];
-      if (priority !== current.priority) {
-        bits.push(
-          `${PRINT_PRIORITY_EMOJI[priority]} ${PRINT_PRIORITY_LABELS[priority]}`,
-        );
+      if (filamentType !== current.filamentType) bits.push(filamentType);
+      if (infill !== current.infill) bits.push(`${infill}% infill`);
+      if (wallCount !== current.wallCount) bits.push(`${wallCount} walls`);
+      if (color.toUpperCase() !== current.color.toUpperCase()) {
+        bits.push(`🎨 ${color.toUpperCase()}`);
       }
+      if (needsSupport !== current.needsSupport) {
+        bits.push(needsSupport ? "needs support" : "no support");
+      }
+      if (pieces !== current.copies) bits.push(`×${pieces}`);
       if (order !== current.order) {
         bits.push(`order ${order > 0 ? `#${order}` : "unset"}`);
-      }
-      if (pieces !== current.copies) {
-        bits.push(`×${pieces}`);
       }
       changes.push(`\`${current.name}\` → ${bits.join(", ")}`);
     }
@@ -468,7 +537,15 @@ export async function updatePrintRequest(
     ...updates.map((u) =>
       prisma.printFile.update({
         where: { id: u.id },
-        data: { priority: u.priority, order: u.order, copies: u.copies },
+        data: {
+          order: u.order,
+          copies: u.copies,
+          filamentType: u.filamentType,
+          infill: u.infill,
+          wallCount: u.wallCount,
+          color: u.color,
+          needsSupport: u.needsSupport,
+        },
       }),
     ),
   ]);
@@ -484,9 +561,13 @@ export async function updatePrintRequest(
     eventId: id,
     files: files.map((f) => ({
       name: f.name,
-      priority: f.priority,
       order: f.order,
       copies: f.copies,
+      filamentType: f.filamentType,
+      infill: f.infill,
+      wallCount: f.wallCount,
+      color: f.color,
+      needsSupport: f.needsSupport,
     })),
     description: existing.description,
     requesterName: null,
