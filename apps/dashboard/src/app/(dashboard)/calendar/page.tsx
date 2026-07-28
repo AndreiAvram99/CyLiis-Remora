@@ -4,6 +4,7 @@ import { DateTime } from "luxon";
 import { prisma, type EventKind } from "@repo/db";
 import { Card } from "@/components/ui";
 import { getGuild } from "@/lib/guild";
+import { channelColorOf } from "@/lib/channel-color";
 import { env } from "@/lib/env";
 import { listCalendarEvents, isCalendarEnabled } from "@/lib/gcal";
 
@@ -25,6 +26,8 @@ interface CalItem {
   start: Date;
   allDay: boolean;
   styleKey: string;
+  // App events are tinted with their channel's color; Google items use styleKey.
+  color?: string;
 }
 
 export default async function CalendarPage({
@@ -49,10 +52,25 @@ export default async function CalendarPage({
   const appEvents = await prisma.event.findMany({
     where: {
       guildId: env.guildId(),
+      // Print requests are internal to-dos, not calendar entries.
+      kind: { not: "PRINT" },
       startAt: { gte: gridStart.toJSDate(), lte: gridEnd.toJSDate() },
     },
-    select: { id: true, title: true, startAt: true, kind: true, gcalEventId: true },
+    select: {
+      id: true,
+      title: true,
+      startAt: true,
+      kind: true,
+      channelId: true,
+      gcalEventId: true,
+    },
   });
+
+  const channels = await prisma.channel.findMany({
+    where: { guildId: env.guildId() },
+    select: { id: true, name: true, color: true },
+  });
+  const channelColor = new Map(channels.map((c) => [c.id, channelColorOf(c)]));
 
   const appGcalIds = new Set(
     appEvents.map((e) => e.gcalEventId).filter((id): id is string => Boolean(id)),
@@ -75,6 +93,7 @@ export default async function CalendarPage({
       start: e.startAt,
       allDay: false,
       styleKey: e.kind as EventKind,
+      color: channelColor.get(e.channelId),
     })),
     ...gcalItems.map((g) => ({
       id: g.id,
@@ -184,7 +203,12 @@ export default async function CalendarPage({
                     <div
                       key={it.id}
                       title={it.title}
-                      className={`break-words rounded px-1.5 py-0.5 text-[11px] leading-tight ${PILL_STYLES[it.styleKey]}`}
+                      className={`break-words rounded px-1.5 py-0.5 text-[11px] leading-tight ${it.color ? "" : PILL_STYLES[it.styleKey]}`}
+                      style={
+                        it.color
+                          ? { color: it.color, backgroundColor: `${it.color}22` }
+                          : undefined
+                      }
                     >
                       {!it.allDay ? (
                         <span className="tabular-nums opacity-80">
@@ -209,9 +233,7 @@ export default async function CalendarPage({
       </Card>
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-neutral-500">
-        <LegendDot className="bg-palette-sky" label="Meeting" />
-        <LegendDot className="bg-palette-sun" label="Event" />
-        <LegendDot className="bg-palette-flame" label="Custom" />
+        <span>Schedules use their channel color.</span>
         <LegendDot className="bg-palette-azure" label="Google Calendar" />
       </div>
     </div>
