@@ -1,4 +1,5 @@
 import * as React from "react";
+import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // Shared input styling: dedicated input surface, soft line border, quiet focus.
@@ -37,11 +38,26 @@ export const Textarea = React.forwardRef<
   );
 });
 
+// Hide the native arrow and overlay our own chevron so we control its spacing
+// from the right edge. Any width class from the caller sizes the wrapper.
 export const Select = React.forwardRef<
   HTMLSelectElement,
   React.SelectHTMLAttributes<HTMLSelectElement>
 >(function Select({ className, ...props }, ref) {
-  return <select ref={ref} className={cn(fieldClass, className)} {...props} />;
+  return (
+    <div className={cn("relative", className)}>
+      <select
+        ref={ref}
+        className={cn(fieldClass, "w-full appearance-none pr-10")}
+        {...props}
+      />
+      <ChevronDown
+        size={16}
+        aria-hidden
+        className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-neutral-400"
+      />
+    </div>
+  );
 });
 
 type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
