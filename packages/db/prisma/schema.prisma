@@ -108,12 +108,16 @@ model Event {
 model PrintFile {
   id        String   @id @default(cuid())
   eventId   String
-  name      String
-  url       String? // Discord attachment URL captured after posting
-  priority  String   @default("NORMAL") // LOW | NORMAL | HIGH | URGENT
-  order     Int      @default(0) // print-queue position (0 = unset)
-  copies    Int      @default(1) // how many pieces to print
-  createdAt DateTime @default(now())
+  name         String
+  url          String? // Discord attachment URL captured after posting
+  order        Int      @default(0) // print-queue position (0 = unset)
+  copies       Int      @default(1) // how many pieces to print
+  filamentType String   @default("PLA") // PLA | PETG | ASA/ABS | TPU | ...
+  infill       Int      @default(60) // infill percentage
+  color        String   @default("#132884") // hex swatch
+  wallCount    Int      @default(4) // number of perimeter walls
+  needsSupport Boolean  @default(false)
+  createdAt    DateTime @default(now())
 
   event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
 

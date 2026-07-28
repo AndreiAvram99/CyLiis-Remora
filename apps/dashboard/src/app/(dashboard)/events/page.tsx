@@ -13,12 +13,9 @@ import { prisma, RsvpStatus } from "@repo/db";
 import {
   durationLabel,
   recurrenceBadge,
-  PRINT_PRIORITY_EMOJI,
-  PRINT_PRIORITY_WEIGHT,
   PRINT_STATUS_EMOJI,
   PRINT_STATUS_LABELS,
   sortPrintFiles,
-  type PrintPriority,
   type PrintStatus,
 } from "@repo/shared";
 import { Badge, Button, Card } from "@/components/ui";
@@ -62,28 +59,18 @@ export default async function EventsPage() {
   });
   const channelName = new Map(channels.map((c) => [c.id, c.name]));
 
-  // Rank a request by its most-pressing file: lowest positive order first, then
-  // highest importance — so the request with the next thing to print floats up.
-  const rank = (e: (typeof events)[number]) => {
-    let minOrder = Number.MAX_SAFE_INTEGER;
-    let maxWeight = -1;
+  // Rank a request by its most-pressing file: lowest positive print order wins,
+  // so the request with the next thing to print floats to the top.
+  const minOrder = (e: (typeof events)[number]) => {
+    let m = Number.MAX_SAFE_INTEGER;
     for (const f of e.printFiles) {
-      if (f.order > 0) minOrder = Math.min(minOrder, f.order);
-      maxWeight = Math.max(
-        maxWeight,
-        PRINT_PRIORITY_WEIGHT[f.priority as PrintPriority] ?? 1,
-      );
+      if (f.order > 0) m = Math.min(m, f.order);
     }
-    return { minOrder, maxWeight };
+    return m;
   };
   const printRequests = events
     .filter((e) => e.kind === "PRINT")
-    .sort((a, b) => {
-      const ra = rank(a);
-      const rb = rank(b);
-      if (ra.minOrder !== rb.minOrder) return ra.minOrder - rb.minOrder;
-      return rb.maxWeight - ra.maxWeight;
-    });
+    .sort((a, b) => minOrder(a) - minOrder(b));
   const upcoming = events.filter(
     (e) => e.startAt >= now && e.kind !== "PRINT",
   );
@@ -305,24 +292,26 @@ export default async function EventsPage() {
                         : "Unclaimed"}
                     </span>
                   </div>
-                  <ul className="mt-2 space-y-0.5 text-sm text-neutral-300">
+                  <ul className="mt-2 space-y-1.5 text-sm text-neutral-300">
                     {sortPrintFiles(e.printFiles).map((f) => (
-                      <li key={f.id} className="flex items-center gap-2">
-                        <span>
-                          {PRINT_PRIORITY_EMOJI[f.priority as PrintPriority] ??
-                            "🔵"}
-                        </span>
-                        {f.order > 0 ? (
-                          <span className="text-xs text-neutral-500">
-                            #{f.order}
-                          </span>
-                        ) : null}
-                        <span className="min-w-0 truncate">{f.name}</span>
-                        {f.copies > 1 ? (
-                          <span className="shrink-0 text-xs font-medium text-neutral-400">
-                            ×{f.copies}
-                          </span>
-                        ) : null}
+                      <li key={f.id} className="space-y-0.5">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className="h-3.5 w-3.5 shrink-0 rounded-full border border-black/20"
+                            style={{ backgroundColor: f.color }}
+                            title={f.color}
+                          />
+                          <span className="min-w-0 truncate">{f.name}</span>
+                          {f.copies > 1 ? (
+                            <span className="shrink-0 text-xs font-medium text-neutral-400">
+                              ×{f.copies}
+                            </span>
+                          ) : null}
+                        </div>
+                        <div className="pl-5 text-xs text-neutral-500">
+                          {f.filamentType} · {f.infill}% infill · {f.wallCount}{" "}
+                          walls · {f.needsSupport ? "needs support" : "no support"}
+                        </div>
                       </li>
                     ))}
                   </ul>
@@ -351,9 +340,13 @@ export default async function EventsPage() {
                     files={e.printFiles.map((f) => ({
                       id: f.id,
                       name: f.name,
-                      priority: f.priority,
                       order: f.order,
                       copies: f.copies,
+                      filamentType: f.filamentType,
+                      infill: f.infill,
+                      wallCount: f.wallCount,
+                      color: f.color,
+                      needsSupport: f.needsSupport,
                     }))}
                   />
                 </div>
