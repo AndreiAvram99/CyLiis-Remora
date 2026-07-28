@@ -263,6 +263,12 @@ function normalizeOrder(value: FormDataEntryValue | null): number {
   return Math.min(Math.floor(n), 9999);
 }
 
+function normalizeCopies(value: FormDataEntryValue | null): number {
+  const n = Number(String(value ?? "").trim());
+  if (!Number.isFinite(n) || n < 1) return 1;
+  return Math.min(Math.floor(n), 9999);
+}
+
 /** Build a short title from the file names for the dashboard/list view. */
 function titleFromFiles(names: string[]): string {
   if (names.length === 0) return "Print request";
@@ -291,17 +297,23 @@ export async function createPrintRequest(
     const rawFiles = formData.getAll("files");
     const priorities = formData.getAll("priority");
     const orders = formData.getAll("order");
+    const copies = formData.getAll("copies");
 
-    // files[] / priority[] / order[] are appended together, so they align.
+    // files[] / priority[] / order[] / copies[] are appended together, so they align.
     const rows = rawFiles
       .map((f, i) => ({
         file: f,
         priority: normalizePriority(priorities[i] ?? null),
         order: normalizeOrder(orders[i] ?? null),
+        copies: normalizeCopies(copies[i] ?? null),
       }))
       .filter(
-        (r): r is { file: File; priority: PrintPriority; order: number } =>
-          r.file instanceof File && r.file.size > 0,
+        (r): r is {
+          file: File;
+          priority: PrintPriority;
+          order: number;
+          copies: number;
+        } => r.file instanceof File && r.file.size > 0,
       );
 
     if (rows.length === 0) {
@@ -337,6 +349,7 @@ export async function createPrintRequest(
             name: r.file.name,
             priority: r.priority,
             order: r.order,
+            copies: r.copies,
           })),
         },
       },
@@ -348,6 +361,7 @@ export async function createPrintRequest(
         name: r.file.name,
         priority: r.priority,
         order: r.order,
+        copies: r.copies,
       })),
       description: description || null,
       requesterName: session.user?.name ?? null,
@@ -389,6 +403,7 @@ export interface PrintFileEdit {
   id: string;
   priority: string;
   order: number;
+  copies: number;
 }
 
 /**
@@ -425,8 +440,13 @@ export async function updatePrintRequest(
     if (!current) continue;
     const priority = normalizePriority(edit.priority);
     const order = normalizeOrder(String(edit.order));
-    if (priority !== current.priority || order !== current.order) {
-      updates.push({ id: edit.id, priority, order });
+    const pieces = normalizeCopies(String(edit.copies));
+    if (
+      priority !== current.priority ||
+      order !== current.order ||
+      pieces !== current.copies
+    ) {
+      updates.push({ id: edit.id, priority, order, copies: pieces });
       const bits: string[] = [];
       if (priority !== current.priority) {
         bits.push(
@@ -435,6 +455,9 @@ export async function updatePrintRequest(
       }
       if (order !== current.order) {
         bits.push(`order ${order > 0 ? `#${order}` : "unset"}`);
+      }
+      if (pieces !== current.copies) {
+        bits.push(`×${pieces}`);
       }
       changes.push(`\`${current.name}\` → ${bits.join(", ")}`);
     }
@@ -445,7 +468,7 @@ export async function updatePrintRequest(
     ...updates.map((u) =>
       prisma.printFile.update({
         where: { id: u.id },
-        data: { priority: u.priority, order: u.order },
+        data: { priority: u.priority, order: u.order, copies: u.copies },
       }),
     ),
   ]);
@@ -463,6 +486,7 @@ export async function updatePrintRequest(
       name: f.name,
       priority: f.priority,
       order: f.order,
+      copies: f.copies,
     })),
     description: existing.description,
     requesterName: null,

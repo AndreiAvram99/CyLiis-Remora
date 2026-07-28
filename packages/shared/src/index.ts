@@ -202,6 +202,7 @@ export interface PrintFileLine {
   name: string;
   priority?: string | null;
   order?: number | null;
+  copies?: number | null;
 }
 
 /** Sort files by print order (0/unset last), then by importance descending. */
@@ -239,7 +240,8 @@ export function buildPrintMessagePayload(p: PrintMessageParams) {
   const fileLines = sortPrintFiles(p.files).map((f) => {
     const pr = asPriority(f.priority);
     const ord = f.order && f.order > 0 ? `\`#${f.order}\` ` : "";
-    return `${PRINT_PRIORITY_EMOJI[pr]} ${ord}${f.name}`;
+    const qty = f.copies && f.copies > 1 ? ` **×${f.copies}**` : "";
+    return `${PRINT_PRIORITY_EMOJI[pr]} ${ord}${f.name}${qty}`;
   });
 
   const description = [p.description?.trim(), fileLines.join("\n")]

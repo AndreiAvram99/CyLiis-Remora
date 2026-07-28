@@ -22,6 +22,7 @@ interface FileRow {
   id: number;
   file: File;
   priority: string;
+  copies: number;
 }
 
 const MAX_BYTES = 8 * 1024 * 1024;
@@ -59,12 +60,13 @@ export function PrintForm({
       id: nextId.current++,
       file,
       priority: "NORMAL",
+      copies: 1,
     }));
     setRows((r) => [...r, ...added]);
     setError(null);
   }
 
-  function patch(id: number, p: Partial<Pick<FileRow, "priority">>) {
+  function patch(id: number, p: Partial<Pick<FileRow, "priority" | "copies">>) {
     setRows((r) => r.map((row) => (row.id === id ? { ...row, ...p } : row)));
   }
   function removeRow(id: number) {
@@ -105,6 +107,7 @@ export function PrintForm({
       fd.append("files", r.file);
       fd.append("priority", r.priority);
       fd.append("order", String(i + 1));
+      fd.append("copies", String(r.copies));
     });
 
     startTransition(async () => {
@@ -202,7 +205,7 @@ export function PrintForm({
                       }
                     }}
                     onDragEnd={() => setDragRow(null)}
-                    className={`grid grid-cols-[auto_1fr_auto_auto] items-center gap-2 rounded-lg border border-neutral-800 bg-neutral-950 p-2 ${
+                    className={`grid grid-cols-[auto_1fr_auto_auto_auto] items-center gap-2 rounded-lg border border-neutral-800 bg-neutral-950 p-2 ${
                       dragRow === i ? "opacity-60 ring-1 ring-brand" : ""
                     }`}
                   >
@@ -238,6 +241,22 @@ export function PrintForm({
                         </option>
                       ))}
                     </Select>
+                    <div className="flex items-center gap-1">
+                      <span className="text-sm text-neutral-500">×</span>
+                      <input
+                        type="number"
+                        min={1}
+                        value={row.copies}
+                        onChange={(e) =>
+                          patch(row.id, {
+                            copies: Math.max(1, Number(e.target.value) || 1),
+                          })
+                        }
+                        title="Number of pieces to print"
+                        aria-label="Copies"
+                        className="w-16 rounded-lg border border-[rgb(var(--line))] bg-[rgb(var(--input))] px-2 py-2 text-sm text-neutral-100 outline-none focus:border-brand"
+                      />
+                    </div>
                     <button
                       type="button"
                       onClick={() => removeRow(row.id)}

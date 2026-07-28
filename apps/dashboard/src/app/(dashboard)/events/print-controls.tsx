@@ -20,6 +20,7 @@ interface FileRow {
   name: string;
   priority: string;
   order: number;
+  copies: number;
 }
 
 export function PrintControls({
@@ -34,9 +35,14 @@ export function PrintControls({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [st, setSt] = useState(status);
-  const [edits, setEdits] = useState<Record<string, { priority: string; order: string }>>(
+  const [edits, setEdits] = useState<
+    Record<string, { priority: string; order: string; copies: string }>
+  >(
     Object.fromEntries(
-      files.map((f) => [f.id, { priority: f.priority, order: String(f.order) }]),
+      files.map((f) => [
+        f.id,
+        { priority: f.priority, order: String(f.order), copies: String(f.copies) },
+      ]),
     ),
   );
 
@@ -44,10 +50,18 @@ export function PrintControls({
     st !== status ||
     files.some((f) => {
       const e = edits[f.id];
-      return e && (e.priority !== f.priority || Number(e.order || 0) !== f.order);
+      return (
+        e &&
+        (e.priority !== f.priority ||
+          Number(e.order || 0) !== f.order ||
+          Math.max(1, Number(e.copies || 1)) !== f.copies)
+      );
     });
 
-  function setFile(fid: string, patch: Partial<{ priority: string; order: string }>) {
+  function setFile(
+    fid: string,
+    patch: Partial<{ priority: string; order: string; copies: string }>,
+  ) {
     setEdits((m) => ({ ...m, [fid]: { ...m[fid], ...patch } }));
   }
 
@@ -59,6 +73,7 @@ export function PrintControls({
           id: f.id,
           priority: edits[f.id]?.priority ?? f.priority,
           order: Number(edits[f.id]?.order || 0),
+          copies: Math.max(1, Number(edits[f.id]?.copies || 1)),
         })),
       });
       router.refresh();
@@ -111,6 +126,18 @@ export function PrintControls({
               disabled={isPending}
               title="Print order (lower prints first)"
             />
+            <span className="flex items-center gap-1">
+              <span className="text-neutral-500">×</span>
+              <input
+                type="number"
+                min={1}
+                className={`${fieldClass} w-14`}
+                value={edits[f.id]?.copies ?? String(f.copies)}
+                onChange={(e) => setFile(f.id, { copies: e.target.value })}
+                disabled={isPending}
+                title="Number of pieces to print"
+              />
+            </span>
           </li>
         ))}
       </ul>
