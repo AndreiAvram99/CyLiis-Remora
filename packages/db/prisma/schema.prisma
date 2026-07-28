@@ -112,6 +112,7 @@ model PrintFile {
   url       String? // Discord attachment URL captured after posting
   priority  String   @default("NORMAL") // LOW | NORMAL | HIGH | URGENT
   order     Int      @default(0) // print-queue position (0 = unset)
+  copies    Int      @default(1) // how many pieces to print
   createdAt DateTime @default(now())
 
   event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)

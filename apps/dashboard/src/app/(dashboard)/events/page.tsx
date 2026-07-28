@@ -318,6 +318,11 @@ export default async function EventsPage() {
                           </span>
                         ) : null}
                         <span className="min-w-0 truncate">{f.name}</span>
+                        {f.copies > 1 ? (
+                          <span className="shrink-0 text-xs font-medium text-neutral-400">
+                            ×{f.copies}
+                          </span>
+                        ) : null}
                       </li>
                     ))}
                   </ul>
@@ -348,6 +353,7 @@ export default async function EventsPage() {
                       name: f.name,
                       priority: f.priority,
                       order: f.order,
+                      copies: f.copies,
                     }))}
                   />
                 </div>

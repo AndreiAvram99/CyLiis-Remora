@@ -50,6 +50,7 @@ export async function handlePrintClaim(interaction: ButtonInteraction) {
       name: f.name,
       priority: f.priority,
       order: f.order,
+      copies: f.copies,
     })),
     description: event.description,
     requesterName,
