@@ -12,6 +12,9 @@ import {
 import { Button, Card, Input, Label, Select, Textarea } from "@/components/ui";
 import { channelEmoji } from "@/lib/channel-emoji";
 import { createEvent, updateEvent } from "./actions";
+import { PrintForm } from "./print-form";
+
+type FormKind = EventKindName | "PRINT";
 
 interface ChannelOption {
   id: string;
@@ -74,7 +77,7 @@ export function EventForm({
 
   const [title, setTitle] = useState(initial?.title ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
-  const [kind, setKind] = useState<EventKindName>(initial?.kind ?? "EVENT");
+  const [kind, setKind] = useState<FormKind>(initial?.kind ?? "EVENT");
   const [startAt, setStartAt] = useState(initial?.startAt ?? "");
   const [endAt, setEndAt] = useState(initial?.endAt ?? "");
   const [location, setLocation] = useState(initial?.location ?? "");
@@ -99,13 +102,21 @@ export function EventForm({
     [channels],
   );
 
-  function handleKindChange(next: EventKindName) {
+  function handleKindChange(next: FormKind) {
     setKind(next);
     // In create mode, load that kind's default reminders as a starting point.
-    if (mode === "create") {
+    // PRINT has none (it uses its own simple form).
+    if (mode === "create" && next !== "PRINT") {
       setReminders(offsetsToRows(kindDefaults[next] ?? []));
     }
   }
+
+  const printingChannelId = useMemo(
+    () =>
+      channels.find((c) => c.name.toLowerCase() === "printing")?.id ??
+      channels[0]?.id,
+    [channels],
+  );
 
   function updateReminder(idx: number, patch: Partial<ReminderRow>) {
     setReminders((rows) =>
@@ -144,7 +155,8 @@ export function EventForm({
     const payload = {
       title: title.trim(),
       description: description.trim() || null,
-      kind,
+      // PRINT is handled by its own form, so kind here is always a regular kind.
+      kind: kind as EventKindName,
       startAt,
       endAt: endAt || null,
       location: location.trim() || null,
@@ -177,7 +189,7 @@ export function EventForm({
   const noChannels = channels.length === 0;
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <div className="space-y-6">
       {noChannels ? (
         <Card className="border-palette-sun/40 bg-palette-sun/10 text-sm text-palette-sun">
           No channels found yet. Start the bot worker and make sure it can see
@@ -185,51 +197,65 @@ export function EventForm({
         </Card>
       ) : null}
 
-      <Card className="space-y-4">
+      <Card className="space-y-2">
         <div>
-          <Label htmlFor="title">Title</Label>
-          <Input
-            id="title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="Weekly sync / Robotics Festival"
-            required
-          />
+          <Label htmlFor="kind">Type</Label>
+          <Select
+            id="kind"
+            value={kind}
+            onChange={(e) => handleKindChange(e.target.value as FormKind)}
+          >
+            {(Object.keys(KIND_LABELS) as EventKindName[]).map((k) => (
+              <option key={k} value={k}>
+                {KIND_LABELS[k]}
+              </option>
+            ))}
+            {mode === "create" ? (
+              <option value="PRINT">Printing</option>
+            ) : null}
+          </Select>
         </div>
+        {kind === "PRINT" ? (
+          <p className="text-xs text-neutral-500">
+            Printing just posts a file to a channel for someone to print — no
+            dates, reminders or RSVP.
+          </p>
+        ) : null}
+      </Card>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <Label htmlFor="kind">Type</Label>
-            <Select
-              id="kind"
-              value={kind}
-              onChange={(e) => handleKindChange(e.target.value as EventKindName)}
-            >
-              {(Object.keys(KIND_LABELS) as EventKindName[]).map((k) => (
-                <option key={k} value={k}>
-                  {KIND_LABELS[k]}
-                </option>
-              ))}
-            </Select>
-          </div>
-          <div>
-            <Label htmlFor="channel">Announcement channel</Label>
-            <Select
-              id="channel"
-              value={channelId}
-              onChange={(e) => setChannelId(e.target.value)}
-              disabled={noChannels}
-            >
-              {channels.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {channelEmoji(c.name)} #{c.name}
-                </option>
-              ))}
-            </Select>
-          </div>
-        </div>
+      {kind === "PRINT" ? (
+        <PrintForm channels={channels} defaultChannelId={printingChannelId} />
+      ) : (
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <Card className="space-y-4">
+            <div>
+              <Label htmlFor="title">Title</Label>
+              <Input
+                id="title"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="Weekly sync / Robotics Festival"
+                required
+              />
+            </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <Label htmlFor="channel">Announcement channel</Label>
+              <Select
+                id="channel"
+                value={channelId}
+                onChange={(e) => setChannelId(e.target.value)}
+                disabled={noChannels}
+              >
+                {channels.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {channelEmoji(c.name)} #{c.name}
+                  </option>
+                ))}
+              </Select>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <Label htmlFor="startAt">Starts</Label>
             <Input
@@ -385,14 +411,16 @@ export function EventForm({
               ? "Create schedule"
               : "Save changes"}
         </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          onClick={() => router.push("/events")}
-        >
-          Cancel
-        </Button>
-      </div>
-    </form>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => router.push("/events")}
+            >
+              Cancel
+            </Button>
+          </div>
+        </form>
+      )}
+    </div>
   );
 }

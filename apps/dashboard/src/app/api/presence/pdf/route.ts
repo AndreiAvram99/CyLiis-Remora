@@ -72,7 +72,9 @@ export async function GET(req: NextRequest) {
   const pdf = await buildPresencePdf({
     guildName: guild.name,
     timezone: guild.timezone,
-    events: events.map((e) => ({
+    events: events
+      .filter((e) => e.kind !== "PRINT")
+      .map((e) => ({
       title: e.title,
       kind: e.kind,
       startAt: e.startAt,

@@ -283,9 +283,12 @@ export default async function PresencePage({
   const channelName = new Map(channels.map((c) => [c.id, c.name]));
   const channelPos = new Map(channels.map((c) => [c.id, c.position]));
 
+  // Print requests don't collect presence, so keep them off this page.
+  const presenceEvents = events.filter((e) => e.kind !== "PRINT");
+
   // Group the (already date-filtered) events by their announcement channel.
   const byChannel = new Map<string, EventWithRsvps[]>();
-  for (const e of events) {
+  for (const e of presenceEvents) {
     const list = byChannel.get(e.channelId) ?? [];
     list.push(e);
     byChannel.set(e.channelId, list);
@@ -314,7 +317,7 @@ export default async function PresencePage({
               : ""}
           </p>
         </div>
-        {events.length > 0 ? (
+        {presenceEvents.length > 0 ? (
           <a
             href={pdfHref}
             className="inline-flex items-center gap-2 rounded-lg border border-neutral-700 bg-neutral-800 px-4 py-2 text-sm font-medium text-neutral-100 transition hover:bg-neutral-700"

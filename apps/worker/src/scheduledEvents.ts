@@ -17,7 +17,9 @@ export async function ensureScheduledEvent(
   guildId: string,
   event: Event,
 ): Promise<string | null> {
-  if (event.kind === EventKind.MEETING) return null;
+  if (event.kind === EventKind.MEETING || event.kind === EventKind.PRINT) {
+    return null;
+  }
   if (event.discordScheduledEventId) return event.discordScheduledEventId;
   if (event.startAt.getTime() <= Date.now()) return null;
 

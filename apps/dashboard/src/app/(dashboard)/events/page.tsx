@@ -7,6 +7,7 @@ import {
   Bell,
   CalendarDays,
   ExternalLink,
+  Printer,
 } from "lucide-react";
 import { prisma, RsvpStatus } from "@repo/db";
 import { Badge, Button, Card } from "@/components/ui";
@@ -23,6 +24,7 @@ const KIND_STYLES: Record<string, string> = {
   MEETING: "bg-palette-sky/10 text-palette-sky",
   EVENT: "bg-palette-sun/10 text-palette-sun",
   CUSTOM: "bg-palette-flame/10 text-palette-flame",
+  PRINT: "bg-palette-azure/10 text-palette-azure",
 };
 
 export default async function EventsPage() {
@@ -47,8 +49,15 @@ export default async function EventsPage() {
   });
   const channelName = new Map(channels.map((c) => [c.id, c.name]));
 
-  const upcoming = events.filter((e) => e.startAt >= now);
-  const past = events.filter((e) => e.startAt < now);
+  const printRequests = events.filter((e) => e.kind === "PRINT");
+  const upcoming = events.filter(
+    (e) => e.startAt >= now && e.kind !== "PRINT",
+  );
+  const past = events.filter((e) => e.startAt < now && e.kind !== "PRINT");
+
+  const guildId = env.guildId();
+  const discordLink = (channelId: string, messageId: string) =>
+    `https://discord.com/channels/${guildId}/${channelId}/${messageId}`;
 
   // Pull the connected Google Calendar so its meetings/events show in the app.
   // App-created events are already listed above, so we only surface the ones
@@ -218,6 +227,55 @@ export default async function EventsPage() {
                   <ExternalLink size={12} /> Open
                 </a>
               ) : null}
+            </Card>
+          ))}
+        </section>
+      ) : null}
+
+      {printRequests.length > 0 ? (
+        <section className="space-y-3">
+          <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-neutral-500">
+            <Printer size={14} /> Print requests ({printRequests.length})
+          </h2>
+          {printRequests.map((e) => (
+            <Card key={e.id} className="flex flex-wrap items-start gap-4">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <Badge className={KIND_STYLES.PRINT}>PRINT</Badge>
+                  <span className="truncate text-lg font-medium">
+                    {e.title}
+                  </span>
+                </div>
+                <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-neutral-500">
+                  <span className="flex items-center gap-1">
+                    <Hash size={12} />
+                    {channelName.get(e.channelId) ?? "unknown"}
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span
+                      className={`h-1.5 w-1.5 rounded-full ${e.printClaimedByName ? "bg-palette-azure" : "bg-neutral-600"}`}
+                    />
+                    {e.printClaimedByName
+                      ? `Claimed by ${e.printClaimedByName}`
+                      : "Unclaimed"}
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                {e.printMessageId ? (
+                  <a
+                    href={discordLink(e.channelId, e.printMessageId)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 text-xs text-neutral-400 transition hover:text-neutral-100"
+                  >
+                    <ExternalLink size={12} /> Open
+                  </a>
+                ) : null}
+                {isManager ? (
+                  <DeleteEventButton id={e.id} title={e.title} />
+                ) : null}
+              </div>
             </Card>
           ))}
         </section>
