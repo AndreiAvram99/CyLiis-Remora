@@ -49,7 +49,7 @@ export function SubscribeButton({ feedUrl }: { feedUrl: string }) {
       </button>
 
       {open ? (
-        <div className="absolute right-0 z-20 mt-2 w-72 rounded-xl border border-[rgb(var(--line))] bg-[rgb(var(--card))] p-2 shadow-xl">
+        <div className="absolute right-0 z-20 mt-2 w-72 rounded-xl border border-[rgb(var(--line))] bg-neutral-900 p-2 shadow-xl">
           <p className="px-2 pb-1.5 pt-1 text-xs text-neutral-500">
             Add CyLiis Remora to your calendar. It stays in sync automatically.
           </p>

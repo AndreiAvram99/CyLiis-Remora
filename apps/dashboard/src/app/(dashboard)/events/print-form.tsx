@@ -53,7 +53,7 @@ function ColorSwatches({
             aria-pressed={active}
             className={`h-6 w-6 rounded-full border transition ${
               active
-                ? "ring-2 ring-brand ring-offset-1 ring-offset-[rgb(var(--card))]"
+                ? "ring-2 ring-brand ring-offset-1 ring-offset-neutral-900"
                 : "border-black/20 hover:scale-110"
             }`}
             style={{ backgroundColor: hex }}

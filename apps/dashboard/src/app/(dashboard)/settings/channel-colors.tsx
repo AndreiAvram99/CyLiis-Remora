@@ -57,7 +57,7 @@ function ColorPopover({
         title="Pick color"
       />
       {open ? (
-        <div className="absolute right-0 z-20 mt-2 w-64 rounded-xl border border-[rgb(var(--line))] bg-[rgb(var(--card))] p-3 shadow-xl">
+        <div className="absolute right-0 z-20 mt-2 w-64 rounded-xl border border-[rgb(var(--line))] bg-neutral-900 p-3 shadow-xl">
           <div className="mb-2 flex items-center gap-2">
             <label
               className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-full border border-[rgb(var(--line))] text-neutral-400 transition hover:text-neutral-100"
