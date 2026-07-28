@@ -3,11 +3,21 @@ import { prisma, ReminderStatus } from "@repo/db";
 import { env } from "./env.js";
 import { buildEventMessage } from "./messages.js";
 import { getRsvpCounts } from "./rsvp.js";
+import { advanceRecurringSeries } from "./recurrence.js";
 import {
   ensureScheduledEvent,
   reconcileScheduledEvents,
   updateInterestedCounts,
 } from "./scheduledEvents.js";
+
+/** The guild's configured timezone, falling back to the env default. */
+async function guildTimezone(guildId: string): Promise<string> {
+  const guild = await prisma.guild.findUnique({
+    where: { id: guildId },
+    select: { timezone: true },
+  });
+  return guild?.timezone || env.timezone();
+}
 
 const BATCH_SIZE = 25;
 
@@ -85,6 +95,7 @@ export function startScheduler(client: Client) {
     if (running) return; // avoid overlapping cycles
     running = true;
     try {
+      await advanceRecurringSeries(env.guildId(), await guildTimezone(env.guildId()));
       await processDueReminders(client);
       await reconcileScheduledEvents(client, env.guildId());
       await updateInterestedCounts(client, env.guildId());

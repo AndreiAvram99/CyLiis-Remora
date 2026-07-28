@@ -4,7 +4,7 @@ import type { EventKindName } from "@repo/shared";
 import { getGuild, getTextChannels } from "@/lib/guild";
 import { getKindDefaults } from "@/lib/defaults";
 import { requireManager } from "@/lib/session";
-import { dateToLocalInput } from "@/lib/time";
+import { dateToLocalInput, dateToLocalDateInput } from "@/lib/time";
 import { EventForm, type EventFormInitial } from "../event-form";
 
 export const dynamic = "force-dynamic";
@@ -32,8 +32,16 @@ export default async function EditEventPage({
     title: event.title,
     description: event.description ?? "",
     kind: event.kind as EventKindName,
-    startAt: dateToLocalInput(event.startAt, guild.timezone),
-    endAt: event.endAt ? dateToLocalInput(event.endAt, guild.timezone) : "",
+    startAt: event.allDay
+      ? dateToLocalDateInput(event.startAt, guild.timezone)
+      : dateToLocalInput(event.startAt, guild.timezone),
+    endAt: event.endAt
+      ? event.allDay
+        ? dateToLocalDateInput(event.endAt, guild.timezone)
+        : dateToLocalInput(event.endAt, guild.timezone)
+      : "",
+    durationMinutes: event.durationMinutes,
+    recurrence: event.recurrence,
     location: event.location ?? "",
     url: event.url ?? "",
     channelId: event.channelId,

@@ -12,6 +12,11 @@ export function dateToLocalInput(date: Date, tz: string): string {
   return DateTime.fromJSDate(date).setZone(tz).toFormat("yyyy-LL-dd'T'HH:mm");
 }
 
+/** Format a UTC Date as a date-only value (yyyy-mm-dd) in the given tz. */
+export function dateToLocalDateInput(date: Date, tz: string): string {
+  return DateTime.fromJSDate(date).setZone(tz).toFormat("yyyy-LL-dd");
+}
+
 /** Human-readable date in the given tz, e.g. "Wed, 30 Jul 2026, 14:30". */
 export function formatInTz(date: Date, tz: string): string {
   return DateTime.fromJSDate(date)

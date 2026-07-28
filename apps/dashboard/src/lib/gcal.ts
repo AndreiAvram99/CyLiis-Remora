@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { DateTime } from "luxon";
 import { google, type calendar_v3 } from "googleapis";
 import { env } from "./env";
 
@@ -9,6 +10,7 @@ export interface CalendarEventInput {
   url?: string | null;
   startAt: Date;
   endAt?: Date | null;
+  allDay?: boolean; // date-only event (no time of day)
   timezone: string;
 }
 
@@ -102,13 +104,31 @@ function configuredCalendarIds(): string[] {
 }
 
 function toResource(input: CalendarEventInput): calendar_v3.Schema$Event {
-  const end = input.endAt ?? new Date(input.startAt.getTime() + 60 * 60 * 1000);
   const descriptionParts = [input.description ?? ""];
   if (input.url) descriptionParts.push(`\nLink: ${input.url}`);
-  return {
+  const base = {
     summary: input.title,
     description: descriptionParts.join("").trim() || undefined,
     location: input.location ?? undefined,
+  };
+
+  if (input.allDay) {
+    // Google all-day events use `date` with an EXCLUSIVE end (day after).
+    const startDate = DateTime.fromJSDate(input.startAt).setZone(input.timezone);
+    const endSource = input.endAt ?? input.startAt;
+    const endDate = DateTime.fromJSDate(endSource)
+      .setZone(input.timezone)
+      .plus({ days: 1 });
+    return {
+      ...base,
+      start: { date: startDate.toFormat("yyyy-LL-dd") },
+      end: { date: endDate.toFormat("yyyy-LL-dd") },
+    };
+  }
+
+  const end = input.endAt ?? new Date(input.startAt.getTime() + 60 * 60 * 1000);
+  return {
+    ...base,
     start: { dateTime: input.startAt.toISOString(), timeZone: input.timezone },
     end: { dateTime: end.toISOString(), timeZone: input.timezone },
   };

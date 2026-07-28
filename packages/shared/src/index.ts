@@ -43,6 +43,51 @@ export function computeDueAt(startAt: Date, offsetMinutes: number): Date {
 export const EVENT_KINDS = ["MEETING", "EVENT", "CUSTOM"] as const;
 export type EventKindName = (typeof EVENT_KINDS)[number];
 
+export const RECURRENCES = ["NONE", "WEEKLY", "MONTHLY", "YEARLY"] as const;
+export type RecurrenceName = (typeof RECURRENCES)[number];
+
+export const RECURRENCE_LABELS: Record<RecurrenceName, string> = {
+  NONE: "Does not repeat",
+  WEEKLY: "Weekly",
+  MONTHLY: "Monthly",
+  YEARLY: "Yearly",
+};
+
+/** Short label for lists/badges, e.g. "Repeats weekly". */
+export function recurrenceBadge(rec: string): string | null {
+  switch (rec) {
+    case "WEEKLY":
+      return "Repeats weekly";
+    case "MONTHLY":
+      return "Repeats monthly";
+    case "YEARLY":
+      return "Repeats yearly";
+    default:
+      return null;
+  }
+}
+
+/** Common meeting durations offered in the form (minutes). */
+export const MEETING_DURATIONS: { minutes: number; label: string }[] = [
+  { minutes: 15, label: "15 minutes" },
+  { minutes: 30, label: "30 minutes" },
+  { minutes: 45, label: "45 minutes" },
+  { minutes: 60, label: "1 hour" },
+  { minutes: 90, label: "1 hour 30 min" },
+  { minutes: 120, label: "2 hours" },
+  { minutes: 180, label: "3 hours" },
+];
+
+/** Human label for an arbitrary duration in minutes, e.g. "1h 30m". */
+export function durationLabel(minutes: number): string {
+  if (minutes <= 0) return "0m";
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  if (h && m) return `${h}h ${m}m`;
+  if (h) return `${h}h`;
+  return `${m}m`;
+}
+
 // Only two RSVP states: you're coming, or you owe a motivation for missing it.
 // ("NO" still exists in the DB enum for old rows but is no longer offered.)
 export const RSVP_STATUSES = ["GOING", "MOTIVATED"] as const;

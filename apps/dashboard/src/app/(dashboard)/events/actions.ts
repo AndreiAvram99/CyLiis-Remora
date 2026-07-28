@@ -1,5 +1,6 @@
 "use server";
 
+import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { prisma, ReminderStatus, type Prisma } from "@repo/db";
 import {
@@ -31,6 +32,35 @@ import {
   calendarIdForKind,
 } from "@/lib/gcal";
 import { eventFormSchema, type EventFormValues } from "@/lib/validation";
+
+interface ResolvedSchedule {
+  startAt: Date;
+  endAt: Date;
+  allDay: boolean;
+  durationMinutes: number | null;
+}
+
+/**
+ * Turn form values into concrete start/end times. All-day events (kind EVENT)
+ * are a date range; meetings carry a duration from which endAt is derived.
+ */
+function resolveSchedule(values: EventFormValues, tz: string): ResolvedSchedule {
+  const startAt = localInputToDate(values.startAt, tz);
+  if (values.allDay) {
+    const endAt = values.endAt ? localInputToDate(values.endAt, tz) : startAt;
+    return { startAt, endAt, allDay: true, durationMinutes: null };
+  }
+  const duration =
+    values.durationMinutes && values.durationMinutes > 0
+      ? values.durationMinutes
+      : 60;
+  return {
+    startAt,
+    endAt: new Date(startAt.getTime() + duration * 60_000),
+    allDay: false,
+    durationMinutes: duration,
+  };
+}
 
 function buildReminderCreates(
   startAt: Date,
@@ -70,10 +100,10 @@ export async function createEvent(input: EventFormValues) {
   const values = eventFormSchema.parse(input);
   const guild = await getGuild();
 
-  const startAt = localInputToDate(values.startAt, guild.timezone);
-  const endAt = values.endAt
-    ? localInputToDate(values.endAt, guild.timezone)
-    : null;
+  const { startAt, endAt, allDay, durationMinutes } = resolveSchedule(
+    values,
+    guild.timezone,
+  );
 
   const calendarId = calendarIdForKind(values.kind);
   const gcalEventId = await createCalendarEvent(
@@ -84,6 +114,7 @@ export async function createEvent(input: EventFormValues) {
       url: values.url || null,
       startAt,
       endAt,
+      allDay,
       timezone: guild.timezone,
     },
     calendarId,
@@ -97,6 +128,10 @@ export async function createEvent(input: EventFormValues) {
       kind: values.kind,
       startAt,
       endAt,
+      allDay,
+      durationMinutes,
+      recurrence: values.recurrence,
+      seriesId: values.recurrence !== "NONE" ? randomUUID() : null,
       location: values.location || null,
       url: values.url || null,
       channelId: values.channelId,
@@ -120,10 +155,10 @@ export async function updateEvent(id: string, input: EventFormValues) {
   const existing = await prisma.event.findUnique({ where: { id } });
   if (!existing) throw new Error("Event not found");
 
-  const startAt = localInputToDate(values.startAt, guild.timezone);
-  const endAt = values.endAt
-    ? localInputToDate(values.endAt, guild.timezone)
-    : null;
+  const { startAt, endAt, allDay, durationMinutes } = resolveSchedule(
+    values,
+    guild.timezone,
+  );
 
   const calInput = {
     title: values.title,
@@ -132,6 +167,7 @@ export async function updateEvent(id: string, input: EventFormValues) {
     url: values.url || null,
     startAt,
     endAt,
+    allDay,
     timezone: guild.timezone,
   };
   const targetCalendar = calendarIdForKind(values.kind);
@@ -169,6 +205,14 @@ export async function updateEvent(id: string, input: EventFormValues) {
         kind: values.kind,
         startAt,
         endAt,
+        allDay,
+        durationMinutes,
+        recurrence: values.recurrence,
+        // Keep an existing series id; start a new series if it just became recurring.
+        seriesId:
+          values.recurrence !== "NONE"
+            ? (existing.seriesId ?? randomUUID())
+            : existing.seriesId,
         location: values.location || null,
         url: values.url || null,
         channelId: values.channelId,
@@ -445,6 +489,15 @@ export async function deleteEvent(id: string) {
   await assertManager();
   const existing = await prisma.event.findUnique({ where: { id } });
   if (!existing) return;
+
+  // For a recurring schedule, stop future occurrences but keep past ones (and
+  // their attendance) intact — only the upcoming occurrence is removed.
+  if (existing.recurrence !== "NONE" && existing.seriesId) {
+    await prisma.event.updateMany({
+      where: { seriesId: existing.seriesId },
+      data: { recurrenceActive: false },
+    });
+  }
 
   if (existing.gcalEventId) {
     const calendarId = existing.gcalCalendarId ?? env.googleCalendarId();

@@ -11,6 +11,8 @@ import {
 } from "lucide-react";
 import { prisma, RsvpStatus } from "@repo/db";
 import {
+  durationLabel,
+  recurrenceBadge,
   PRINT_PRIORITY_EMOJI,
   PRINT_PRIORITY_WEIGHT,
   PRINT_STATUS_EMOJI,
@@ -182,6 +184,14 @@ export default async function EventsPage() {
                       <Bell size={12} />
                       {pending} reminder{pending === 1 ? "" : "s"} scheduled
                     </span>
+                    {e.kind === "MEETING" && e.durationMinutes ? (
+                      <span>{durationLabel(e.durationMinutes)}</span>
+                    ) : null}
+                    {recurrenceBadge(e.recurrence) ? (
+                      <span className="text-palette-azure">
+                        {recurrenceBadge(e.recurrence)}
+                      </span>
+                    ) : null}
                     <span className="flex items-center gap-1.5">
                       <span className="h-1.5 w-1.5 rounded-full bg-palette-azure" />
                       {going} going
