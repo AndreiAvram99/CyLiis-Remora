@@ -20,7 +20,11 @@ export default async function NewEventPage() {
       </h1>
       <EventForm
         mode="create"
-        channels={channels.map((c) => ({ id: c.id, name: c.name }))}
+        channels={channels.map((c) => ({
+          id: c.id,
+          name: c.name,
+          color: c.color,
+        }))}
         kindDefaults={kindDefaults}
         defaultChannelId={guild.defaultChannelId}
       />

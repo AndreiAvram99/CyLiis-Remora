@@ -10,12 +10,13 @@ import {
   type ReminderUnit,
 } from "@repo/shared";
 import { Button, Card, Input, Label, Select } from "@/components/ui";
-import { channelEmoji } from "@/lib/channel-emoji";
+import { ChannelSelect } from "@/components/channel-select";
 import { updateSettings } from "./actions";
 
 interface ChannelOption {
   id: string;
   name: string;
+  color?: string | null;
 }
 
 interface Row {
@@ -139,18 +140,14 @@ export function SettingsForm({
           </div>
           <div>
             <Label htmlFor="default-channel">Default channel</Label>
-            <Select
+            <ChannelSelect
               id="default-channel"
+              channels={channels}
               value={channelId}
-              onChange={(e) => setChannelId(e.target.value)}
-            >
-              <option value="">None</option>
-              {channels.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {channelEmoji(c.name)} #{c.name}
-                </option>
-              ))}
-            </Select>
+              onChange={setChannelId}
+              includeNone
+              noneLabel="None"
+            />
           </div>
         </div>
       </Card>

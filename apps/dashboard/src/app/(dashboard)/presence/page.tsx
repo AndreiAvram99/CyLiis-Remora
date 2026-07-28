@@ -4,6 +4,7 @@ import { prisma, RsvpStatus } from "@repo/db";
 import type { RsvpStatusName } from "@repo/shared";
 import { Badge, Card } from "@/components/ui";
 import { getGuild } from "@/lib/guild";
+import { channelColorOf } from "@/lib/channel-color";
 import { env } from "@/lib/env";
 import { getSession } from "@/lib/session";
 import { formatInTz, relativeTo } from "@/lib/time";
@@ -278,10 +279,11 @@ export default async function PresencePage({
 
   const channels = await prisma.channel.findMany({
     where: { guildId: env.guildId() },
-    select: { id: true, name: true, position: true },
+    select: { id: true, name: true, position: true, color: true },
   });
   const channelName = new Map(channels.map((c) => [c.id, c.name]));
   const channelPos = new Map(channels.map((c) => [c.id, c.position]));
+  const channelColor = new Map(channels.map((c) => [c.id, channelColorOf(c)]));
 
   // Print requests don't collect presence, so keep them off this page.
   const presenceEvents = events.filter((e) => e.kind !== "PRINT");
@@ -374,6 +376,11 @@ export default async function PresencePage({
         channelIds.map((channelId) => (
           <section key={channelId} className="space-y-3">
             <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-neutral-400">
+              <span
+                className="h-3.5 w-1.5 rounded-full"
+                style={{ backgroundColor: channelColor.get(channelId) }}
+                aria-hidden
+              />
               <Hash size={14} />
               {channelName.get(channelId) ?? "unknown"}
               <span className="text-neutral-600">

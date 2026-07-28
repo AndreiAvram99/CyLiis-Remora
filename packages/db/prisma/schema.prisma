@@ -53,6 +53,7 @@ model Channel {
   name       String
   type       String // e.g. GuildText, GuildAnnouncement
   position   Int      @default(0)
+  color      String? // admin-chosen hex (#RRGGBB) shown in channel pickers
   isTextable Boolean  @default(true)
   archived   Boolean  @default(false)
   updatedAt  DateTime @updatedAt
