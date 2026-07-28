@@ -2,7 +2,7 @@
 
 import { useRef, useState, useTransition, type DragEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Trash2, UploadCloud } from "lucide-react";
+import { GripVertical, Trash2, UploadCloud } from "lucide-react";
 import {
   PRINT_PRIORITIES,
   PRINT_PRIORITY_EMOJI,
@@ -22,7 +22,6 @@ interface FileRow {
   id: number;
   file: File;
   priority: string;
-  order: number;
 }
 
 const MAX_BYTES = 8 * 1024 * 1024;
@@ -48,6 +47,7 @@ export function PrintForm({
   const [channelId, setChannelId] = useState(defaultChannelId ?? "");
   const [message, setMessage] = useState("");
   const [rows, setRows] = useState<FileRow[]>([]);
+  const [dragRow, setDragRow] = useState<number | null>(null);
   const nextId = useRef(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -59,13 +59,12 @@ export function PrintForm({
       id: nextId.current++,
       file,
       priority: "NORMAL",
-      order: 0,
     }));
     setRows((r) => [...r, ...added]);
     setError(null);
   }
 
-  function patch(id: number, p: Partial<Pick<FileRow, "priority" | "order">>) {
+  function patch(id: number, p: Partial<Pick<FileRow, "priority">>) {
     setRows((r) => r.map((row) => (row.id === id ? { ...row, ...p } : row)));
   }
   function removeRow(id: number) {
@@ -76,6 +75,18 @@ export function PrintForm({
     e.preventDefault();
     setDragActive(false);
     addFiles(e.dataTransfer.files);
+  }
+
+  // Reorder rows live as one is dragged over another. Print order is the list
+  // position: top file prints first.
+  function reorder(from: number, to: number) {
+    setRows((r) => {
+      if (from === to || from < 0 || to < 0 || from >= r.length) return r;
+      const next = [...r];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return next;
+    });
   }
 
   function submit() {
@@ -89,11 +100,12 @@ export function PrintForm({
     const fd = new FormData();
     fd.set("channelId", channelId);
     fd.set("description", message);
-    for (const r of rows) {
+    // Order is the list position — first row prints first.
+    rows.forEach((r, i) => {
       fd.append("files", r.file);
       fd.append("priority", r.priority);
-      fd.append("order", String(r.order));
-    }
+      fd.append("order", String(i + 1));
+    });
 
     startTransition(async () => {
       const res = await createPrintRequest({ error: null }, fd);
@@ -110,9 +122,9 @@ export function PrintForm({
     <div className="space-y-6">
       <Card className="space-y-4">
         <p className="text-sm text-neutral-500">
-          Add the file(s) to print, each with its own importance and print order.
-          We&apos;ll post them to the channel with a button teammates can tap to
-          claim the job — no reminders, no RSVP.
+          Add the file(s) to print, set each one&apos;s importance and drag them
+          into print order. We&apos;ll post them to the channel with a button
+          teammates can tap to claim the job — no reminders, no RSVP.
         </p>
 
         <div>
@@ -167,59 +179,77 @@ export function PrintForm({
               and drop them here
             </div>
             <div className="text-xs text-neutral-500">
-              Lower order prints first · max 8 MB per file.
+              Drag files here · max 8 MB each.
             </div>
           </div>
 
           {rows.length > 0 ? (
-            <ul className="space-y-2">
-              {rows.map((row) => (
-                <li
-                  key={row.id}
-                  className="grid grid-cols-1 gap-2 rounded-lg border border-neutral-800 bg-neutral-950 p-2 sm:grid-cols-[1fr_auto_auto_auto] sm:items-center"
-                >
-                  <div className="min-w-0">
-                    <div className="truncate text-sm text-neutral-200">
-                      {row.file.name}
-                    </div>
-                    <div className="text-xs text-neutral-500">
-                      {formatSize(row.file.size)}
-                    </div>
-                  </div>
-                  <Select
-                    value={row.priority}
-                    onChange={(e) => patch(row.id, { priority: e.target.value })}
-                    className="sm:w-36"
-                    aria-label="Importance"
+            <>
+              <p className="text-xs text-neutral-500">
+                Drag the rows to set print order — the top file prints first.
+              </p>
+              <ul className="space-y-2">
+                {rows.map((row, i) => (
+                  <li
+                    key={row.id}
+                    draggable
+                    onDragStart={() => setDragRow(i)}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      if (dragRow !== null && dragRow !== i) {
+                        reorder(dragRow, i);
+                        setDragRow(i);
+                      }
+                    }}
+                    onDragEnd={() => setDragRow(null)}
+                    className={`grid grid-cols-[auto_1fr_auto_auto] items-center gap-2 rounded-lg border border-neutral-800 bg-neutral-950 p-2 ${
+                      dragRow === i ? "opacity-60 ring-1 ring-brand" : ""
+                    }`}
                   >
-                    {PRINT_PRIORITIES.map((p) => (
-                      <option key={p} value={p}>
-                        {PRINT_PRIORITY_EMOJI[p]} {PRINT_PRIORITY_LABELS[p]}
-                      </option>
-                    ))}
-                  </Select>
-                  <input
-                    type="number"
-                    min={0}
-                    value={row.order}
-                    onChange={(e) =>
-                      patch(row.id, { order: Number(e.target.value) || 0 })
-                    }
-                    title="Print order (lower prints first)"
-                    aria-label="Print order"
-                    className="w-full rounded-lg border border-[rgb(var(--line))] bg-[rgb(var(--input))] px-3 py-2 text-sm text-neutral-100 outline-none focus:border-brand sm:w-20"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => removeRow(row.id)}
-                    className="justify-self-end rounded-lg p-2 text-neutral-500 transition hover:bg-neutral-800 hover:text-red-400"
-                    aria-label="Remove file"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </li>
-              ))}
-            </ul>
+                    <span
+                      className="flex h-7 w-6 shrink-0 cursor-grab items-center justify-center text-neutral-500 active:cursor-grabbing"
+                      title="Drag to reorder"
+                      aria-label="Drag to reorder"
+                    >
+                      <span className="mr-1 text-xs font-medium text-neutral-400">
+                        {i + 1}
+                      </span>
+                      <GripVertical size={16} />
+                    </span>
+                    <div className="min-w-0">
+                      <div className="truncate text-sm text-neutral-200">
+                        {row.file.name}
+                      </div>
+                      <div className="text-xs text-neutral-500">
+                        {formatSize(row.file.size)}
+                      </div>
+                    </div>
+                    <Select
+                      value={row.priority}
+                      onChange={(e) =>
+                        patch(row.id, { priority: e.target.value })
+                      }
+                      className="w-36"
+                      aria-label="Importance"
+                    >
+                      {PRINT_PRIORITIES.map((p) => (
+                        <option key={p} value={p}>
+                          {PRINT_PRIORITY_EMOJI[p]} {PRINT_PRIORITY_LABELS[p]}
+                        </option>
+                      ))}
+                    </Select>
+                    <button
+                      type="button"
+                      onClick={() => removeRow(row.id)}
+                      className="justify-self-end rounded-lg p-2 text-neutral-500 transition hover:bg-neutral-800 hover:text-red-400"
+                      aria-label="Remove file"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </>
           ) : null}
         </div>
 
