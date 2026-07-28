@@ -3,6 +3,11 @@
 import { useActionState, useEffect } from "react";
 import { useFormStatus } from "react-dom";
 import { useRouter } from "next/navigation";
+import {
+  PRINT_PRIORITIES,
+  PRINT_PRIORITY_EMOJI,
+  PRINT_PRIORITY_LABELS,
+} from "@repo/shared";
 import { Button, Card, Input, Label, Select, Textarea } from "@/components/ui";
 import { channelEmoji } from "@/lib/channel-emoji";
 import { createPrintRequest, type PrintFormState } from "./actions";
@@ -76,6 +81,33 @@ export function PrintForm({
               </option>
             ))}
           </Select>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <Label htmlFor="p-priority">Importance</Label>
+            <Select id="p-priority" name="priority" defaultValue="NORMAL">
+              {PRINT_PRIORITIES.map((p) => (
+                <option key={p} value={p}>
+                  {PRINT_PRIORITY_EMOJI[p]} {PRINT_PRIORITY_LABELS[p]}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <div>
+            <Label htmlFor="p-order">Print order (optional)</Label>
+            <Input
+              id="p-order"
+              name="order"
+              type="number"
+              min={0}
+              defaultValue={0}
+              placeholder="0"
+            />
+            <p className="mt-1 text-xs text-neutral-500">
+              Lower prints first. Leave 0 if it doesn&apos;t matter.
+            </p>
+          </div>
         </div>
 
         <div>

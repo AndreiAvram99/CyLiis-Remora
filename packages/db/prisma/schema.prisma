@@ -82,6 +82,9 @@ model Event {
   printMessageId          String? // Discord message posted for a PRINT request
   printClaimedById        String? // Discord id of the member who took the print job
   printClaimedByName      String? // their display name at claim time
+  printPriority           String    @default("NORMAL") // LOW | NORMAL | HIGH | URGENT
+  printOrder              Int       @default(0) // print-queue position (0 = unset)
+  printStatus             String    @default("PENDING") // PENDING | PRINTING | DONE
   createdBy               String? // Discord user id of the admin who created it
   createdAt               DateTime  @default(now())
   updatedAt               DateTime  @updatedAt

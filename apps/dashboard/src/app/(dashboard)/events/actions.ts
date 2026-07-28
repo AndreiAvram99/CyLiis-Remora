@@ -2,12 +2,28 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma, ReminderStatus, type Prisma } from "@repo/db";
-import { buildPrintMessagePayload, computeDueAt, offsetLabel } from "@repo/shared";
+import {
+  buildPrintMessagePayload,
+  computeDueAt,
+  offsetLabel,
+  PRINT_PRIORITIES,
+  PRINT_PRIORITY_EMOJI,
+  PRINT_PRIORITY_LABELS,
+  PRINT_STATUSES,
+  PRINT_STATUS_EMOJI,
+  PRINT_STATUS_LABELS,
+  type PrintPriority,
+  type PrintStatus,
+} from "@repo/shared";
 import { assertManager } from "@/lib/session";
 import { getGuild } from "@/lib/guild";
 import { env } from "@/lib/env";
 import { localInputToDate } from "@/lib/time";
-import { postChannelMessageWithFiles } from "@/lib/discord";
+import {
+  postChannelMessage,
+  postChannelMessageWithFiles,
+  editChannelMessage,
+} from "@/lib/discord";
 import {
   createCalendarEvent,
   updateCalendarEvent,
@@ -183,6 +199,26 @@ export interface PrintFormState {
 // Discord's default upload cap for a bot without server boosts.
 const MAX_PRINT_FILE_BYTES = 8 * 1024 * 1024;
 
+function normalizePriority(value: FormDataEntryValue | null): PrintPriority {
+  const v = String(value ?? "").toUpperCase();
+  return PRINT_PRIORITIES.includes(v as PrintPriority)
+    ? (v as PrintPriority)
+    : "NORMAL";
+}
+
+function normalizeStatus(value: FormDataEntryValue | null): PrintStatus {
+  const v = String(value ?? "").toUpperCase();
+  return PRINT_STATUSES.includes(v as PrintStatus)
+    ? (v as PrintStatus)
+    : "PENDING";
+}
+
+function normalizeOrder(value: FormDataEntryValue | null): number {
+  const n = Number(String(value ?? "").trim());
+  if (!Number.isFinite(n) || n < 0) return 0;
+  return Math.min(Math.floor(n), 9999);
+}
+
 /**
  * Create a PRINT request: no reminders, no RSVP. Uploads the attached file(s)
  * straight to the chosen channel with a "who's printing this?" claim button.
@@ -199,6 +235,8 @@ export async function createPrintRequest(
     const title = String(formData.get("title") ?? "").trim();
     const description = String(formData.get("description") ?? "").trim();
     const channelId = String(formData.get("channelId") ?? "").trim();
+    const priority = normalizePriority(formData.get("priority"));
+    const order = normalizeOrder(formData.get("order"));
 
     if (!title) return { error: "Add a short title for the print request." };
     if (!channelId) return { error: "Pick a channel to post in." };
@@ -233,6 +271,8 @@ export async function createPrintRequest(
         channelId,
         announceOnCreate: false,
         createdBy: session.user?.discordId,
+        printPriority: priority,
+        printOrder: order,
       },
     });
 
@@ -241,6 +281,9 @@ export async function createPrintRequest(
       title,
       description: description || null,
       requesterName: session.user?.name ?? null,
+      priority,
+      order,
+      status: "PENDING",
     });
 
     try {
@@ -272,6 +315,78 @@ export async function createPrintRequest(
         err instanceof Error ? err.message : "Something went wrong. Try again.",
     };
   }
+}
+
+/**
+ * Manager-only edit of a print request's importance / queue order / status.
+ * Refreshes the original Discord post and posts a separate update message
+ * summarizing what changed. Only sends to Discord when something actually did.
+ */
+export async function updatePrintRequest(
+  id: string,
+  input: { priority: string; order: number; status: string },
+) {
+  await assertManager();
+  const existing = await prisma.event.findUnique({ where: { id } });
+  if (!existing || existing.kind !== "PRINT") {
+    throw new Error("Print request not found.");
+  }
+
+  const priority = normalizePriority(input.priority);
+  const status = normalizeStatus(input.status);
+  const order = normalizeOrder(String(input.order));
+
+  const changes: string[] = [];
+  if (priority !== existing.printPriority) {
+    changes.push(
+      `Importance → ${PRINT_PRIORITY_EMOJI[priority]} **${PRINT_PRIORITY_LABELS[priority]}**`,
+    );
+  }
+  if (order !== existing.printOrder) {
+    changes.push(`Print order → **${order > 0 ? `#${order}` : "unset"}**`);
+  }
+  if (status !== existing.printStatus) {
+    changes.push(
+      `Status → ${PRINT_STATUS_EMOJI[status as PrintStatus]} **${PRINT_STATUS_LABELS[status as PrintStatus]}**`,
+    );
+  }
+
+  await prisma.event.update({
+    where: { id },
+    data: { printPriority: priority, printOrder: order, printStatus: status },
+  });
+
+  // Nothing changed — don't spam the channel.
+  if (changes.length === 0) {
+    revalidatePath("/events");
+    return { id, changed: false };
+  }
+
+  const payload = buildPrintMessagePayload({
+    eventId: id,
+    title: existing.title,
+    description: existing.description,
+    requesterName: null,
+    claimedByName: existing.printClaimedByName,
+    priority,
+    order,
+    status,
+  });
+
+  // Refresh the original post (best-effort), then post a new update note.
+  if (existing.printMessageId) {
+    await editChannelMessage(existing.channelId, existing.printMessageId, {
+      embeds: payload.embeds,
+      components: payload.components,
+    }).catch((err) => console.error("[print] edit original failed:", err));
+  }
+
+  await postChannelMessage(existing.channelId, {
+    content: `🔄 **Print update — ${existing.title}**\n${changes.join("\n")}`,
+  }).catch((err) => console.error("[print] update message failed:", err));
+
+  revalidatePath("/events");
+  return { id, changed: true };
 }
 
 export async function deleteEvent(id: string) {

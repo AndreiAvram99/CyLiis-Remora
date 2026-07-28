@@ -47,6 +47,9 @@ export async function handlePrintClaim(interaction: ButtonInteraction) {
     description: event.description,
     requesterName,
     claimedByName,
+    priority: event.printPriority,
+    order: event.printOrder,
+    status: event.printStatus,
   });
 
   try {
