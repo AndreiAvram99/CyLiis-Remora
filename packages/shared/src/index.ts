@@ -152,14 +152,31 @@ function asStatus(value?: string | null): PrintStatus {
     : "PENDING";
 }
 
+export interface PrintFileLine {
+  name: string;
+  priority?: string | null;
+  order?: number | null;
+}
+
+/** Sort files by print order (0/unset last), then by importance descending. */
+export function sortPrintFiles<T extends PrintFileLine>(files: T[]): T[] {
+  return [...files].sort((a, b) => {
+    const ao = a.order && a.order > 0 ? a.order : Number.MAX_SAFE_INTEGER;
+    const bo = b.order && b.order > 0 ? b.order : Number.MAX_SAFE_INTEGER;
+    if (ao !== bo) return ao - bo;
+    return (
+      PRINT_PRIORITY_WEIGHT[asPriority(b.priority)] -
+      PRINT_PRIORITY_WEIGHT[asPriority(a.priority)]
+    );
+  });
+}
+
 export interface PrintMessageParams {
   eventId: string;
-  title: string;
+  files: PrintFileLine[];
   description?: string | null;
   requesterName?: string | null;
   claimedByName?: string | null;
-  priority?: string | null;
-  order?: number | null;
   status?: string | null;
 }
 
@@ -169,20 +186,23 @@ export interface PrintMessageParams {
  * can rebuild it when the claim state changes — keeping both in sync.
  */
 export function buildPrintMessagePayload(p: PrintMessageParams) {
-  const priority = asPriority(p.priority);
   const status = asStatus(p.status);
-  const fields: { name: string; value: string; inline?: boolean }[] = [];
 
+  // Files listed in print order with their importance, so whoever prints them
+  // knows what comes first and what's urgent.
+  const fileLines = sortPrintFiles(p.files).map((f) => {
+    const pr = asPriority(f.priority);
+    const ord = f.order && f.order > 0 ? `\`#${f.order}\` ` : "";
+    return `${PRINT_PRIORITY_EMOJI[pr]} ${ord}${f.name}`;
+  });
+
+  const description = [p.description?.trim(), fileLines.join("\n")]
+    .filter(Boolean)
+    .join("\n\n");
+
+  const fields: { name: string; value: string; inline?: boolean }[] = [];
   if (p.requesterName) {
     fields.push({ name: "Requested by", value: p.requesterName, inline: true });
-  }
-  fields.push({
-    name: "Importance",
-    value: `${PRINT_PRIORITY_EMOJI[priority]} ${PRINT_PRIORITY_LABELS[priority]}`,
-    inline: true,
-  });
-  if (p.order && p.order > 0) {
-    fields.push({ name: "Print order", value: `#${p.order}`, inline: true });
   }
   fields.push({
     name: "Status",
@@ -199,8 +219,8 @@ export function buildPrintMessagePayload(p: PrintMessageParams) {
   return {
     embeds: [
       {
-        title: `🖨️ Print request: ${p.title}`.slice(0, 250),
-        description: p.description?.trim() || undefined,
+        title: "🖨️ Print request",
+        description: description || undefined,
         color: 0x209ebb,
         fields,
         footer: { text: "Attached file(s) need printing" },

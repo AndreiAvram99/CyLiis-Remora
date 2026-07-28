@@ -83,19 +83,34 @@ model Event {
   printMessageId          String? // Discord message posted for a PRINT request
   printClaimedById        String? // Discord id of the member who took the print job
   printClaimedByName      String? // their display name at claim time
-  printPriority           String    @default("NORMAL") // LOW | NORMAL | HIGH | URGENT
-  printOrder              Int       @default(0) // print-queue position (0 = unset)
   printStatus             String    @default("PENDING") // PENDING | PRINTING | DONE
   createdBy               String? // Discord user id of the admin who created it
   createdAt               DateTime  @default(now())
   updatedAt               DateTime  @updatedAt
 
-  guild     Guild      @relation(fields: [guildId], references: [id], onDelete: Cascade)
-  reminders Reminder[]
-  rsvps     Rsvp[]
+  guild      Guild       @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  reminders  Reminder[]
+  rsvps      Rsvp[]
+  printFiles PrintFile[]
 
   @@index([guildId])
   @@index([startAt])
+}
+
+/// A single file attached to a PRINT request, with its own importance and
+/// print-queue order so a job's files can be prioritized individually.
+model PrintFile {
+  id        String   @id @default(cuid())
+  eventId   String
+  name      String
+  url       String? // Discord attachment URL captured after posting
+  priority  String   @default("NORMAL") // LOW | NORMAL | HIGH | URGENT
+  order     Int      @default(0) // print-queue position (0 = unset)
+  createdAt DateTime @default(now())
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
 }
 
 /// A single reminder for an event. Stored as an absolute `dueAt` (precomputed

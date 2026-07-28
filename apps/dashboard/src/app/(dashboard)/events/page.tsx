@@ -12,10 +12,10 @@ import {
 import { prisma, RsvpStatus } from "@repo/db";
 import {
   PRINT_PRIORITY_EMOJI,
-  PRINT_PRIORITY_LABELS,
   PRINT_PRIORITY_WEIGHT,
   PRINT_STATUS_EMOJI,
   PRINT_STATUS_LABELS,
+  sortPrintFiles,
   type PrintPriority,
   type PrintStatus,
 } from "@repo/shared";
@@ -50,6 +50,7 @@ export default async function EventsPage() {
       reminders: true,
       _count: { select: { rsvps: true } },
       rsvps: { select: { status: true } },
+      printFiles: true,
     },
   });
 
@@ -59,16 +60,27 @@ export default async function EventsPage() {
   });
   const channelName = new Map(channels.map((c) => [c.id, c.name]));
 
-  // Print queue: by explicit order (0 = unset → last), then importance desc.
+  // Rank a request by its most-pressing file: lowest positive order first, then
+  // highest importance — so the request with the next thing to print floats up.
+  const rank = (e: (typeof events)[number]) => {
+    let minOrder = Number.MAX_SAFE_INTEGER;
+    let maxWeight = -1;
+    for (const f of e.printFiles) {
+      if (f.order > 0) minOrder = Math.min(minOrder, f.order);
+      maxWeight = Math.max(
+        maxWeight,
+        PRINT_PRIORITY_WEIGHT[f.priority as PrintPriority] ?? 1,
+      );
+    }
+    return { minOrder, maxWeight };
+  };
   const printRequests = events
     .filter((e) => e.kind === "PRINT")
     .sort((a, b) => {
-      const ao = a.printOrder || Number.MAX_SAFE_INTEGER;
-      const bo = b.printOrder || Number.MAX_SAFE_INTEGER;
-      if (ao !== bo) return ao - bo;
-      const aw = PRINT_PRIORITY_WEIGHT[a.printPriority as PrintPriority] ?? 1;
-      const bw = PRINT_PRIORITY_WEIGHT[b.printPriority as PrintPriority] ?? 1;
-      return bw - aw;
+      const ra = rank(a);
+      const rb = rank(b);
+      if (ra.minOrder !== rb.minOrder) return ra.minOrder - rb.minOrder;
+      return rb.maxWeight - ra.maxWeight;
     });
   const upcoming = events.filter(
     (e) => e.startAt >= now && e.kind !== "PRINT",
@@ -263,33 +275,18 @@ export default async function EventsPage() {
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <Badge className={KIND_STYLES.PRINT}>PRINT</Badge>
-                    {e.printOrder > 0 ? (
-                      <Badge className="bg-neutral-800 text-neutral-300">
-                        #{e.printOrder}
-                      </Badge>
-                    ) : null}
-                    <span className="truncate text-lg font-medium">
-                      {e.title}
+                    <span>
+                      {PRINT_STATUS_EMOJI[e.printStatus as PrintStatus] ?? "🕓"}{" "}
+                      <span className="text-sm text-neutral-400">
+                        {PRINT_STATUS_LABELS[e.printStatus as PrintStatus] ??
+                          e.printStatus}
+                      </span>
                     </span>
-                  </div>
-                  <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-neutral-500">
-                    <span className="flex items-center gap-1">
+                    <span className="flex items-center gap-1 text-xs text-neutral-500">
                       <Hash size={12} />
                       {channelName.get(e.channelId) ?? "unknown"}
                     </span>
-                    <span>
-                      {PRINT_PRIORITY_EMOJI[e.printPriority as PrintPriority] ??
-                        "🔵"}{" "}
-                      {PRINT_PRIORITY_LABELS[
-                        e.printPriority as PrintPriority
-                      ] ?? e.printPriority}
-                    </span>
-                    <span>
-                      {PRINT_STATUS_EMOJI[e.printStatus as PrintStatus] ?? "🕓"}{" "}
-                      {PRINT_STATUS_LABELS[e.printStatus as PrintStatus] ??
-                        e.printStatus}
-                    </span>
-                    <span className="flex items-center gap-1.5">
+                    <span className="flex items-center gap-1.5 text-xs text-neutral-500">
                       <span
                         className={`h-1.5 w-1.5 rounded-full ${e.printClaimedByName ? "bg-palette-azure" : "bg-neutral-600"}`}
                       />
@@ -298,6 +295,22 @@ export default async function EventsPage() {
                         : "Unclaimed"}
                     </span>
                   </div>
+                  <ul className="mt-2 space-y-0.5 text-sm text-neutral-300">
+                    {sortPrintFiles(e.printFiles).map((f) => (
+                      <li key={f.id} className="flex items-center gap-2">
+                        <span>
+                          {PRINT_PRIORITY_EMOJI[f.priority as PrintPriority] ??
+                            "🔵"}
+                        </span>
+                        {f.order > 0 ? (
+                          <span className="text-xs text-neutral-500">
+                            #{f.order}
+                          </span>
+                        ) : null}
+                        <span className="min-w-0 truncate">{f.name}</span>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
                 <div className="flex items-center gap-2">
                   {e.printMessageId ? (
@@ -319,9 +332,13 @@ export default async function EventsPage() {
                 <div className="border-t border-[rgb(var(--line))] pt-3">
                   <PrintControls
                     id={e.id}
-                    priority={e.printPriority}
-                    order={e.printOrder}
                     status={e.printStatus}
+                    files={e.printFiles.map((f) => ({
+                      id: f.id,
+                      name: f.name,
+                      priority: f.priority,
+                      order: f.order,
+                    }))}
                   />
                 </div>
               ) : null}

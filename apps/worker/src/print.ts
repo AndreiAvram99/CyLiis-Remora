@@ -12,7 +12,10 @@ export async function handlePrintClaim(interaction: ButtonInteraction) {
   const eventId = parsePrintButtonId(interaction.customId);
   if (!eventId) return;
 
-  const event = await prisma.event.findUnique({ where: { id: eventId } });
+  const event = await prisma.event.findUnique({
+    where: { id: eventId },
+    include: { printFiles: true },
+  });
   if (!event) {
     await interaction.reply({
       content: "This print request no longer exists.",
@@ -43,12 +46,14 @@ export async function handlePrintClaim(interaction: ButtonInteraction) {
 
   const payload = buildPrintMessagePayload({
     eventId,
-    title: event.title,
+    files: event.printFiles.map((f) => ({
+      name: f.name,
+      priority: f.priority,
+      order: f.order,
+    })),
     description: event.description,
     requesterName,
     claimedByName,
-    priority: event.printPriority,
-    order: event.printOrder,
     status: event.printStatus,
   });
 

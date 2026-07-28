@@ -219,10 +219,18 @@ function normalizeOrder(value: FormDataEntryValue | null): number {
   return Math.min(Math.floor(n), 9999);
 }
 
+/** Build a short title from the file names for the dashboard/list view. */
+function titleFromFiles(names: string[]): string {
+  if (names.length === 0) return "Print request";
+  const base = names.length === 1 ? names[0] : `${names[0]} +${names.length - 1} more`;
+  return base.slice(0, 200);
+}
+
 /**
- * Create a PRINT request: no reminders, no RSVP. Uploads the attached file(s)
- * straight to the chosen channel with a "who's printing this?" claim button.
- * Used as a form action, so it takes FormData and returns validation state.
+ * Create a PRINT request: no reminders, no RSVP. Each file carries its own
+ * importance + print order. Uploads the files straight to the chosen channel
+ * with a "who's printing this?" claim button. Takes FormData (files[] aligned
+ * with priority[] and order[]) and returns validation state.
  */
 export async function createPrintRequest(
   _prev: PrintFormState,
@@ -232,57 +240,73 @@ export async function createPrintRequest(
     const session = await assertManager();
     const guild = await getGuild();
 
-    const title = String(formData.get("title") ?? "").trim();
     const description = String(formData.get("description") ?? "").trim();
     const channelId = String(formData.get("channelId") ?? "").trim();
-    const priority = normalizePriority(formData.get("priority"));
-    const order = normalizeOrder(formData.get("order"));
-
-    if (!title) return { error: "Add a short title for the print request." };
     if (!channelId) return { error: "Pick a channel to post in." };
 
-    const files = formData
-      .getAll("files")
-      .filter((f): f is File => f instanceof File && f.size > 0);
-    if (files.length === 0) {
+    const rawFiles = formData.getAll("files");
+    const priorities = formData.getAll("priority");
+    const orders = formData.getAll("order");
+
+    // files[] / priority[] / order[] are appended together, so they align.
+    const rows = rawFiles
+      .map((f, i) => ({
+        file: f,
+        priority: normalizePriority(priorities[i] ?? null),
+        order: normalizeOrder(orders[i] ?? null),
+      }))
+      .filter(
+        (r): r is { file: File; priority: PrintPriority; order: number } =>
+          r.file instanceof File && r.file.size > 0,
+      );
+
+    if (rows.length === 0) {
       return { error: "Attach at least one file to print." };
     }
-    for (const f of files) {
-      if (f.size > MAX_PRINT_FILE_BYTES) {
+    for (const r of rows) {
+      if (r.file.size > MAX_PRINT_FILE_BYTES) {
         return {
-          error: `"${f.name}" is larger than 8 MB — Discord won't accept it.`,
+          error: `"${r.file.name}" is larger than 8 MB — Discord won't accept it.`,
         };
       }
     }
+
     const filePayloads = await Promise.all(
-      files.map(async (f) => ({
-        name: f.name,
-        data: Buffer.from(await f.arrayBuffer()),
+      rows.map(async (r) => ({
+        name: r.file.name,
+        data: Buffer.from(await r.file.arrayBuffer()),
       })),
     );
 
     const event = await prisma.event.create({
       data: {
         guildId: guild.id,
-        title,
+        title: titleFromFiles(rows.map((r) => r.file.name)),
         description: description || null,
         kind: "PRINT",
         startAt: new Date(),
         channelId,
         announceOnCreate: false,
         createdBy: session.user?.discordId,
-        printPriority: priority,
-        printOrder: order,
+        printFiles: {
+          create: rows.map((r) => ({
+            name: r.file.name,
+            priority: r.priority,
+            order: r.order,
+          })),
+        },
       },
     });
 
     const payload = buildPrintMessagePayload({
       eventId: event.id,
-      title,
+      files: rows.map((r) => ({
+        name: r.file.name,
+        priority: r.priority,
+        order: r.order,
+      })),
       description: description || null,
       requesterName: session.user?.name ?? null,
-      priority,
-      order,
       status: "PENDING",
     });
 
@@ -317,63 +341,91 @@ export async function createPrintRequest(
   }
 }
 
+export interface PrintFileEdit {
+  id: string;
+  priority: string;
+  order: number;
+}
+
 /**
- * Manager-only edit of a print request's importance / queue order / status.
- * Refreshes the original Discord post and posts a separate update message
- * summarizing what changed. Only sends to Discord when something actually did.
+ * Manager-only edit of a print request: per-file importance/order plus the
+ * request's overall status. Refreshes the original Discord post and posts a
+ * separate update message summarizing what changed (only when it actually did).
  */
 export async function updatePrintRequest(
   id: string,
-  input: { priority: string; order: number; status: string },
+  input: { status: string; files: PrintFileEdit[] },
 ) {
   await assertManager();
-  const existing = await prisma.event.findUnique({ where: { id } });
+  const existing = await prisma.event.findUnique({
+    where: { id },
+    include: { printFiles: true },
+  });
   if (!existing || existing.kind !== "PRINT") {
     throw new Error("Print request not found.");
   }
 
-  const priority = normalizePriority(input.priority);
   const status = normalizeStatus(input.status);
-  const order = normalizeOrder(String(input.order));
-
+  const byId = new Map(existing.printFiles.map((f) => [f.id, f]));
   const changes: string[] = [];
-  if (priority !== existing.printPriority) {
-    changes.push(
-      `Importance → ${PRINT_PRIORITY_EMOJI[priority]} **${PRINT_PRIORITY_LABELS[priority]}**`,
-    );
-  }
-  if (order !== existing.printOrder) {
-    changes.push(`Print order → **${order > 0 ? `#${order}` : "unset"}**`);
-  }
+
   if (status !== existing.printStatus) {
     changes.push(
-      `Status → ${PRINT_STATUS_EMOJI[status as PrintStatus]} **${PRINT_STATUS_LABELS[status as PrintStatus]}**`,
+      `Status → ${PRINT_STATUS_EMOJI[status]} **${PRINT_STATUS_LABELS[status]}**`,
     );
   }
 
-  await prisma.event.update({
-    where: { id },
-    data: { printPriority: priority, printOrder: order, printStatus: status },
-  });
+  const updates: PrintFileEdit[] = [];
+  for (const edit of input.files) {
+    const current = byId.get(edit.id);
+    if (!current) continue;
+    const priority = normalizePriority(edit.priority);
+    const order = normalizeOrder(String(edit.order));
+    if (priority !== current.priority || order !== current.order) {
+      updates.push({ id: edit.id, priority, order });
+      const bits: string[] = [];
+      if (priority !== current.priority) {
+        bits.push(
+          `${PRINT_PRIORITY_EMOJI[priority]} ${PRINT_PRIORITY_LABELS[priority]}`,
+        );
+      }
+      if (order !== current.order) {
+        bits.push(`order ${order > 0 ? `#${order}` : "unset"}`);
+      }
+      changes.push(`\`${current.name}\` → ${bits.join(", ")}`);
+    }
+  }
 
-  // Nothing changed — don't spam the channel.
+  await prisma.$transaction([
+    prisma.event.update({ where: { id }, data: { printStatus: status } }),
+    ...updates.map((u) =>
+      prisma.printFile.update({
+        where: { id: u.id },
+        data: { priority: u.priority, order: u.order },
+      }),
+    ),
+  ]);
+
   if (changes.length === 0) {
     revalidatePath("/events");
     return { id, changed: false };
   }
 
+  // Rebuild from the freshly-updated files so the post reflects the new state.
+  const files = await prisma.printFile.findMany({ where: { eventId: id } });
   const payload = buildPrintMessagePayload({
     eventId: id,
-    title: existing.title,
+    files: files.map((f) => ({
+      name: f.name,
+      priority: f.priority,
+      order: f.order,
+    })),
     description: existing.description,
     requesterName: null,
     claimedByName: existing.printClaimedByName,
-    priority,
-    order,
     status,
   });
 
-  // Refresh the original post (best-effort), then post a new update note.
   if (existing.printMessageId) {
     await editChannelMessage(existing.channelId, existing.printMessageId, {
       embeds: payload.embeds,
@@ -382,7 +434,7 @@ export async function updatePrintRequest(
   }
 
   await postChannelMessage(existing.channelId, {
-    content: `🔄 **Print update — ${existing.title}**\n${changes.join("\n")}`,
+    content: `🔄 **Print update**\n${changes.join("\n")}`,
   }).catch((err) => console.error("[print] update message failed:", err));
 
   revalidatePath("/events");
