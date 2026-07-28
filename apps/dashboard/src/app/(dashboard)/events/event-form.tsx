@@ -10,7 +10,7 @@ import {
   type ReminderUnit,
 } from "@repo/shared";
 import { Button, Card, Input, Label, Select, Textarea } from "@/components/ui";
-import { channelEmoji } from "@/lib/channel-emoji";
+import { ChannelSelect } from "@/components/channel-select";
 import { createEvent, updateEvent } from "./actions";
 import { PrintForm } from "./print-form";
 
@@ -19,6 +19,7 @@ type FormKind = EventKindName | "PRINT";
 interface ChannelOption {
   id: string;
   name: string;
+  color?: string | null;
 }
 
 interface ReminderRow {
@@ -95,11 +96,6 @@ export function EventForm({
           return { value, unit, channelId: r.channelId ?? "" };
         })
       : offsetsToRows(kindDefaults.EVENT ?? []),
-  );
-
-  const channelName = useMemo(
-    () => new Map(channels.map((c) => [c.id, c.name])),
-    [channels],
   );
 
   function handleKindChange(next: FormKind) {
@@ -241,18 +237,13 @@ export function EventForm({
 
             <div>
               <Label htmlFor="channel">Announcement channel</Label>
-              <Select
+              <ChannelSelect
                 id="channel"
+                channels={channels}
                 value={channelId}
-                onChange={(e) => setChannelId(e.target.value)}
+                onChange={setChannelId}
                 disabled={noChannels}
-              >
-                {channels.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {channelEmoji(c.name)} #{c.name}
-                  </option>
-                ))}
-              </Select>
+              />
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
@@ -359,20 +350,14 @@ export function EventForm({
                   <option value="days">days</option>
                 </Select>
                 <span className="text-sm text-neutral-500">before, in</span>
-                <Select
+                <ChannelSelect
+                  channels={channels}
                   value={r.channelId}
-                  onChange={(e) =>
-                    updateReminder(idx, { channelId: e.target.value })
-                  }
+                  onChange={(id) => updateReminder(idx, { channelId: id })}
+                  includeNone
+                  noneLabel="same channel"
                   className="w-44"
-                >
-                  <option value="">same channel</option>
-                  {channels.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {channelEmoji(c.name)} #{channelName.get(c.id) ?? c.id}
-                    </option>
-                  ))}
-                </Select>
+                />
                 <button
                   type="button"
                   onClick={() => removeReminder(idx)}

@@ -5,6 +5,7 @@ import { env } from "@/lib/env";
 import { isCalendarEnabled } from "@/lib/gcal";
 import { requireManager } from "@/lib/session";
 import { SettingsForm } from "./settings-form";
+import { ChannelColorEditor } from "./channel-colors";
 
 export const dynamic = "force-dynamic";
 
@@ -47,8 +48,20 @@ export default async function SettingsPage() {
       <SettingsForm
         timezone={guild.timezone}
         defaultChannelId={guild.defaultChannelId}
-        channels={channels.map((c) => ({ id: c.id, name: c.name }))}
+        channels={channels.map((c) => ({
+          id: c.id,
+          name: c.name,
+          color: c.color,
+        }))}
         defaults={grouped}
+      />
+
+      <ChannelColorEditor
+        channels={channels.map((c) => ({
+          id: c.id,
+          name: c.name,
+          color: c.color,
+        }))}
       />
     </div>
   );

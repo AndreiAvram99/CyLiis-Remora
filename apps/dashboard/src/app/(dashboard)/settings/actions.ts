@@ -38,3 +38,25 @@ export async function updateSettings(input: SettingsValues) {
   revalidatePath("/events/new");
   return { ok: true };
 }
+
+/**
+ * Set (or clear, with null) a channel's accent color. Shared across all admins
+ * since it lives on the channel row. Accepts a #RRGGBB hex; anything else clears
+ * it back to the derived default.
+ */
+export async function setChannelColor(channelId: string, color: string | null) {
+  await assertManager();
+  const clean =
+    color && /^#[0-9a-fA-F]{6}$/.test(color) ? color.toUpperCase() : null;
+
+  await prisma.channel.update({
+    where: { id: channelId },
+    data: { color: clean },
+  });
+
+  revalidatePath("/settings");
+  revalidatePath("/events");
+  revalidatePath("/events/new");
+  revalidatePath("/presence");
+  return { ok: true, color: clean };
+}

@@ -9,12 +9,13 @@ import {
   PRINT_PRIORITY_LABELS,
 } from "@repo/shared";
 import { Button, Card, Input, Label, Select, Textarea } from "@/components/ui";
-import { channelEmoji } from "@/lib/channel-emoji";
+import { ChannelSelect } from "@/components/channel-select";
 import { createPrintRequest, type PrintFormState } from "./actions";
 
 interface ChannelOption {
   id: string;
   name: string;
+  color?: string | null;
 }
 
 function SubmitButton() {
@@ -69,18 +70,13 @@ export function PrintForm({
 
         <div>
           <Label htmlFor="p-channel">Channel</Label>
-          <Select
+          <ChannelSelect
             id="p-channel"
             name="channelId"
-            defaultValue={defaultChannelId}
+            channels={channels}
+            value={defaultChannelId ?? ""}
             disabled={noChannels}
-          >
-            {channels.map((c) => (
-              <option key={c.id} value={c.id}>
-                {channelEmoji(c.name)} #{c.name}
-              </option>
-            ))}
-          </Select>
+          />
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">

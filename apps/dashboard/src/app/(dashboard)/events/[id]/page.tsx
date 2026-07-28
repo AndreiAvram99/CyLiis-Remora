@@ -57,7 +57,11 @@ export default async function EditEventPage({
       <EventForm
         mode="edit"
         eventId={event.id}
-        channels={channels.map((c) => ({ id: c.id, name: c.name }))}
+        channels={channels.map((c) => ({
+          id: c.id,
+          name: c.name,
+          color: c.color,
+        }))}
         kindDefaults={kindDefaults}
         defaultChannelId={guild.defaultChannelId}
         initial={initial}
