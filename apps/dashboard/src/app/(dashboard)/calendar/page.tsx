@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { headers } from "next/headers";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { DateTime } from "luxon";
 import { prisma, type EventKind } from "@repo/db";
@@ -7,6 +8,8 @@ import { getGuild } from "@/lib/guild";
 import { channelColorOf } from "@/lib/channel-color";
 import { env } from "@/lib/env";
 import { listCalendarEvents, isCalendarEnabled } from "@/lib/gcal";
+import { calendarFeedToken } from "@/lib/ics";
+import { SubscribeButton } from "./subscribe-button";
 
 export const dynamic = "force-dynamic";
 
@@ -123,6 +126,13 @@ export default async function CalendarPage({
   const prevM = month.minus({ months: 1 }).toFormat("yyyy-LL");
   const nextM = month.plus({ months: 1 }).toFormat("yyyy-LL");
 
+  // Absolute feed URL for the subscribe menu (works for external calendar apps).
+  const hdrs = await headers();
+  const host = hdrs.get("x-forwarded-host") ?? hdrs.get("host") ?? "";
+  const proto = hdrs.get("x-forwarded-proto") ?? "https";
+  const base = process.env.NEXTAUTH_URL || (host ? `${proto}://${host}` : "");
+  const feedUrl = `${base}/api/calendar.ics?token=${calendarFeedToken()}`;
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -135,6 +145,7 @@ export default async function CalendarPage({
           </p>
         </div>
         <div className="flex items-center gap-1">
+          <SubscribeButton feedUrl={feedUrl} />
           <Link
             href={`/calendar?m=${prevM}`}
             className="flex h-9 w-9 items-center justify-center rounded-lg border border-neutral-700 bg-neutral-800 text-neutral-200 transition hover:bg-neutral-700"
