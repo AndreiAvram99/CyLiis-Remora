@@ -38,7 +38,6 @@ const AVATAR_NEUTRAL = "bg-neutral-800 text-neutral-300";
 // Status accents used for the group headers and dots.
 const STATUS_TONE: Record<string, { text: string; dot: string }> = {
   GOING: { text: "text-palette-azure", dot: "bg-palette-azure" },
-  NO: { text: "text-palette-flame", dot: "bg-palette-flame" },
   MOTIVATED: { text: "text-palette-sun", dot: "bg-palette-sun" },
 };
 
@@ -159,7 +158,6 @@ function EventCard({
   isManager: boolean;
 }) {
   const going = e.rsvps.filter((r) => r.status === RsvpStatus.GOING);
-  const cant = e.rsvps.filter((r) => r.status === RsvpStatus.NO);
   const motivated = e.rsvps.filter((r) => r.status === RsvpStatus.MOTIVATED);
   const participating = going.length;
   const isPast = e.startAt < new Date();
@@ -199,18 +197,11 @@ function EventCard({
           announcement in Discord.
         </p>
       ) : (
-        <div className="grid gap-5 sm:grid-cols-3">
+        <div className="grid gap-5 sm:grid-cols-2">
           <Group
             title="Going"
             people={going}
             statusKey="GOING"
-            eventId={e.id}
-            isManager={isManager}
-          />
-          <Group
-            title="Can't make it"
-            people={cant}
-            statusKey="NO"
             eventId={e.id}
             isManager={isManager}
           />

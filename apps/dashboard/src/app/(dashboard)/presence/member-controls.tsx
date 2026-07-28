@@ -78,7 +78,6 @@ export function EditableMember({
         title="Change status"
       >
         <option value="GOING">Going</option>
-        <option value="NO">Can&apos;t make it</option>
         <option value="MOTIVATED">Motivation</option>
       </select>
       <button

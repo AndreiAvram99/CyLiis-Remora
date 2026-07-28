@@ -43,13 +43,14 @@ export function computeDueAt(startAt: Date, offsetMinutes: number): Date {
 export const EVENT_KINDS = ["MEETING", "EVENT", "CUSTOM"] as const;
 export type EventKindName = (typeof EVENT_KINDS)[number];
 
-export const RSVP_STATUSES = ["GOING", "NO", "MOTIVATED"] as const;
+// Only two RSVP states: you're coming, or you owe a motivation for missing it.
+// ("NO" still exists in the DB enum for old rows but is no longer offered.)
+export const RSVP_STATUSES = ["GOING", "MOTIVATED"] as const;
 export type RsvpStatusName = (typeof RSVP_STATUSES)[number];
 
 /** Human-readable labels for each RSVP status. */
 export const RSVP_LABELS: Record<RsvpStatusName, string> = {
   GOING: "Going",
-  NO: "Can't make it",
   MOTIVATED: "Motivation",
 };
 

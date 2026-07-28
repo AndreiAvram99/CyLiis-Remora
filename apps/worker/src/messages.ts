@@ -16,12 +16,11 @@ const KIND_COLORS: Record<string, number> = {
 
 export interface RsvpCounts {
   GOING: number;
-  NO: number;
   MOTIVATED: number;
 }
 
 export function emptyCounts(): RsvpCounts {
-  return { GOING: 0, NO: 0, MOTIVATED: 0 };
+  return { GOING: 0, MOTIVATED: 0 };
 }
 
 export function buildRsvpRow(eventId: string): ActionRowBuilder<ButtonBuilder> {
@@ -31,11 +30,6 @@ export function buildRsvpRow(eventId: string): ActionRowBuilder<ButtonBuilder> {
       .setLabel("Going")
       .setEmoji("✅")
       .setStyle(ButtonStyle.Success),
-    new ButtonBuilder()
-      .setCustomId(rsvpButtonId(eventId, "NO"))
-      .setLabel("Can't make it")
-      .setEmoji("❌")
-      .setStyle(ButtonStyle.Danger),
     new ButtonBuilder()
       .setCustomId(rsvpButtonId(eventId, "MOTIVATED"))
       .setLabel("Motivation")
@@ -64,7 +58,7 @@ export function buildEventEmbed(
     .setDescription(description)
     .addFields({
       name: "\u200b",
-      value: `✅ **${counts.GOING}** going  ·  ❌ **${counts.NO}** can't  ·  📝 **${counts.MOTIVATED}** motivation`,
+      value: `✅ **${counts.GOING}** going  ·  📝 **${counts.MOTIVATED}** motivation`,
     })
     .setFooter({ text: footer });
 }
