@@ -59,7 +59,9 @@ export async function getRsvpCounts(eventId: string): Promise<RsvpCounts> {
   });
   const counts = emptyCounts();
   for (const g of grouped) {
-    counts[g.status as keyof RsvpCounts] = g._count.status;
+    const key = g.status as keyof RsvpCounts;
+    // Ignore any retired statuses (e.g. old "NO" rows).
+    if (key in counts) counts[key] = g._count.status;
   }
   return counts;
 }

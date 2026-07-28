@@ -137,8 +137,8 @@ export default async function EventsPage() {
             const going = e.rsvps.filter(
               (r) => r.status === RsvpStatus.GOING,
             ).length;
-            const cant = e.rsvps.filter(
-              (r) => r.status === RsvpStatus.NO,
+            const motivated = e.rsvps.filter(
+              (r) => r.status === RsvpStatus.MOTIVATED,
             ).length;
             const pending = e.reminders.filter(
               (r) => r.status === "PENDING" && !r.isAnnouncement,
@@ -187,8 +187,8 @@ export default async function EventsPage() {
                       {going} going
                     </span>
                     <span className="flex items-center gap-1.5">
-                      <span className="h-1.5 w-1.5 rounded-full bg-palette-flame" />
-                      {cant} can&apos;t
+                      <span className="h-1.5 w-1.5 rounded-full bg-palette-sun" />
+                      {motivated} motivation
                     </span>
                   </div>
                 </div>

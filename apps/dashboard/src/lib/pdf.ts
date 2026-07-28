@@ -6,6 +6,7 @@ export interface PdfPerson {
   username: string | null;
   displayName: string | null;
   status: string;
+  note: string | null;
   overriddenBy: string | null;
 }
 
@@ -51,11 +52,36 @@ function renderList(
   doc.moveDown(0.3);
 }
 
+/** Like renderList, but shows each person's motivation reason on its own line. */
+function renderMotivations(doc: PDFKit.PDFDocument, people: PdfPerson[]) {
+  doc.fontSize(10).fillColor("#111827").text(`Motivation (${people.length})`);
+  if (people.length === 0) {
+    doc.fontSize(9).fillColor("#4b5563").text("—", { indent: 10 });
+  } else {
+    for (const p of people) {
+      const who =
+        (p.displayName || p.username || p.userId) +
+        (p.overriddenBy ? " (adjusted)" : "");
+      doc
+        .fontSize(9)
+        .fillColor("#374151")
+        .text(who, { indent: 10, width: RIGHT - LEFT - 10, continued: false });
+      doc
+        .fontSize(9)
+        .fillColor("#6b7280")
+        .text(p.note?.trim() || "(no reason given)", {
+          indent: 22,
+          width: RIGHT - LEFT - 22,
+        });
+    }
+  }
+  doc.moveDown(0.3);
+}
+
 function renderEvent(doc: PDFKit.PDFDocument, e: PdfEvent, tz: string) {
   if (doc.y > 720) doc.addPage();
 
   const going = e.rsvps.filter((r) => r.status === "GOING");
-  const cant = e.rsvps.filter((r) => r.status === "NO");
   const motivated = e.rsvps.filter((r) => r.status === "MOTIVATED");
   const participating = going.length;
 
@@ -71,13 +97,12 @@ function renderEvent(doc: PDFKit.PDFDocument, e: PdfEvent, tz: string) {
     .fontSize(9)
     .fillColor("#374151")
     .text(
-      `Participating: ${participating}  (Going ${going.length}, Can't ${cant.length}, Motivation ${motivated.length})`,
+      `Participating: ${participating}  (Going ${going.length}, Motivation ${motivated.length})`,
     );
   doc.moveDown(0.4);
 
   renderList(doc, "Going", going);
-  renderList(doc, "Can't make it", cant);
-  renderList(doc, "Motivation", motivated);
+  renderMotivations(doc, motivated);
 
   doc.moveDown(0.2);
   doc

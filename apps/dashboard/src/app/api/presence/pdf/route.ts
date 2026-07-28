@@ -62,6 +62,7 @@ export async function GET(req: NextRequest) {
           username: true,
           displayName: true,
           status: true,
+          note: true,
           overriddenBy: true,
         },
         orderBy: { displayName: "asc" },

@@ -40,6 +40,8 @@ function reminders(startAt, offsetsMin, { markSent = false } = {}) {
   });
 }
 
+// Second arg is legacy "can't" count — folded into motivations now that the
+// only two states are GOING and MOTIVATED.
 function rsvps(going, cant, motivated) {
   const out = [];
   let n = 0;
@@ -50,12 +52,15 @@ function rsvps(going, cant, motivated) {
         userId: `u${n}`,
         username: `member${n}`,
         status,
+        note:
+          status === "MOTIVATED"
+            ? `Sample reason from member${n} — busy that day.`
+            : null,
       });
     }
   };
   push(going, "GOING");
-  push(cant, "NO");
-  push(motivated, "MOTIVATED");
+  push(cant + motivated, "MOTIVATED");
   return out;
 }
 
