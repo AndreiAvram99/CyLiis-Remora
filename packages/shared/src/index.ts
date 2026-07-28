@@ -146,28 +146,22 @@ export function parsePrintButtonId(customId: string): string | null {
   return parts[1];
 }
 
-export const PRINT_PRIORITIES = ["LOW", "NORMAL", "HIGH", "URGENT"] as const;
+export const PRINT_PRIORITIES = ["NORMAL", "URGENT"] as const;
 export type PrintPriority = (typeof PRINT_PRIORITIES)[number];
 
 export const PRINT_PRIORITY_LABELS: Record<PrintPriority, string> = {
-  LOW: "Low",
   NORMAL: "Normal",
-  HIGH: "High",
   URGENT: "Urgent",
 };
 
 export const PRINT_PRIORITY_EMOJI: Record<PrintPriority, string> = {
-  LOW: "⚪",
   NORMAL: "🔵",
-  HIGH: "🟠",
   URGENT: "🔴",
 };
 
 /** Higher = more important; used for sorting the print queue. */
 export const PRINT_PRIORITY_WEIGHT: Record<PrintPriority, number> = {
-  LOW: 0,
   NORMAL: 1,
-  HIGH: 2,
   URGENT: 3,
 };
 
