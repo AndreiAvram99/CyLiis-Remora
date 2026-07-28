@@ -10,14 +10,7 @@ import {
   Printer,
 } from "lucide-react";
 import { prisma, RsvpStatus } from "@repo/db";
-import {
-  durationLabel,
-  recurrenceBadge,
-  PRINT_STATUS_EMOJI,
-  PRINT_STATUS_LABELS,
-  sortPrintFiles,
-  type PrintStatus,
-} from "@repo/shared";
+import { durationLabel, recurrenceBadge } from "@repo/shared";
 import { Badge, Button, Card } from "@/components/ui";
 import { getGuild } from "@/lib/guild";
 import { env } from "@/lib/env";
@@ -25,7 +18,7 @@ import { getSession } from "@/lib/session";
 import { formatInTz, relativeTo } from "@/lib/time";
 import { listCalendarEvents, isCalendarEnabled } from "@/lib/gcal";
 import { DeleteEventButton } from "./delete-button";
-import { PrintControls } from "./print-controls";
+import { PrintCard } from "./print-card";
 
 export const dynamic = "force-dynamic";
 
@@ -267,91 +260,31 @@ export default async function EventsPage() {
             <Printer size={14} /> Print requests ({printRequests.length})
           </h2>
           {printRequests.map((e) => (
-            <Card key={e.id} className="space-y-3">
-              <div className="flex flex-wrap items-start gap-4">
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge className={KIND_STYLES.PRINT}>PRINT</Badge>
-                    <span>
-                      {PRINT_STATUS_EMOJI[e.printStatus as PrintStatus] ?? "🕓"}{" "}
-                      <span className="text-sm text-neutral-400">
-                        {PRINT_STATUS_LABELS[e.printStatus as PrintStatus] ??
-                          e.printStatus}
-                      </span>
-                    </span>
-                    <span className="flex items-center gap-1 text-xs text-neutral-500">
-                      <Hash size={12} />
-                      {channelName.get(e.channelId) ?? "unknown"}
-                    </span>
-                    <span className="flex items-center gap-1.5 text-xs text-neutral-500">
-                      <span
-                        className={`h-1.5 w-1.5 rounded-full ${e.printClaimedByName ? "bg-palette-azure" : "bg-neutral-600"}`}
-                      />
-                      {e.printClaimedByName
-                        ? `Claimed by ${e.printClaimedByName}`
-                        : "Unclaimed"}
-                    </span>
-                  </div>
-                  <ul className="mt-2 space-y-1.5 text-sm text-neutral-300">
-                    {sortPrintFiles(e.printFiles).map((f) => (
-                      <li key={f.id} className="space-y-0.5">
-                        <div className="flex items-center gap-2">
-                          <span
-                            className="h-3.5 w-3.5 shrink-0 rounded-full border border-black/20"
-                            style={{ backgroundColor: f.color }}
-                            title={f.color}
-                          />
-                          <span className="min-w-0 truncate">{f.name}</span>
-                          {f.copies > 1 ? (
-                            <span className="shrink-0 text-xs font-medium text-neutral-400">
-                              ×{f.copies}
-                            </span>
-                          ) : null}
-                        </div>
-                        <div className="pl-5 text-xs text-neutral-500">
-                          {f.filamentType} · {f.infill}% infill · {f.wallCount}{" "}
-                          walls · {f.needsSupport ? "needs support" : "no support"}
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                <div className="flex items-center gap-2">
-                  {e.printMessageId ? (
-                    <a
-                      href={discordLink(e.channelId, e.printMessageId)}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-1 text-xs text-neutral-400 transition hover:text-neutral-100"
-                    >
-                      <ExternalLink size={12} /> Open
-                    </a>
-                  ) : null}
-                  {isManager ? (
-                    <DeleteEventButton id={e.id} title={e.title} />
-                  ) : null}
-                </div>
-              </div>
-              {isManager ? (
-                <div className="border-t border-[rgb(var(--line))] pt-3">
-                  <PrintControls
-                    id={e.id}
-                    status={e.printStatus}
-                    files={e.printFiles.map((f) => ({
-                      id: f.id,
-                      name: f.name,
-                      order: f.order,
-                      copies: f.copies,
-                      filamentType: f.filamentType,
-                      infill: f.infill,
-                      wallCount: f.wallCount,
-                      color: f.color,
-                      needsSupport: f.needsSupport,
-                    }))}
-                  />
-                </div>
-              ) : null}
-            </Card>
+            <PrintCard
+              key={e.id}
+              id={e.id}
+              title={e.title}
+              status={e.printStatus}
+              channelName={channelName.get(e.channelId) ?? "unknown"}
+              claimedByName={e.printClaimedByName ?? null}
+              discordHref={
+                e.printMessageId
+                  ? discordLink(e.channelId, e.printMessageId)
+                  : null
+              }
+              isManager={isManager}
+              files={e.printFiles.map((f) => ({
+                id: f.id,
+                name: f.name,
+                order: f.order,
+                copies: f.copies,
+                filamentType: f.filamentType,
+                infill: f.infill,
+                wallCount: f.wallCount,
+                color: f.color,
+                needsSupport: f.needsSupport,
+              }))}
+            />
           ))}
         </section>
       ) : null}
