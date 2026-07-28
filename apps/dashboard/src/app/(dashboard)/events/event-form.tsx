@@ -2,7 +2,14 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2 } from "lucide-react";
+import {
+  Plus,
+  Trash2,
+  Video,
+  CalendarDays,
+  Printer,
+  type LucideIcon,
+} from "lucide-react";
 import {
   fromOffsetMinutes,
   toOffsetMinutes,
@@ -60,10 +67,16 @@ interface EventFormProps {
   initial?: EventFormInitial;
 }
 
-// Selectable schedule types in the Type dropdown (Custom is retired).
-const KIND_LABELS: { key: EventKindName; label: string }[] = [
-  { key: "MEETING", label: "Meeting" },
-  { key: "EVENT", label: "Event" },
+// Selectable schedule types (Custom is retired). Printing is create-only.
+const TYPE_OPTIONS: {
+  key: FormKind;
+  label: string;
+  icon: LucideIcon;
+  hint: string;
+}[] = [
+  { key: "MEETING", label: "Meeting", icon: Video, hint: "Time + duration" },
+  { key: "EVENT", label: "Event", icon: CalendarDays, hint: "All-day dates" },
+  { key: "PRINT", label: "Printing", icon: Printer, hint: "File to print" },
 ];
 
 function offsetsToRows(offsets: number[]): ReminderRow[] {
@@ -87,7 +100,7 @@ export function EventForm({
 
   const [title, setTitle] = useState(initial?.title ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
-  const [kind, setKind] = useState<FormKind>(initial?.kind ?? "EVENT");
+  const [kind, setKind] = useState<FormKind>(initial?.kind ?? "MEETING");
   const [startAt, setStartAt] = useState(initial?.startAt ?? "");
   const [endAt, setEndAt] = useState(initial?.endAt ?? "");
   const [durationMinutes, setDurationMinutes] = useState<number>(
@@ -113,7 +126,7 @@ export function EventForm({
           const { value, unit } = fromOffsetMinutes(r.offsetMinutes);
           return { value, unit, channelId: r.channelId ?? "" };
         })
-      : offsetsToRows(kindDefaults.EVENT ?? []),
+      : offsetsToRows(kindDefaults.MEETING ?? []),
   );
 
   function handleKindChange(next: FormKind) {
@@ -222,23 +235,41 @@ export function EventForm({
         </Card>
       ) : null}
 
-      <Card className="space-y-2">
-        <div>
-          <Label htmlFor="kind">Type</Label>
-          <Select
-            id="kind"
-            value={kind}
-            onChange={(e) => handleKindChange(e.target.value as FormKind)}
-          >
-            {KIND_LABELS.map(({ key, label }) => (
-              <option key={key} value={key}>
-                {label}
-              </option>
-            ))}
-            {mode === "create" ? (
-              <option value="PRINT">Printing</option>
-            ) : null}
-          </Select>
+      <Card className="space-y-3">
+        <Label>Type</Label>
+        <div
+          className={`grid gap-2 sm:gap-3 ${
+            mode === "create" ? "grid-cols-3" : "grid-cols-2"
+          }`}
+        >
+          {TYPE_OPTIONS.filter(
+            (o) => mode === "create" || o.key !== "PRINT",
+          ).map((o) => {
+            const active = kind === o.key;
+            const Icon = o.icon;
+            return (
+              <button
+                key={o.key}
+                type="button"
+                onClick={() => handleKindChange(o.key)}
+                aria-pressed={active}
+                className={`flex flex-col items-center gap-1.5 rounded-xl border px-3 py-4 text-center transition ${
+                  active
+                    ? "border-brand bg-brand/10 text-neutral-100 ring-1 ring-brand"
+                    : "border-[rgb(var(--line))] bg-[rgb(var(--input))] text-neutral-300 hover:border-neutral-600"
+                }`}
+              >
+                <Icon
+                  size={24}
+                  className={active ? "text-brand" : "text-neutral-400"}
+                />
+                <span className="text-sm font-medium">{o.label}</span>
+                <span className="text-[11px] leading-tight text-neutral-500">
+                  {o.hint}
+                </span>
+              </button>
+            );
+          })}
         </div>
         {kind === "PRINT" ? (
           <p className="text-xs text-neutral-500">
