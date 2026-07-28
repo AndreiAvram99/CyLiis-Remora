@@ -167,36 +167,11 @@ export const DEFAULT_PRINT_COLOR = "#132884";
 
 /** Swatch palette for choosing a print color. */
 export const PRINT_COLORS: string[] = [
-  "#FFFFFF",
-  "#F4E7DF",
-  "#D2D3D5",
-  "#F3EE59",
-  "#F5C844",
-  "#DEBF75",
-  "#F0943B",
-  "#ED7433",
-  "#C1CF42",
-  "#5BC056",
-  "#548C4C",
-  "#E36576",
-  "#E3607E",
-  "#D92F8A",
-  "#B23B2B",
-  "#912E38",
-  "#5A44B1",
-  "#442B5D",
-  "#4FAFB6",
-  "#3A84D0",
-  "#2254B2",
-  "#132884",
-  "#924933",
-  "#6B5138",
-  "#837D4F",
-  "#8F908A",
-  "#A7A9AA",
-  "#5D6577",
-  "#545454",
-  "#000000",
+  "#FFFFFF", // white
+  "#000000", // black
+  "#A54433", // red
+  "#132884", // blue
+  "#618B53", // green
 ];
 
 function asFilament(value?: string | null): FilamentType {
