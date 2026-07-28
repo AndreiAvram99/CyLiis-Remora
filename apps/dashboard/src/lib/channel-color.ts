@@ -18,6 +18,38 @@ const DEFAULT_PALETTE = [
   "#84CC16", // lime
 ];
 
+/**
+ * Curated swatch palette offered when picking a channel color (Google
+ * Calendar-style). Managers choose from these so channels stay visually
+ * coherent on the calendar; a custom hex is still allowed.
+ */
+export const CHANNEL_PALETTE = [
+  "#B35B76",
+  "#C95F76",
+  "#CB877D",
+  "#CA5B3F",
+  "#D46F49",
+  "#D07D45",
+  "#D5994E",
+  "#E0BC63",
+  "#D4BF6D",
+  "#BDC266",
+  "#8DAC63",
+  "#5B9064",
+  "#6DAE84",
+  "#5A988E",
+  "#5F97CD",
+  "#6E8ADB",
+  "#848BBE",
+  "#6F72BE",
+  "#AB9DCB",
+  "#9E7BAE",
+  "#9D5EB5",
+  "#907569",
+  "#7C7C7C",
+  "#A39A8E",
+];
+
 function hash(name: string): number {
   let h = 0;
   for (let i = 0; i < name.length; i++) {
