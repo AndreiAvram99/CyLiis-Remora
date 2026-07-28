@@ -17,17 +17,13 @@ export async function getGuild(): Promise<Guild> {
  */
 const DEFAULT_CHANNEL_ALLOWLIST = [
   "announcements",
-  "hardware",
-  "robot-ideas-and-sketches",
-  "printing",
-  "resources",
-  "robot-bobocus",
-  "documentation",
   "events",
+  "hardware",
+  "andrei-fun",
   "sustenability",
   "branding",
+  "printing",
   "pagination",
-  "andrei-fun",
 ];
 
 /** Text channels the bot has cached, filtered to the allowlist, for a picker. */
