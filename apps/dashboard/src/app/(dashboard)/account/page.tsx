@@ -29,7 +29,10 @@ export default async function AccountPage() {
           Personalize how the dashboard looks for you.
         </p>
       </div>
-      <AccountForm name={session.user?.name} />
+      <AccountForm
+        name={session.user?.name}
+        discordAvatar={session.user?.image}
+      />
     </div>
   );
 }

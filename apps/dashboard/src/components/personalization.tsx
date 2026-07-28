@@ -153,22 +153,26 @@ function initials(name?: string | null): string {
 
 /**
  * The user's avatar image, or their initials on their chosen accent color.
- * The accent only ever affects this icon — buttons and highlights stay on the
- * app's primary blue.
+ * Priority: an image they uploaded here → their Discord avatar (`src`) →
+ * initials. The accent only ever affects the initials fallback — buttons and
+ * highlights stay on the app's primary blue.
  */
 export function Avatar({
   name,
   size = 32,
+  src,
 }: {
   name?: string | null;
   size?: number;
+  src?: string | null;
 }) {
   const { avatar, accent } = usePersonalization();
-  if (avatar) {
+  const image = avatar || src;
+  if (image) {
     // eslint-disable-next-line @next/next/no-img-element
     return (
       <img
-        src={avatar}
+        src={image}
         alt={name ?? "avatar"}
         width={size}
         height={size}
