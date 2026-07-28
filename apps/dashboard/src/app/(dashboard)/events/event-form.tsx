@@ -6,6 +6,9 @@ import { Plus, Trash2 } from "lucide-react";
 import {
   fromOffsetMinutes,
   toOffsetMinutes,
+  MEETING_DURATIONS,
+  RECURRENCES,
+  RECURRENCE_LABELS,
   type EventKindName,
   type ReminderUnit,
 } from "@repo/shared";
@@ -35,12 +38,18 @@ export interface EventFormInitial {
   kind: EventKindName;
   startAt: string;
   endAt: string;
+  durationMinutes: number | null;
+  recurrence: string;
   location: string;
   url: string;
   channelId: string;
   announceOnCreate: boolean;
   reminders: Array<{ offsetMinutes: number; channelId: string | null }>;
 }
+
+const DEFAULT_DURATION = 60;
+const isPresetDuration = (m: number) =>
+  MEETING_DURATIONS.some((d) => d.minutes === m);
 
 interface EventFormProps {
   mode: "create" | "edit";
@@ -81,6 +90,15 @@ export function EventForm({
   const [kind, setKind] = useState<FormKind>(initial?.kind ?? "EVENT");
   const [startAt, setStartAt] = useState(initial?.startAt ?? "");
   const [endAt, setEndAt] = useState(initial?.endAt ?? "");
+  const [durationMinutes, setDurationMinutes] = useState<number>(
+    initial?.durationMinutes ?? DEFAULT_DURATION,
+  );
+  const [durationCustom, setDurationCustom] = useState<boolean>(
+    initial?.durationMinutes != null && !isPresetDuration(initial.durationMinutes),
+  );
+  const [recurrence, setRecurrence] = useState<string>(
+    initial?.recurrence ?? "NONE",
+  );
   const [location, setLocation] = useState(initial?.location ?? "");
   const [url, setUrl] = useState(initial?.url ?? "");
   const [channelId, setChannelId] = useState(
@@ -99,6 +117,12 @@ export function EventForm({
   );
 
   function handleKindChange(next: FormKind) {
+    // Meetings use a datetime + duration; events use date-only ranges — the
+    // input formats differ, so clear the dates when switching between them.
+    if ((next === "EVENT") !== (kind === "EVENT")) {
+      setStartAt("");
+      setEndAt("");
+    }
     setKind(next);
     // In create mode, load that kind's default reminders as a starting point.
     // PRINT has none (it uses its own simple form).
@@ -106,6 +130,8 @@ export function EventForm({
       setReminders(offsetsToRows(kindDefaults[next] ?? []));
     }
   }
+
+  const isAllDay = kind === "EVENT";
 
   const printingChannelId = useMemo(
     () =>
@@ -154,7 +180,10 @@ export function EventForm({
       // PRINT is handled by its own form, so kind here is always a regular kind.
       kind: kind as EventKindName,
       startAt,
-      endAt: endAt || null,
+      endAt: isAllDay ? endAt || null : null,
+      allDay: isAllDay,
+      durationMinutes: isAllDay ? null : durationMinutes,
+      recurrence: recurrence as "NONE" | "WEEKLY" | "MONTHLY" | "YEARLY",
       location: location.trim() || null,
       url: url.trim() || null,
       channelId,
@@ -246,27 +275,100 @@ export function EventForm({
               />
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <Label htmlFor="startAt">Starts</Label>
-            <Input
-              id="startAt"
-              type="datetime-local"
-              value={startAt}
-              onChange={(e) => setStartAt(e.target.value)}
-              required
-            />
-          </div>
-          <div>
-            <Label htmlFor="endAt">Ends (optional)</Label>
-            <Input
-              id="endAt"
-              type="datetime-local"
-              value={endAt}
-              onChange={(e) => setEndAt(e.target.value)}
-            />
-          </div>
-        </div>
+            {isAllDay ? (
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <Label htmlFor="startAt">Start date</Label>
+                  <Input
+                    id="startAt"
+                    type="date"
+                    value={startAt}
+                    onChange={(e) => setStartAt(e.target.value)}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="endAt">End date (optional)</Label>
+                  <Input
+                    id="endAt"
+                    type="date"
+                    value={endAt}
+                    min={startAt || undefined}
+                    onChange={(e) => setEndAt(e.target.value)}
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <Label htmlFor="startAt">Starts</Label>
+                  <Input
+                    id="startAt"
+                    type="datetime-local"
+                    value={startAt}
+                    onChange={(e) => setStartAt(e.target.value)}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="duration">Duration</Label>
+                  <Select
+                    id="duration"
+                    value={durationCustom ? "custom" : String(durationMinutes)}
+                    onChange={(e) => {
+                      if (e.target.value === "custom") {
+                        setDurationCustom(true);
+                      } else {
+                        setDurationCustom(false);
+                        setDurationMinutes(Number(e.target.value));
+                      }
+                    }}
+                  >
+                    {MEETING_DURATIONS.map((d) => (
+                      <option key={d.minutes} value={d.minutes}>
+                        {d.label}
+                      </option>
+                    ))}
+                    <option value="custom">Custom…</option>
+                  </Select>
+                  {durationCustom ? (
+                    <div className="mt-2 flex items-center gap-2">
+                      <Input
+                        type="number"
+                        min={1}
+                        value={durationMinutes}
+                        onChange={(e) =>
+                          setDurationMinutes(Math.max(1, Number(e.target.value) || 0))
+                        }
+                        className="w-28"
+                      />
+                      <span className="text-sm text-neutral-500">minutes</span>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            )}
+
+            <div>
+              <Label htmlFor="recurrence">Repeat</Label>
+              <Select
+                id="recurrence"
+                value={recurrence}
+                onChange={(e) => setRecurrence(e.target.value)}
+              >
+                {RECURRENCES.map((r) => (
+                  <option key={r} value={r}>
+                    {RECURRENCE_LABELS[r]}
+                  </option>
+                ))}
+              </Select>
+              {recurrence !== "NONE" ? (
+                <p className="mt-1 text-xs text-neutral-500">
+                  Repeats until you delete it. Each occurrence gets its own
+                  announcement, reminders and RSVP — past attendance is kept.
+                </p>
+              ) : null}
+            </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div>

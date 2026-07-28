@@ -72,6 +72,11 @@ model Event {
   kind                    EventKind @default(EVENT)
   startAt                 DateTime
   endAt                   DateTime?
+  allDay                  Boolean   @default(false) // date-only (events); no time of day
+  durationMinutes         Int? // meeting length; endAt is derived from it
+  recurrence              String    @default("NONE") // NONE | WEEKLY | MONTHLY | YEARLY
+  recurrenceActive        Boolean   @default(true) // false stops future occurrences
+  seriesId                String? // groups occurrences of a recurring schedule
   location                String?
   url                     String?
   channelId               String // default target channel for announcements/reminders
@@ -95,6 +100,7 @@ model Event {
 
   @@index([guildId])
   @@index([startAt])
+  @@index([seriesId])
 }
 
 /// A single file attached to a PRINT request, with its own importance and
