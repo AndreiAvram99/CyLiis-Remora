@@ -83,3 +83,73 @@ export function parseMotivationModalId(customId: string): string | null {
   if (parts.length !== 2 || parts[0] !== "motiv") return null;
   return parts[1];
 }
+
+/**
+ * Custom ID for the print-request claim button, encoded as print:<eventId>:claim.
+ * Tapping it toggles who's taking care of printing the attached file(s).
+ */
+export function printClaimButtonId(eventId: string): string {
+  return `print:${eventId}:claim`;
+}
+
+export function parsePrintButtonId(customId: string): string | null {
+  const parts = customId.split(":");
+  if (parts.length !== 3 || parts[0] !== "print" || parts[2] !== "claim") {
+    return null;
+  }
+  return parts[1];
+}
+
+export interface PrintMessageParams {
+  eventId: string;
+  title: string;
+  description?: string | null;
+  requesterName?: string | null;
+  claimedByName?: string | null;
+}
+
+/**
+ * The Discord message payload (plain API JSON) for a print request. Shared so
+ * the dashboard can post it (via REST with the file attached) and the worker
+ * can rebuild it when the claim state changes — keeping both in sync.
+ */
+export function buildPrintMessagePayload(p: PrintMessageParams) {
+  const fields: { name: string; value: string; inline?: boolean }[] = [];
+  if (p.requesterName) {
+    fields.push({ name: "Requested by", value: p.requesterName, inline: true });
+  }
+  fields.push({
+    name: "Status",
+    value: p.claimedByName
+      ? `✅ **${p.claimedByName}** is taking care of it`
+      : "🖐️ Up for grabs — tap below if you'll print it",
+  });
+
+  return {
+    embeds: [
+      {
+        title: `🖨️ Print request: ${p.title}`.slice(0, 250),
+        description: p.description?.trim() || undefined,
+        color: 0x209ebb,
+        fields,
+        footer: { text: "Attached file(s) need printing" },
+      },
+    ],
+    components: [
+      {
+        type: 1,
+        components: [
+          {
+            type: 2,
+            style: p.claimedByName ? 3 : 1,
+            label: p.claimedByName
+              ? "I've got it — tap to release"
+              : "I'll take care of it",
+            custom_id: printClaimButtonId(p.eventId),
+            emoji: { name: p.claimedByName ? "✅" : "🖨️" },
+          },
+        ],
+      },
+    ],
+  };
+}

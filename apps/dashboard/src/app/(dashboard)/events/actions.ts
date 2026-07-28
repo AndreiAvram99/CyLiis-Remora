@@ -2,11 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma, ReminderStatus, type Prisma } from "@repo/db";
-import { computeDueAt, offsetLabel } from "@repo/shared";
+import { buildPrintMessagePayload, computeDueAt, offsetLabel } from "@repo/shared";
 import { assertManager } from "@/lib/session";
 import { getGuild } from "@/lib/guild";
 import { env } from "@/lib/env";
 import { localInputToDate } from "@/lib/time";
+import { postChannelMessageWithFiles } from "@/lib/discord";
 import {
   createCalendarEvent,
   updateCalendarEvent,
@@ -172,6 +173,105 @@ export async function updateEvent(id: string, input: EventFormValues) {
   revalidatePath(`/events/${id}`);
   revalidatePath("/presence");
   return { id };
+}
+
+export interface PrintFormState {
+  error: string | null;
+  ok?: boolean;
+}
+
+// Discord's default upload cap for a bot without server boosts.
+const MAX_PRINT_FILE_BYTES = 8 * 1024 * 1024;
+
+/**
+ * Create a PRINT request: no reminders, no RSVP. Uploads the attached file(s)
+ * straight to the chosen channel with a "who's printing this?" claim button.
+ * Used as a form action, so it takes FormData and returns validation state.
+ */
+export async function createPrintRequest(
+  _prev: PrintFormState,
+  formData: FormData,
+): Promise<PrintFormState> {
+  try {
+    const session = await assertManager();
+    const guild = await getGuild();
+
+    const title = String(formData.get("title") ?? "").trim();
+    const description = String(formData.get("description") ?? "").trim();
+    const channelId = String(formData.get("channelId") ?? "").trim();
+
+    if (!title) return { error: "Add a short title for the print request." };
+    if (!channelId) return { error: "Pick a channel to post in." };
+
+    const files = formData
+      .getAll("files")
+      .filter((f): f is File => f instanceof File && f.size > 0);
+    if (files.length === 0) {
+      return { error: "Attach at least one file to print." };
+    }
+    for (const f of files) {
+      if (f.size > MAX_PRINT_FILE_BYTES) {
+        return {
+          error: `"${f.name}" is larger than 8 MB — Discord won't accept it.`,
+        };
+      }
+    }
+    const filePayloads = await Promise.all(
+      files.map(async (f) => ({
+        name: f.name,
+        data: Buffer.from(await f.arrayBuffer()),
+      })),
+    );
+
+    const event = await prisma.event.create({
+      data: {
+        guildId: guild.id,
+        title,
+        description: description || null,
+        kind: "PRINT",
+        startAt: new Date(),
+        channelId,
+        announceOnCreate: false,
+        createdBy: session.user?.discordId,
+      },
+    });
+
+    const payload = buildPrintMessagePayload({
+      eventId: event.id,
+      title,
+      description: description || null,
+      requesterName: session.user?.name ?? null,
+    });
+
+    try {
+      const messageId = await postChannelMessageWithFiles(
+        channelId,
+        payload,
+        filePayloads,
+      );
+      await prisma.event.update({
+        where: { id: event.id },
+        data: { printMessageId: messageId },
+      });
+    } catch (err) {
+      // Don't leave a print request with nothing posted to Discord.
+      await prisma.event.delete({ where: { id: event.id } }).catch(() => {});
+      return {
+        error:
+          err instanceof Error
+            ? `Couldn't post to Discord: ${err.message}`
+            : "Couldn't post to Discord.",
+      };
+    }
+
+    revalidatePath("/events");
+    return { error: null, ok: true };
+  } catch (err) {
+    return {
+      error:
+        err instanceof Error ? err.message : "Something went wrong. Try again.",
+    };
+  }
 }
 
 export async function deleteEvent(id: string) {

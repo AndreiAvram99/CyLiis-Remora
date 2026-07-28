@@ -14,6 +14,7 @@ enum EventKind {
   MEETING
   EVENT
   CUSTOM
+  PRINT // a file that needs printing; posts to a channel, no reminders/RSVP
 }
 
 enum ReminderStatus {
@@ -78,6 +79,9 @@ model Event {
   gcalCalendarId          String? // which Google calendar the event was pushed to
   discordScheduledEventId String?
   interestedCount         Int       @default(0) // snapshot of Discord "interested" count
+  printMessageId          String? // Discord message posted for a PRINT request
+  printClaimedById        String? // Discord id of the member who took the print job
+  printClaimedByName      String? // their display name at claim time
   createdBy               String? // Discord user id of the admin who created it
   createdAt               DateTime  @default(now())
   updatedAt               DateTime  @updatedAt

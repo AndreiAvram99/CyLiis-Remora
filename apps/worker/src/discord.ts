@@ -2,6 +2,7 @@ import { Client, Events, GatewayIntentBits } from "discord.js";
 import { env } from "./env.js";
 import { syncChannels } from "./channels.js";
 import { handleRsvpButton, handleMotivationModal } from "./rsvp.js";
+import { handlePrintClaim } from "./print.js";
 import { reconcileScheduledEvents } from "./scheduledEvents.js";
 
 export function createClient(): Client {
@@ -32,7 +33,10 @@ export function createClient(): Client {
 
   client.on(Events.InteractionCreate, async (interaction) => {
     if (interaction.isButton()) {
-      await handleRsvpButton(interaction).catch((err) =>
+      const handler = interaction.customId.startsWith("print:")
+        ? handlePrintClaim
+        : handleRsvpButton;
+      await handler(interaction).catch((err) =>
         console.error("[bot] button handler error:", err),
       );
     } else if (interaction.isModalSubmit()) {

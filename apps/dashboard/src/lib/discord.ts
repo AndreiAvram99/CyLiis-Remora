@@ -27,6 +27,41 @@ export async function fetchGuildMember(
   }
 }
 
+/**
+ * Post a message to a channel with file attachment(s) using the bot token.
+ * Sent as multipart/form-data so the files are uploaded to Discord (which then
+ * hosts them). Returns the created message id, or null.
+ */
+export async function postChannelMessageWithFiles(
+  channelId: string,
+  payload: Record<string, unknown>,
+  files: { name: string; data: Buffer }[],
+): Promise<string | null> {
+  const token = env.botToken();
+  if (!token) throw new Error("DISCORD_BOT_TOKEN is not configured.");
+
+  const form = new FormData();
+  form.set("payload_json", JSON.stringify(payload));
+  files.forEach((f, i) => {
+    form.append(`files[${i}]`, new Blob([new Uint8Array(f.data)]), f.name);
+  });
+
+  const res = await fetch(`${API}/channels/${channelId}/messages`, {
+    method: "POST",
+    headers: { Authorization: `Bot ${token}` },
+    body: form,
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(
+      `Discord rejected the post (${res.status}). ${text.slice(0, 300)}`,
+    );
+  }
+  const msg = (await res.json()) as { id?: string };
+  return msg.id ?? null;
+}
+
 let cachedManagerRoleIds: string[] | null = null;
 
 /**

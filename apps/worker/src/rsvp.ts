@@ -29,7 +29,7 @@ interface MemberIdentity {
  * Resolve the member's guild display name (nickname → global name → username)
  * and avatar. Falls back to the plain user if the member fetch fails.
  */
-async function resolveIdentity(
+export async function resolveIdentity(
   interaction: ButtonInteraction | ModalSubmitInteraction,
 ): Promise<MemberIdentity> {
   const user = interaction.user;
