@@ -63,9 +63,11 @@ export default async function CalendarPage({
       id: true,
       title: true,
       startAt: true,
+      allDay: true,
       kind: true,
       channelId: true,
       gcalEventId: true,
+      seriesId: true,
     },
   });
 
@@ -75,9 +77,88 @@ export default async function CalendarPage({
   });
   const channelColor = new Map(channels.map((c) => [c.id, channelColorOf(c)]));
 
-  const appGcalIds = new Set(
-    appEvents.map((e) => e.gcalEventId).filter((id): id is string => Boolean(id)),
+  // Remora draws its own schedules (materialized rows plus the projected
+  // occurrences below), so drop any Google entry that mirrors one. Recurring
+  // instances carry their master's id in recurringEventId.
+  const linked = await prisma.event.findMany({
+    where: {
+      guildId: env.guildId(),
+      kind: { not: "PRINT" },
+      gcalEventId: { not: null },
+    },
+    select: { gcalEventId: true },
+  });
+  const linkedGcalIds = new Set(
+    linked.map((e) => e.gcalEventId).filter((id): id is string => Boolean(id)),
   );
+
+  // The worker only materializes one occurrence at a time, so project the rest
+  // of each active series locally. This keeps repeats visible here even when
+  // Google sync is off or hasn't caught up yet.
+  const seriesRows = await prisma.event.findMany({
+    where: {
+      guildId: env.guildId(),
+      kind: { not: "PRINT" },
+      recurrence: { not: "NONE" },
+      recurrenceActive: true,
+      startAt: { lte: gridEnd.toJSDate() },
+    },
+    select: {
+      id: true,
+      title: true,
+      startAt: true,
+      allDay: true,
+      kind: true,
+      channelId: true,
+      recurrence: true,
+      seriesId: true,
+    },
+  });
+
+  const dayKeyOf = (d: Date) =>
+    DateTime.fromJSDate(d).setZone(zone).toFormat("yyyy-LL-dd");
+  const materialized = new Set(
+    appEvents.map((e) => `${e.seriesId ?? e.id}:${dayKeyOf(e.startAt)}`),
+  );
+
+  const stepOf = (rec: string) =>
+    rec === "WEEKLY"
+      ? { weeks: 1 }
+      : rec === "MONTHLY"
+        ? { months: 1 }
+        : rec === "YEARLY"
+          ? { years: 1 }
+          : null;
+
+  // One anchor per series: its earliest occurrence defines the repeat pattern.
+  const anchors = new Map<string, (typeof seriesRows)[number]>();
+  for (const row of seriesRows) {
+    const key = row.seriesId ?? row.id;
+    const current = anchors.get(key);
+    if (!current || row.startAt < current.startAt) anchors.set(key, row);
+  }
+
+  const projected: CalItem[] = [];
+  for (const [key, anchor] of anchors) {
+    const step = stepOf(anchor.recurrence);
+    if (!step) continue;
+    let dt = DateTime.fromJSDate(anchor.startAt).setZone(zone);
+    // Bounded walk: a month grid can never need more than a handful of steps.
+    for (let i = 0; i < 400 && dt <= gridEnd; i++) {
+      const key2 = `${key}:${dt.toFormat("yyyy-LL-dd")}`;
+      if (dt >= gridStart && !materialized.has(key2)) {
+        projected.push({
+          id: `${key}-${dt.toMillis()}`,
+          title: anchor.title,
+          start: dt.toJSDate(),
+          allDay: anchor.allDay,
+          styleKey: anchor.kind as EventKind,
+          color: channelColor.get(anchor.channelId),
+        });
+      }
+      dt = dt.plus(step);
+    }
+  }
 
   const gcalItems = isCalendarEnabled()
     ? (
@@ -86,7 +167,7 @@ export default async function CalendarPage({
           timeMax: gridEnd.toJSDate(),
           maxResults: 200,
         })
-      ).filter((i) => !appGcalIds.has(i.id))
+      ).filter((i) => !linkedGcalIds.has(i.recurringEventId ?? i.id))
     : [];
 
   const items: CalItem[] = [
@@ -94,10 +175,11 @@ export default async function CalendarPage({
       id: e.id,
       title: e.title,
       start: e.startAt,
-      allDay: false,
+      allDay: e.allDay,
       styleKey: e.kind as EventKind,
       color: channelColor.get(e.channelId),
     })),
+    ...projected,
     ...gcalItems.map((g) => ({
       id: g.id,
       title: g.title,

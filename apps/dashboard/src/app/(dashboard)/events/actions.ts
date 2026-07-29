@@ -23,6 +23,7 @@ import { assertManager } from "@/lib/session";
 import { getGuild } from "@/lib/guild";
 import { env } from "@/lib/env";
 import { localInputToDate } from "@/lib/time";
+import { channelColorOf } from "@/lib/channel-color";
 import {
   postChannelMessage,
   postChannelMessageWithFiles,
@@ -41,6 +42,14 @@ interface ResolvedSchedule {
   endAt: Date;
   allDay: boolean;
   durationMinutes: number | null;
+}
+
+async function colorForChannel(channelId: string): Promise<string | undefined> {
+  const channel = await prisma.channel.findUnique({
+    where: { id: channelId },
+    select: { name: true, color: true },
+  });
+  return channel ? channelColorOf(channel) : undefined;
 }
 
 /**
@@ -107,6 +116,7 @@ export async function createEvent(input: EventFormValues) {
     values,
     guild.timezone,
   );
+  const channelColor = await colorForChannel(values.channelId);
 
   const calendarId = calendarIdForKind(values.kind);
   const gcalEventId = await createCalendarEvent(
@@ -119,6 +129,8 @@ export async function createEvent(input: EventFormValues) {
       endAt,
       allDay,
       timezone: guild.timezone,
+      recurrence: values.recurrence,
+      color: channelColor,
     },
     calendarId,
   );
@@ -162,6 +174,7 @@ export async function updateEvent(id: string, input: EventFormValues) {
     values,
     guild.timezone,
   );
+  const channelColor = await colorForChannel(values.channelId);
 
   const calInput = {
     title: values.title,
@@ -172,6 +185,8 @@ export async function updateEvent(id: string, input: EventFormValues) {
     endAt,
     allDay,
     timezone: guild.timezone,
+    recurrence: values.recurrence,
+    color: channelColor,
   };
   const targetCalendar = calendarIdForKind(values.kind);
   let gcalEventId = existing.gcalEventId;

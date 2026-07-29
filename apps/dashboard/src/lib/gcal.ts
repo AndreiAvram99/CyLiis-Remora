@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { DateTime } from "luxon";
 import { google, type calendar_v3 } from "googleapis";
+import { googleEventColorId } from "@repo/shared";
 import { env } from "./env";
 
 export interface CalendarEventInput {
@@ -12,6 +13,8 @@ export interface CalendarEventInput {
   endAt?: Date | null;
   allDay?: boolean; // date-only event (no time of day)
   timezone: string;
+  recurrence?: string | null;
+  color?: string | null;
 }
 
 /** A normalized calendar entry pulled from Google, for display in the app. */
@@ -24,6 +27,7 @@ export interface CalendarItem {
   end: Date | null;
   allDay: boolean;
   htmlLink: string | null;
+  recurringEventId: string | null;
 }
 
 let cached: calendar_v3.Calendar | null | undefined;
@@ -106,10 +110,18 @@ function configuredCalendarIds(): string[] {
 function toResource(input: CalendarEventInput): calendar_v3.Schema$Event {
   const descriptionParts = [input.description ?? ""];
   if (input.url) descriptionParts.push(`\nLink: ${input.url}`);
+  const frequency = ["WEEKLY", "MONTHLY", "YEARLY"].includes(
+    input.recurrence ?? "",
+  )
+    ? input.recurrence
+    : null;
   const base = {
     summary: input.title,
     description: descriptionParts.join("").trim() || undefined,
     location: input.location ?? undefined,
+    colorId: googleEventColorId(input.color),
+    // No UNTIL/COUNT: Remora recurrence continues until the schedule is deleted.
+    recurrence: frequency ? [`RRULE:FREQ=${frequency}`] : undefined,
   };
 
   if (input.allDay) {
@@ -177,6 +189,29 @@ export async function updateCalendarEvent(
   }
 }
 
+/** Update only an event's Google palette color, preserving all other fields. */
+export async function updateCalendarEventColor(
+  calendarId: string,
+  eventId: string,
+  color: string,
+): Promise<boolean> {
+  const cal = getCalendar();
+  if (!cal) return false;
+  const colorId = googleEventColorId(color);
+  if (!colorId) return false;
+  try {
+    await cal.events.patch({
+      calendarId,
+      eventId,
+      requestBody: { colorId },
+    });
+    return true;
+  } catch (err) {
+    console.error("[gcal] color update failed:", err);
+    return false;
+  }
+}
+
 /** Delete a calendar event from a specific calendar. Swallows 404/410. */
 export async function deleteCalendarEvent(
   calendarId: string,
@@ -205,6 +240,7 @@ function toCalendarItem(e: calendar_v3.Schema$Event): CalendarItem | null {
     end: endRaw ? new Date(endRaw) : null,
     allDay,
     htmlLink: e.htmlLink ?? null,
+    recurringEventId: e.recurringEventId ?? null,
   };
 }
 

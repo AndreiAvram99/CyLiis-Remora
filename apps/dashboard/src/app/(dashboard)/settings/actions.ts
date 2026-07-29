@@ -5,6 +5,8 @@ import { prisma } from "@repo/db";
 import { offsetLabel } from "@repo/shared";
 import { assertManager } from "@/lib/session";
 import { env } from "@/lib/env";
+import { channelColorOf } from "@/lib/channel-color";
+import { updateCalendarEventColor } from "@/lib/gcal";
 import { settingsSchema, type SettingsValues } from "@/lib/validation";
 
 export async function updateSettings(input: SettingsValues) {
@@ -49,10 +51,41 @@ export async function setChannelColor(channelId: string, color: string | null) {
   const clean =
     color && /^#[0-9a-fA-F]{6}$/.test(color) ? color.toUpperCase() : null;
 
-  await prisma.channel.update({
+  const channel = await prisma.channel.update({
     where: { id: channelId },
     data: { color: clean },
+    select: { name: true, color: true },
   });
+
+  // Keep existing upcoming/native recurring Google events visually aligned.
+  // Patch color only, so titles, times and recurrence remain untouched.
+  const events = await prisma.event.findMany({
+    where: {
+      channelId,
+      kind: { not: "PRINT" },
+      gcalEventId: { not: null },
+      OR: [
+        { startAt: { gte: new Date() } },
+        { recurrence: { not: "NONE" }, recurrenceActive: true },
+      ],
+    },
+    select: { gcalEventId: true, gcalCalendarId: true },
+  });
+  const targets = new Map<string, { calendarId: string; eventId: string }>();
+  for (const event of events) {
+    if (!event.gcalEventId) continue;
+    const calendarId = event.gcalCalendarId ?? env.googleCalendarId();
+    targets.set(`${calendarId}:${event.gcalEventId}`, {
+      calendarId,
+      eventId: event.gcalEventId,
+    });
+  }
+  const resolvedColor = channelColorOf(channel);
+  await Promise.all(
+    [...targets.values()].map(({ calendarId, eventId }) =>
+      updateCalendarEventColor(calendarId, eventId, resolvedColor),
+    ),
+  );
 
   revalidatePath("/settings");
   revalidatePath("/events");
