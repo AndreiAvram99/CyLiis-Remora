@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { DateTime } from "luxon";
 import { google, type calendar_v3 } from "googleapis";
+import { googleEventColorId } from "@repo/shared";
 import { env } from "./env.js";
 
 export interface CalendarEventInput {
@@ -12,6 +13,8 @@ export interface CalendarEventInput {
   endAt?: Date | null;
   allDay?: boolean;
   timezone: string;
+  recurrence?: string | null;
+  color?: string | null;
 }
 
 let cached: calendar_v3.Calendar | null | undefined;
@@ -77,10 +80,17 @@ export function calendarIdForKind(kind: string): string {
 function toResource(input: CalendarEventInput): calendar_v3.Schema$Event {
   const descriptionParts = [input.description ?? ""];
   if (input.url) descriptionParts.push(`\nLink: ${input.url}`);
+  const frequency = ["WEEKLY", "MONTHLY", "YEARLY"].includes(
+    input.recurrence ?? "",
+  )
+    ? input.recurrence
+    : null;
   const base = {
     summary: input.title,
     description: descriptionParts.join("").trim() || undefined,
     location: input.location ?? undefined,
+    colorId: googleEventColorId(input.color),
+    recurrence: frequency ? [`RRULE:FREQ=${frequency}`] : undefined,
   };
 
   if (input.allDay) {
@@ -120,5 +130,44 @@ export async function createCalendarEvent(
   } catch (err) {
     console.error("[gcal] create failed:", err);
     return null;
+  }
+}
+
+/**
+ * Upgrade an older standalone Google event to a native recurring series.
+ * Already-native series are left untouched so their historical instances are
+ * preserved. Called once per active series after each worker restart.
+ */
+export async function ensureCalendarRecurrence(
+  calendarId: string,
+  eventId: string,
+  input: CalendarEventInput,
+): Promise<boolean> {
+  const cal = getCalendar();
+  if (!cal) return false;
+  const frequency = ["WEEKLY", "MONTHLY", "YEARLY"].includes(
+    input.recurrence ?? "",
+  )
+    ? input.recurrence
+    : null;
+  if (!frequency) return true;
+  const expected = `RRULE:FREQ=${frequency}`;
+
+  try {
+    const current = await cal.events.get({ calendarId, eventId });
+    if (
+      current.data.recurrence?.some((rule) => rule.startsWith(expected))
+    ) {
+      return true;
+    }
+    await cal.events.update({
+      calendarId,
+      eventId,
+      requestBody: toResource(input),
+    });
+    return true;
+  } catch (err) {
+    console.error("[gcal] recurrence upgrade failed:", err);
+    return false;
   }
 }

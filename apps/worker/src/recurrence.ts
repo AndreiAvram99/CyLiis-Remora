@@ -1,7 +1,11 @@
 import { DateTime } from "luxon";
 import { prisma, ReminderStatus, type Prisma } from "@repo/db";
 import { computeDueAt, offsetLabel } from "@repo/shared";
-import { calendarIdForKind, createCalendarEvent } from "./gcal.js";
+import {
+  calendarIdForKind,
+  createCalendarEvent,
+  ensureCalendarRecurrence,
+} from "./gcal.js";
 
 function addRecurrence(dt: DateTime, rec: string): DateTime<boolean> {
   switch (rec) {
@@ -17,6 +21,35 @@ function addRecurrence(dt: DateTime, rec: string): DateTime<boolean> {
 }
 
 type OccWithReminders = Prisma.EventGetPayload<{ include: { reminders: true } }>;
+const reconciledGoogleSeries = new Set<string>();
+
+async function reconcileGoogleSeries(latest: OccWithReminders, tz: string) {
+  if (!latest.gcalEventId) return;
+  const seriesKey = latest.seriesId ?? latest.id;
+  if (reconciledGoogleSeries.has(seriesKey)) return;
+
+  const channel = await prisma.channel.findUnique({
+    where: { id: latest.channelId },
+    select: { color: true },
+  });
+  const ok = await ensureCalendarRecurrence(
+    latest.gcalCalendarId ?? calendarIdForKind(latest.kind),
+    latest.gcalEventId,
+    {
+      title: latest.title,
+      description: latest.description,
+      location: latest.location,
+      url: latest.url,
+      startAt: latest.startAt,
+      endAt: latest.endAt,
+      allDay: latest.allDay,
+      timezone: tz,
+      recurrence: latest.recurrence,
+      color: channel?.color,
+    },
+  );
+  if (ok) reconciledGoogleSeries.add(seriesKey);
+}
 
 /**
  * Keep exactly one upcoming occurrence materialized for each active recurring
@@ -40,6 +73,11 @@ export async function advanceRecurringSeries(guildId: string, tz: string) {
 
   for (const occs of groups.values()) {
     const latest = occs.reduce((a, b) => (a.startAt > b.startAt ? a : b));
+    try {
+      await reconcileGoogleSeries(latest, tz);
+    } catch (err) {
+      console.error(`[recurrence] Google reconciliation failed for ${latest.id}:`, err);
+    }
     // Only spawn once the current occurrence has begun/passed.
     if (latest.startAt.getTime() > Date.now()) continue;
     try {
@@ -64,20 +102,34 @@ async function spawnNext(latest: OccWithReminders, tz: string) {
     latest.startAt.getTime();
   const endAt = new Date(startAt.getTime() + Math.max(durationMs, 0));
 
-  const calendarId = calendarIdForKind(latest.kind);
-  const gcalEventId = await createCalendarEvent(
-    {
-      title: latest.title,
-      description: latest.description,
-      location: latest.location,
-      url: latest.url,
-      startAt,
-      endAt,
-      allDay: latest.allDay,
-      timezone: tz,
-    },
-    calendarId,
-  );
+  const calendarId =
+    latest.gcalCalendarId ?? calendarIdForKind(latest.kind);
+  let gcalEventId = latest.gcalEventId;
+
+  // Google owns the native recurring series. Reuse its master id for each
+  // materialized Discord/RSVP occurrence instead of inserting duplicates.
+  // If initial Google creation failed, retry once from the next occurrence.
+  if (!gcalEventId) {
+    const channel = await prisma.channel.findUnique({
+      where: { id: latest.channelId },
+      select: { color: true },
+    });
+    gcalEventId = await createCalendarEvent(
+      {
+        title: latest.title,
+        description: latest.description,
+        location: latest.location,
+        url: latest.url,
+        startAt,
+        endAt,
+        allDay: latest.allDay,
+        timezone: tz,
+        recurrence: latest.recurrence,
+        color: channel?.color,
+      },
+      calendarId,
+    );
+  }
 
   // Rebuild reminders from the previous occurrence's template (dedupe offsets).
   const seen = new Set<number>();

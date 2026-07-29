@@ -67,6 +67,56 @@ export function recurrenceBadge(rec: string): string | null {
   }
 }
 
+/**
+ * Google Calendar's API only supports its fixed event-color palette, not
+ * arbitrary hex colors. Return the closest supported color id for a channel
+ * color so Google events visually match the dashboard as closely as possible.
+ */
+const GOOGLE_EVENT_COLORS = [
+  { id: "1", hex: "#7986CB" }, // lavender
+  { id: "2", hex: "#33B679" }, // sage
+  { id: "3", hex: "#8E24AA" }, // grape
+  { id: "4", hex: "#E67C73" }, // flamingo
+  { id: "5", hex: "#F6C026" }, // banana
+  { id: "6", hex: "#F5511D" }, // tangerine
+  { id: "7", hex: "#039BE5" }, // peacock
+  { id: "8", hex: "#616161" }, // graphite
+  { id: "9", hex: "#3F51B5" }, // blueberry
+  { id: "10", hex: "#0B8043" }, // basil
+  { id: "11", hex: "#D60000" }, // tomato
+] as const;
+
+function rgb(hex: string): [number, number, number] | null {
+  const clean = hex.trim().replace(/^#/, "");
+  if (!/^[0-9a-fA-F]{6}$/.test(clean)) return null;
+  return [
+    Number.parseInt(clean.slice(0, 2), 16),
+    Number.parseInt(clean.slice(2, 4), 16),
+    Number.parseInt(clean.slice(4, 6), 16),
+  ];
+}
+
+export function googleEventColorId(hex?: string | null): string | undefined {
+  const target = hex ? rgb(hex) : null;
+  if (!target) return undefined;
+
+  let closest: string = GOOGLE_EVENT_COLORS[0].id;
+  let best = Number.POSITIVE_INFINITY;
+  for (const candidate of GOOGLE_EVENT_COLORS) {
+    const value = rgb(candidate.hex);
+    if (!value) continue;
+    const distance =
+      (target[0] - value[0]) ** 2 +
+      (target[1] - value[1]) ** 2 +
+      (target[2] - value[2]) ** 2;
+    if (distance < best) {
+      best = distance;
+      closest = candidate.id;
+    }
+  }
+  return closest;
+}
+
 /** Common meeting durations offered in the form (minutes). */
 export const MEETING_DURATIONS: { minutes: number; label: string }[] = [
   { minutes: 15, label: "15 minutes" },
