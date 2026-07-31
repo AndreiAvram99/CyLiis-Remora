@@ -14,7 +14,7 @@ import { durationLabel, recurrenceBadge } from "@repo/shared";
 import { Badge, Button, Card } from "@/components/ui";
 import { getGuild } from "@/lib/guild";
 import { env } from "@/lib/env";
-import { getSession } from "@/lib/session";
+import { getSession, isMasterId } from "@/lib/session";
 import { formatInTz, relativeTo } from "@/lib/time";
 import { listCalendarEvents, isCalendarEnabled } from "@/lib/gcal";
 import { DeleteEventButton } from "./delete-button";
@@ -33,6 +33,7 @@ export default async function EventsPage() {
   const guild = await getGuild();
   const session = await getSession();
   const isManager = Boolean(session?.user?.isManager);
+  const canDelete = isMasterId(session?.user?.discordId);
   const now = new Date();
 
   const events = await prisma.event.findMany({
@@ -193,7 +194,9 @@ export default async function EventsPage() {
                         <span className="hidden sm:inline">Edit</span>
                       </Button>
                     </Link>
-                    <DeleteEventButton id={e.id} title={e.title} />
+                    {canDelete ? (
+                      <DeleteEventButton id={e.id} title={e.title} />
+                    ) : null}
                   </div>
                 ) : null}
               </Card>
@@ -273,6 +276,7 @@ export default async function EventsPage() {
                   : null
               }
               isManager={isManager}
+              canDelete={canDelete}
               files={e.printFiles.map((f) => ({
                 id: f.id,
                 name: f.name,
@@ -318,7 +322,7 @@ export default async function EventsPage() {
                     {e._count.rsvps} RSVPs
                   </div>
                 </div>
-                {isManager ? (
+                {canDelete ? (
                   <DeleteEventButton id={e.id} title={e.title} />
                 ) : null}
               </Card>

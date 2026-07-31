@@ -15,6 +15,8 @@ export const eventFormSchema = z.object({
   allDay: z.boolean().default(false),
   durationMinutes: z.number().int().min(1).max(60 * 24 * 30).optional().nullable(),
   recurrence: z.enum(["NONE", "WEEKLY", "MONTHLY", "YEARLY"]).default("NONE"),
+  // Discord user ids expected at a meeting; empty for other kinds.
+  attendeeIds: z.array(z.string()).default([]),
   location: z.string().max(300).optional().nullable(),
   url: z.string().url().optional().or(z.literal("")).nullable(),
   channelId: z.string().min(1, "Select a channel"),

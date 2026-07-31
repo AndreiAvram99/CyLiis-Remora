@@ -5,6 +5,7 @@ import { getSession } from "@/lib/session";
 import { getGuild } from "@/lib/guild";
 import { env } from "@/lib/env";
 import { buildPresencePdf } from "@/lib/pdf";
+import { countMarks } from "@/lib/black-marks";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -67,8 +68,14 @@ export async function GET(req: NextRequest) {
         },
         orderBy: { displayName: "asc" },
       },
+      invitees: {
+        select: { userId: true, displayName: true },
+        orderBy: { displayName: "asc" },
+      },
     },
   });
+
+  const marks = await countMarks();
 
   const pdf = await buildPresencePdf({
     guildName: guild.name,
@@ -82,6 +89,11 @@ export async function GET(req: NextRequest) {
       channelName: channelName.get(e.channelId) ?? "unknown",
       location: e.location,
       rsvps: e.rsvps,
+      invitees: e.invitees.map((i) => ({
+        userId: i.userId,
+        displayName: i.displayName,
+        blackMarks: marks.blackByUser.get(i.userId) ?? 1,
+      })),
     })),
   });
 

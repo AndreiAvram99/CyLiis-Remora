@@ -2,6 +2,7 @@ import type { Session } from "next-auth";
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { authOptions } from "./auth";
+import { env } from "./env";
 
 // Local preview only: set DEV_AUTOLOGIN=true (never in production) to browse the
 // dashboard without configuring Discord OAuth. Set DEV_AUTOLOGIN=member to
@@ -53,6 +54,24 @@ export async function assertManager() {
   const session = await getSession();
   if (!session?.user?.isManager) {
     throw new Error("You do not have permission to perform this action.");
+  }
+  return session;
+}
+
+/**
+ * The owner account. Managers can create schedules and export presence, but
+ * deleting schedules and adjusting marks is reserved for this one account.
+ */
+export function isMasterId(discordId?: string | null): boolean {
+  const master = env.masterDiscordId();
+  return Boolean(master) && discordId === master;
+}
+
+/** Assertion for owner-only server actions. */
+export async function assertMaster() {
+  const session = await getSession();
+  if (!isMasterId(session?.user?.discordId)) {
+    throw new Error("Only the master account can perform this action.");
   }
   return session;
 }

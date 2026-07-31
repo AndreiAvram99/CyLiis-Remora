@@ -93,14 +93,47 @@ model Event {
   createdAt               DateTime  @default(now())
   updatedAt               DateTime  @updatedAt
 
-  guild      Guild       @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  guild      Guild          @relation(fields: [guildId], references: [id], onDelete: Cascade)
   reminders  Reminder[]
   rsvps      Rsvp[]
   printFiles PrintFile[]
+  invitees   EventInvitee[]
 
   @@index([guildId])
   @@index([startAt])
   @@index([seriesId])
+}
+
+/// Cache of the guild's members and their role ids, refreshed from Discord so
+/// the attendee picker doesn't hit the API on every page load.
+model GuildMember {
+  id          String   @id // Discord user id
+  guildId     String
+  username    String?
+  displayName String? // guild nickname, falling back to global name
+  avatarUrl   String?
+  roles       String[] // Discord role ids held in this guild
+  isBot       Boolean  @default(false)
+  updatedAt   DateTime @updatedAt
+
+  @@index([guildId])
+}
+
+/// A member expected at a meeting. Absences are derived by comparing this list
+/// against the meeting's RSVPs, so no-shows need no separate bookkeeping.
+model EventInvitee {
+  id          String   @id @default(cuid())
+  eventId     String
+  userId      String // Discord user id
+  displayName String? // snapshot so the list survives nickname changes
+  avatarUrl   String?
+  createdAt   DateTime @default(now())
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
+  @@index([eventId])
+  @@index([userId])
 }
 
 /// A single file attached to a PRINT request, with its own importance and
@@ -179,6 +212,22 @@ model Rsvp {
 
   @@unique([eventId, userId])
   @@index([eventId])
+}
+
+/// A mark awarded by hand by the master account, on top of the black marks
+/// derived from missed meetings. BLACK counts against a member, WHITE counts
+/// in their favour; the two are reported side by side.
+model MemberMark {
+  id        String   @id @default(cuid())
+  guildId   String
+  userId    String // Discord user id
+  kind      String // BLACK | WHITE
+  reason    String?
+  createdBy String? // Discord id of the master who added it
+  createdAt DateTime @default(now())
+
+  @@index([guildId])
+  @@index([userId])
 }
 
 /// Simple key/value store for misc settings and feature flags.

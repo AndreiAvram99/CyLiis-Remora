@@ -1,12 +1,15 @@
 import { DateTime } from "luxon";
-import { CalendarDays, Hash, FileDown } from "lucide-react";
+import { CalendarDays, Hash, FileDown, AlertTriangle } from "lucide-react";
 import { prisma, RsvpStatus } from "@repo/db";
 import type { RsvpStatusName } from "@repo/shared";
 import { Badge, Card } from "@/components/ui";
 import { getGuild } from "@/lib/guild";
 import { channelColorOf } from "@/lib/channel-color";
+import { countMarks } from "@/lib/black-marks";
+import { getAttendeeCandidates } from "@/lib/members";
+import { MarksPanel } from "./marks-panel";
 import { env } from "@/lib/env";
-import { getSession } from "@/lib/session";
+import { getSession, isMasterId } from "@/lib/session";
 import { formatInTz, relativeTo } from "@/lib/time";
 import { EditableMember } from "./member-controls";
 
@@ -139,6 +142,12 @@ function Group({
   );
 }
 
+interface Invitee {
+  userId: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+}
+
 interface EventWithRsvps {
   id: string;
   kind: string;
@@ -146,21 +155,105 @@ interface EventWithRsvps {
   startAt: Date;
   channelId: string;
   rsvps: Person[];
+  invitees: Invitee[];
+}
+
+/** A no-show tally badge. Rendered only once the meeting has started. */
+function BlackMark({ count }: { count: number }) {
+  return (
+    <span
+      title={`${count} black mark${count === 1 ? "" : "s"} in total`}
+      className="flex shrink-0 items-center gap-1 rounded-full bg-black px-1.5 py-0.5 text-[10px] font-semibold text-neutral-200 ring-1 ring-neutral-700"
+    >
+      <span className="h-1.5 w-1.5 rounded-full bg-neutral-100" aria-hidden />
+      {count}
+    </span>
+  );
+}
+
+/** A credit awarded by hand by the owner. */
+function WhiteMark({ count }: { count: number }) {
+  return (
+    <span
+      title={`${count} white mark${count === 1 ? "" : "s"}`}
+      className="flex shrink-0 items-center gap-1 rounded-full bg-neutral-100 px-1.5 py-0.5 text-[10px] font-semibold text-neutral-900 ring-1 ring-neutral-400"
+    >
+      <span className="h-1.5 w-1.5 rounded-full bg-neutral-900" aria-hidden />
+      {count}
+    </span>
+  );
+}
+
+/** Expected attendees who never answered Going or Motivation. */
+function MissingZone({
+  people,
+  started,
+  blackMarks,
+}: {
+  people: Invitee[];
+  started: boolean;
+  blackMarks: Map<string, number>;
+}) {
+  return (
+    <div className="rounded-xl border border-red-500/40 bg-red-500/5 p-4">
+      <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide">
+        <AlertTriangle size={13} className="text-red-400" />
+        <span className="text-red-400">
+          {started ? "Missed the meeting" : "Waiting on a reply"}
+        </span>
+        <span className="text-neutral-600">{people.length}</span>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {people.map((p) => {
+          const name = p.displayName || p.userId;
+          return (
+            <span
+              key={p.userId}
+              className="flex max-w-full items-center gap-2 rounded-full border border-red-500/30 bg-neutral-950 py-1 pl-1 pr-2 text-sm"
+            >
+              <MemberAvatar name={name} avatarUrl={p.avatarUrl} />
+              <span className="min-w-0 truncate">{name}</span>
+              {started ? (
+                <BlackMark count={blackMarks.get(p.userId) ?? 1} />
+              ) : null}
+            </span>
+          );
+        })}
+      </div>
+      <p className="mt-3 text-xs text-neutral-500">
+        {started
+          ? "They were expected but never answered, so each carries a black mark. The number is their running total."
+          : "Expected at this meeting. They still have time to answer in Discord."}
+      </p>
+    </div>
+  );
 }
 
 function EventCard({
   e,
   timezone,
   isManager,
+  blackMarks,
 }: {
   e: EventWithRsvps;
   timezone: string;
   isManager: boolean;
+  blackMarks: Map<string, number>;
 }) {
   const going = e.rsvps.filter((r) => r.status === RsvpStatus.GOING);
   const motivated = e.rsvps.filter((r) => r.status === RsvpStatus.MOTIVATED);
   const participating = going.length;
   const isPast = e.startAt < new Date();
+
+  const answered = new Set(
+    e.rsvps
+      .filter(
+        (r) =>
+          r.status === RsvpStatus.GOING || r.status === RsvpStatus.MOTIVATED,
+      )
+      .map((r) => r.userId),
+  );
+  const missing = e.invitees.filter((i) => !answered.has(i.userId));
 
   return (
     <Card className={`space-y-4 ${isPast ? "opacity-80" : ""}`}>
@@ -181,7 +274,11 @@ function EventCard({
           <div className="text-2xl font-semibold text-palette-azure">
             {participating}
           </div>
-          <div className="text-xs text-neutral-500">participating</div>
+          <div className="text-xs text-neutral-500">
+            {e.invitees.length > 0
+              ? `of ${e.invitees.length} expected`
+              : "participating"}
+          </div>
           <a
             href={`/api/presence/pdf?eventId=${e.id}`}
             className="mt-1 inline-flex items-center gap-1 text-xs text-neutral-400 hover:text-neutral-100"
@@ -191,27 +288,36 @@ function EventCard({
         </div>
       </div>
 
-      {e.rsvps.length === 0 ? (
+      {e.rsvps.length === 0 && missing.length === 0 ? (
         <p className="rounded-lg border border-neutral-800 bg-neutral-950 px-3 py-4 text-sm text-neutral-500">
           No responses yet. Members RSVP by tapping the buttons on the event
           announcement in Discord.
         </p>
       ) : (
-        <div className="grid gap-5 sm:grid-cols-2">
-          <Group
-            title="Going"
-            people={going}
-            statusKey="GOING"
-            eventId={e.id}
-            isManager={isManager}
-          />
-          <Group
-            title="Motivation"
-            people={motivated}
-            statusKey="MOTIVATED"
-            eventId={e.id}
-            isManager={isManager}
-          />
+        <div className="space-y-5">
+          <div className="grid gap-5 sm:grid-cols-2">
+            <Group
+              title="Going"
+              people={going}
+              statusKey="GOING"
+              eventId={e.id}
+              isManager={isManager}
+            />
+            <Group
+              title="Motivation"
+              people={motivated}
+              statusKey="MOTIVATED"
+              eventId={e.id}
+              isManager={isManager}
+            />
+          </div>
+          {missing.length > 0 ? (
+            <MissingZone
+              people={missing}
+              started={isPast}
+              blackMarks={blackMarks}
+            />
+          ) : null}
         </div>
       )}
     </Card>
@@ -238,6 +344,7 @@ export default async function PresencePage({
   const guild = await getGuild();
   const session = await getSession();
   const isManager = Boolean(session?.user?.isManager);
+  const isMaster = isMasterId(session?.user?.discordId);
 
   const { from, to } = await searchParams;
   const fromDate = boundary(from, "start", guild.timezone);
@@ -265,8 +372,25 @@ export default async function PresencePage({
         },
         orderBy: { displayName: "asc" },
       },
+      invitees: {
+        select: { userId: true, displayName: true, avatarUrl: true },
+        orderBy: { displayName: "asc" },
+      },
     },
   });
+
+  // Running totals across all history, not just the filtered range: missed
+  // meetings plus any marks the owner added by hand.
+  const marks = await countMarks();
+  // The owner can award marks to anyone on the roster, not only past invitees.
+  const roster = isMaster ? await getAttendeeCandidates() : { groups: [] };
+  const rosterMembers = [
+    ...new Map(
+      roster.groups
+        .flatMap((g) => g.members)
+        .map((m) => [m.id, { id: m.id, name: m.name }]),
+    ).values(),
+  ].sort((a, b) => a.name.localeCompare(b.name));
 
   const channels = await prisma.channel.findMany({
     where: { guildId: env.guildId() },
@@ -319,6 +443,41 @@ export default async function PresencePage({
           </a>
         ) : null}
       </div>
+
+      {marks.ranking.length > 0 || isMaster ? (
+        <Card className="space-y-3">
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide">
+            <AlertTriangle size={13} className="text-red-400" />
+            <span className="text-red-400">Marks</span>
+            <span className="text-neutral-600">{marks.ranking.length}</span>
+          </div>
+          {marks.ranking.length === 0 ? (
+            <p className="text-sm text-neutral-600">Nobody has a mark yet.</p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {marks.ranking.map((m) => (
+                <span
+                  key={m.userId}
+                  className="flex max-w-full items-center gap-2 rounded-full border border-neutral-800 bg-neutral-950 py-1 pl-1 pr-2 text-sm"
+                >
+                  <MemberAvatar name={m.name} avatarUrl={m.avatarUrl} />
+                  <span className="min-w-0 truncate">{m.name}</span>
+                  {m.black > 0 ? <BlackMark count={m.black} /> : null}
+                  {m.white > 0 ? <WhiteMark count={m.white} /> : null}
+                </span>
+              ))}
+            </div>
+          )}
+          <p className="text-xs text-neutral-500">
+            Black counts missed meetings plus anything added by hand; white
+            counts credits. Ordered by black minus white. Correcting someone&apos;s
+            status below clears their mark for that meeting.
+          </p>
+          {isMaster ? (
+            <MarksPanel members={rosterMembers} marks={marks.manual} />
+          ) : null}
+        </Card>
+      ) : null}
 
       <Card className="space-y-3">
         <form method="get" className="flex flex-wrap items-end gap-3">
@@ -385,6 +544,7 @@ export default async function PresencePage({
                   e={e}
                   timezone={guild.timezone}
                   isManager={isManager}
+                  blackMarks={marks.blackByUser}
                 />
               ))}
             </div>

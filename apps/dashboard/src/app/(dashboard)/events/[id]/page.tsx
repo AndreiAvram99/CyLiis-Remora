@@ -3,6 +3,7 @@ import { prisma, ReminderStatus } from "@repo/db";
 import type { EventKindName } from "@repo/shared";
 import { getGuild, getTextChannels } from "@/lib/guild";
 import { getKindDefaults } from "@/lib/defaults";
+import { getAttendeeCandidates } from "@/lib/members";
 import { requireManager } from "@/lib/session";
 import { dateToLocalInput, dateToLocalDateInput } from "@/lib/time";
 import { EventForm, type EventFormInitial } from "../event-form";
@@ -16,13 +17,14 @@ export default async function EditEventPage({
 }) {
   await requireManager();
   const { id } = await params;
-  const [guild, channels, kindDefaults, event] = await Promise.all([
+  const [guild, channels, kindDefaults, attendees, event] = await Promise.all([
     getGuild(),
     getTextChannels(),
     getKindDefaults(),
+    getAttendeeCandidates(),
     prisma.event.findUnique({
       where: { id },
-      include: { reminders: true },
+      include: { reminders: true, invitees: true },
     }),
   ]);
 
@@ -55,6 +57,7 @@ export default async function EditEventPage({
       )
       .sort((a, b) => b.offsetMinutes - a.offsetMinutes)
       .map((r) => ({ offsetMinutes: r.offsetMinutes, channelId: r.channelId })),
+    attendeeIds: event.invitees.map((i) => i.userId),
   };
 
   return (
@@ -72,6 +75,7 @@ export default async function EditEventPage({
         }))}
         kindDefaults={kindDefaults}
         defaultChannelId={guild.defaultChannelId}
+        attendeeGroups={attendees.groups}
         initial={initial}
       />
     </div>

@@ -23,6 +23,7 @@ import { Button, Card, Input, Label, Select, Textarea } from "@/components/ui";
 import { ChannelSelect } from "@/components/channel-select";
 import { createEvent, updateEvent } from "./actions";
 import { PrintForm } from "./print-form";
+import { AttendeePicker, type AttendeeGroup } from "./attendee-picker";
 
 type FormKind = EventKindName | "PRINT";
 
@@ -52,6 +53,7 @@ export interface EventFormInitial {
   channelId: string;
   announceOnCreate: boolean;
   reminders: Array<{ offsetMinutes: number; channelId: string | null }>;
+  attendeeIds: string[];
 }
 
 const DEFAULT_DURATION = 60;
@@ -64,6 +66,7 @@ interface EventFormProps {
   channels: ChannelOption[];
   kindDefaults: Record<EventKindName, number[]>;
   defaultChannelId?: string | null;
+  attendeeGroups: AttendeeGroup[];
   initial?: EventFormInitial;
 }
 
@@ -92,6 +95,7 @@ export function EventForm({
   channels,
   kindDefaults,
   defaultChannelId,
+  attendeeGroups,
   initial,
 }: EventFormProps) {
   const router = useRouter();
@@ -119,6 +123,9 @@ export function EventForm({
   );
   const [announceOnCreate, setAnnounceOnCreate] = useState(
     initial?.announceOnCreate ?? true,
+  );
+  const [attendeeIds, setAttendeeIds] = useState<string[]>(
+    initial?.attendeeIds ?? [],
   );
   const [reminders, setReminders] = useState<ReminderRow[]>(
     initial
@@ -205,6 +212,8 @@ export function EventForm({
         offsetMinutes: toOffsetMinutes(Number(r.value), r.unit),
         channelId: r.channelId || null,
       })),
+      // Only meetings track expected attendance.
+      attendeeIds: kind === "MEETING" ? attendeeIds : [],
     };
 
     startTransition(async () => {
@@ -400,6 +409,14 @@ export function EventForm({
                 </p>
               ) : null}
             </div>
+
+            {kind === "MEETING" ? (
+              <AttendeePicker
+                groups={attendeeGroups}
+                selected={attendeeIds}
+                onChange={setAttendeeIds}
+              />
+            ) : null}
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
