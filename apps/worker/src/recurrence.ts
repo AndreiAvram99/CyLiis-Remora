@@ -20,7 +20,9 @@ function addRecurrence(dt: DateTime, rec: string): DateTime<boolean> {
   }
 }
 
-type OccWithReminders = Prisma.EventGetPayload<{ include: { reminders: true } }>;
+type OccWithReminders = Prisma.EventGetPayload<{
+  include: { reminders: true; invitees: true };
+}>;
 const reconciledGoogleSeries = new Set<string>();
 
 async function reconcileGoogleSeries(latest: OccWithReminders, tz: string) {
@@ -60,7 +62,7 @@ async function reconcileGoogleSeries(latest: OccWithReminders, tz: string) {
 export async function advanceRecurringSeries(guildId: string, tz: string) {
   const recs = await prisma.event.findMany({
     where: { guildId, recurrence: { not: "NONE" }, recurrenceActive: true },
-    include: { reminders: true },
+    include: { reminders: true, invitees: true },
   });
 
   const groups = new Map<string, OccWithReminders[]>();
@@ -180,6 +182,14 @@ async function spawnNext(latest: OccWithReminders, tz: string) {
       gcalEventId,
       gcalCalendarId: gcalEventId ? calendarId : null,
       reminders: { create: reminderCreates },
+      // The expected roster carries over; attendance starts empty each time.
+      invitees: {
+        create: latest.invitees.map((i) => ({
+          userId: i.userId,
+          displayName: i.displayName,
+          avatarUrl: i.avatarUrl,
+        })),
+      },
     },
   });
 

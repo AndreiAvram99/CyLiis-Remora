@@ -19,7 +19,7 @@ import {
   type FilamentType,
   type PrintStatus,
 } from "@repo/shared";
-import { assertManager } from "@/lib/session";
+import { assertManager, assertMaster } from "@/lib/session";
 import { getGuild } from "@/lib/guild";
 import { env } from "@/lib/env";
 import { localInputToDate } from "@/lib/time";
@@ -107,6 +107,30 @@ function buildReminderCreates(
   return reminders;
 }
 
+/**
+ * Expected-attendee rows for a meeting. Names and avatars are snapshotted from
+ * the cached roster so the list still reads correctly if someone later leaves
+ * the server or changes their nickname.
+ */
+async function buildInviteeCreates(values: EventFormValues) {
+  if (values.kind !== "MEETING" || values.attendeeIds.length === 0) return [];
+
+  const members = await prisma.guildMember.findMany({
+    where: { id: { in: values.attendeeIds } },
+    select: { id: true, displayName: true, username: true, avatarUrl: true },
+  });
+  const byId = new Map(members.map((m) => [m.id, m]));
+
+  return values.attendeeIds.map((userId) => {
+    const m = byId.get(userId);
+    return {
+      userId,
+      displayName: m?.displayName || m?.username || null,
+      avatarUrl: m?.avatarUrl ?? null,
+    };
+  });
+}
+
 export async function createEvent(input: EventFormValues) {
   const session = await assertManager();
   const values = eventFormSchema.parse(input);
@@ -155,6 +179,7 @@ export async function createEvent(input: EventFormValues) {
       gcalEventId,
       gcalCalendarId: gcalEventId ? calendarId : null,
       reminders: { create: buildReminderCreates(startAt, values) },
+      invitees: { create: await buildInviteeCreates(values) },
     },
   });
 
@@ -210,11 +235,15 @@ export async function updateEvent(id: string, input: EventFormValues) {
     gcalCalendarId = gcalEventId ? targetCalendar : null;
   }
 
+  const invitees = await buildInviteeCreates(values);
+
   // Replace all not-yet-sent reminders; keep SENT ones for the audit trail.
   await prisma.$transaction([
     prisma.reminder.deleteMany({
       where: { eventId: id, status: { in: [ReminderStatus.PENDING, ReminderStatus.CANCELLED] } },
     }),
+    // The picker submits the full expected list, so replace it wholesale.
+    prisma.eventInvitee.deleteMany({ where: { eventId: id } }),
     prisma.event.update({
       where: { id },
       data: {
@@ -243,6 +272,7 @@ export async function updateEvent(id: string, input: EventFormValues) {
             (r) => !(r.isAnnouncement && existing.announceOnCreate),
           ),
         },
+        invitees: { create: invitees },
       },
     }),
   ]);
@@ -606,7 +636,8 @@ export async function updatePrintRequest(
 }
 
 export async function deleteEvent(id: string) {
-  await assertManager();
+  // Deleting is owner-only; managers can still create and edit.
+  await assertMaster();
   const existing = await prisma.event.findUnique({ where: { id } });
   if (!existing) return;
 

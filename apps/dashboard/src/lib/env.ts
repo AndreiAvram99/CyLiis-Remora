@@ -27,12 +27,23 @@ export const env = {
       .map((s) => s.trim())
       .filter(Boolean),
   managerRoleName: () => optional("MANAGER_ROLE_NAME", "Remora-Admin"),
+  // The single owner account: the only one that may delete schedules and
+  // adjust members' marks. Other Remora-Admins keep full create/export access.
+  masterDiscordId: () =>
+    optional("MASTER_DISCORD_ID", "323893421402095617").trim(),
   // Optional comma-separated channel names to expose in the picker. Overrides
   // the built-in default list when set.
   channelAllowlist: () =>
     optional("CHANNEL_ALLOWLIST")
       .split(",")
       .map((s) => s.trim().toLowerCase())
+      .filter(Boolean),
+  // Roles whose members can be picked as expected meeting attendees.
+  // Overrides the built-in membru-vechi / membru-nou pair when set.
+  attendeeRoleIds: () =>
+    optional("ATTENDEE_ROLE_IDS")
+      .split(",")
+      .map((s) => s.trim())
       .filter(Boolean),
   googleCalendarEnabled: () =>
     optional("GOOGLE_CALENDAR_ENABLED", "true").toLowerCase() !== "false",

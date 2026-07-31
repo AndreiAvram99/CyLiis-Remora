@@ -10,6 +10,13 @@ export interface PdfPerson {
   overriddenBy: string | null;
 }
 
+export interface PdfInvitee {
+  userId: string;
+  displayName: string | null;
+  /** Running no-show total, shown only once the meeting has started. */
+  blackMarks: number;
+}
+
 export interface PdfEvent {
   title: string;
   kind: string;
@@ -17,6 +24,7 @@ export interface PdfEvent {
   channelName: string;
   location: string | null;
   rsvps: PdfPerson[];
+  invitees: PdfInvitee[];
 }
 
 export interface PdfInput {
@@ -78,12 +86,40 @@ function renderMotivations(doc: PDFKit.PDFDocument, people: PdfPerson[]) {
   doc.moveDown(0.3);
 }
 
+/** Expected attendees with no valid answer, flagged once the meeting starts. */
+function renderMissing(
+  doc: PDFKit.PDFDocument,
+  people: PdfInvitee[],
+  started: boolean,
+) {
+  const label = started ? "Missed (black mark)" : "Awaiting reply";
+  doc.fontSize(10).fillColor("#b91c1c").text(`${label} (${people.length})`);
+  for (const p of people) {
+    const who = p.displayName || p.userId;
+    doc
+      .fontSize(9)
+      .fillColor("#7f1d1d")
+      .text(started ? `${who} — ${p.blackMarks} total` : who, {
+        indent: 10,
+        width: RIGHT - LEFT - 10,
+      });
+  }
+  doc.moveDown(0.3);
+}
+
 function renderEvent(doc: PDFKit.PDFDocument, e: PdfEvent, tz: string) {
   if (doc.y > 720) doc.addPage();
 
   const going = e.rsvps.filter((r) => r.status === "GOING");
   const motivated = e.rsvps.filter((r) => r.status === "MOTIVATED");
   const participating = going.length;
+
+  const answered = new Set(
+    e.rsvps
+      .filter((r) => r.status === "GOING" || r.status === "MOTIVATED")
+      .map((r) => r.userId),
+  );
+  const missing = e.invitees.filter((i) => !answered.has(i.userId));
 
   doc.moveDown(0.6);
   doc.fontSize(14).fillColor("#111827").text(`${e.title}  [${e.kind}]`);
@@ -97,12 +133,19 @@ function renderEvent(doc: PDFKit.PDFDocument, e: PdfEvent, tz: string) {
     .fontSize(9)
     .fillColor("#374151")
     .text(
-      `Participating: ${participating}  (Going ${going.length}, Motivation ${motivated.length})`,
+      `Participating: ${participating}${
+        e.invitees.length ? ` of ${e.invitees.length} expected` : ""
+      }  (Going ${going.length}, Motivation ${motivated.length}${
+        e.invitees.length ? `, Missing ${missing.length}` : ""
+      })`,
     );
   doc.moveDown(0.4);
 
   renderList(doc, "Going", going);
   renderMotivations(doc, motivated);
+  if (missing.length > 0) {
+    renderMissing(doc, missing, e.startAt < new Date());
+  }
 
   doc.moveDown(0.2);
   doc

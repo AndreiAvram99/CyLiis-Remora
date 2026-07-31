@@ -32,6 +32,7 @@ export function PrintCard({
   claimedByName,
   discordHref,
   isManager,
+  canDelete,
   files,
 }: {
   id: string;
@@ -41,6 +42,7 @@ export function PrintCard({
   claimedByName: string | null;
   discordHref: string | null;
   isManager: boolean;
+  canDelete: boolean;
   files: PrintCardFile[];
 }) {
   const done = status === "DONE";
@@ -173,7 +175,7 @@ export function PrintCard({
               <ExternalLink size={12} /> Open
             </a>
           ) : null}
-          {isManager ? <DeleteEventButton id={id} title={title} /> : null}
+          {canDelete ? <DeleteEventButton id={id} title={title} /> : null}
         </div>
       </div>
 
