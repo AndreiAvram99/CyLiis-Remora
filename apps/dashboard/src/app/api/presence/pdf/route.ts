@@ -5,7 +5,7 @@ import { getSession } from "@/lib/session";
 import { getGuild } from "@/lib/guild";
 import { env } from "@/lib/env";
 import { buildPresencePdf } from "@/lib/pdf";
-import { countMarks } from "@/lib/black-marks";
+import { loadMarks } from "@/lib/marks";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -75,7 +75,7 @@ export async function GET(req: NextRequest) {
     },
   });
 
-  const marks = await countMarks();
+  const marks = await loadMarks();
 
   const pdf = await buildPresencePdf({
     guildName: guild.name,

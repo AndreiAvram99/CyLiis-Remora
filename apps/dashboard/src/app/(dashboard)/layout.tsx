@@ -1,6 +1,12 @@
 import Link from "next/link";
 import Image from "next/image";
-import { ListChecks, CalendarRange, Users, Settings } from "lucide-react";
+import {
+  ListChecks,
+  CalendarRange,
+  Users,
+  Trophy,
+  Settings,
+} from "lucide-react";
 import { requireMember } from "@/lib/session";
 import { Providers } from "@/components/providers";
 import { SignOutButton } from "@/components/sign-out-button";
@@ -17,6 +23,12 @@ const navItems = [
     managerOnly: false,
   },
   { href: "/presence", label: "Presence", icon: Users, managerOnly: false },
+  {
+    href: "/leaderboard",
+    label: "Leaderboard",
+    icon: Trophy,
+    managerOnly: false,
+  },
   { href: "/settings", label: "Settings", icon: Settings, managerOnly: true },
 ];
 

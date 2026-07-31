@@ -10,6 +10,7 @@ import {
   ListChecks,
   CalendarRange,
   Users,
+  Trophy,
   Settings,
   type LucideIcon,
 } from "lucide-react";
@@ -26,6 +27,7 @@ const NAV_ITEMS: Item[] = [
   { href: "/events", label: "Schedules", icon: ListChecks, managerOnly: false },
   { href: "/calendar", label: "Calendar", icon: CalendarRange, managerOnly: false },
   { href: "/presence", label: "Presence", icon: Users, managerOnly: false },
+  { href: "/leaderboard", label: "Leaderboard", icon: Trophy, managerOnly: false },
   { href: "/settings", label: "Settings", icon: Settings, managerOnly: true },
 ];
 
