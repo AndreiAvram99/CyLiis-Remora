@@ -5,11 +5,10 @@ import type { RsvpStatusName } from "@repo/shared";
 import { Badge, Card } from "@/components/ui";
 import { getGuild } from "@/lib/guild";
 import { channelColorOf } from "@/lib/channel-color";
-import { countMarks } from "@/lib/black-marks";
-import { getAttendeeCandidates } from "@/lib/members";
-import { MarksPanel } from "./marks-panel";
+import { loadMarks } from "@/lib/marks";
+import { BlackMark } from "@/components/marks";
 import { env } from "@/lib/env";
-import { getSession, isMasterId } from "@/lib/session";
+import { getSession } from "@/lib/session";
 import { formatInTz, relativeTo } from "@/lib/time";
 import { EditableMember } from "./member-controls";
 
@@ -156,32 +155,6 @@ interface EventWithRsvps {
   channelId: string;
   rsvps: Person[];
   invitees: Invitee[];
-}
-
-/** A no-show tally badge. Rendered only once the meeting has started. */
-function BlackMark({ count }: { count: number }) {
-  return (
-    <span
-      title={`${count} black mark${count === 1 ? "" : "s"} in total`}
-      className="flex shrink-0 items-center gap-1 rounded-full bg-black px-1.5 py-0.5 text-[10px] font-semibold text-neutral-200 ring-1 ring-neutral-700"
-    >
-      <span className="h-1.5 w-1.5 rounded-full bg-neutral-100" aria-hidden />
-      {count}
-    </span>
-  );
-}
-
-/** A credit awarded by hand by the owner. */
-function WhiteMark({ count }: { count: number }) {
-  return (
-    <span
-      title={`${count} white mark${count === 1 ? "" : "s"}`}
-      className="flex shrink-0 items-center gap-1 rounded-full bg-neutral-100 px-1.5 py-0.5 text-[10px] font-semibold text-neutral-900 ring-1 ring-neutral-400"
-    >
-      <span className="h-1.5 w-1.5 rounded-full bg-neutral-900" aria-hidden />
-      {count}
-    </span>
-  );
 }
 
 /** Expected attendees who never answered Going or Motivation. */
@@ -344,7 +317,6 @@ export default async function PresencePage({
   const guild = await getGuild();
   const session = await getSession();
   const isManager = Boolean(session?.user?.isManager);
-  const isMaster = isMasterId(session?.user?.discordId);
 
   const { from, to } = await searchParams;
   const fromDate = boundary(from, "start", guild.timezone);
@@ -379,18 +351,9 @@ export default async function PresencePage({
     },
   });
 
-  // Running totals across all history, not just the filtered range: missed
-  // meetings plus any marks the owner added by hand.
-  const marks = await countMarks();
-  // The owner can award marks to anyone on the roster, not only past invitees.
-  const roster = isMaster ? await getAttendeeCandidates() : { groups: [] };
-  const rosterMembers = [
-    ...new Map(
-      roster.groups
-        .flatMap((g) => g.members)
-        .map((m) => [m.id, { id: m.id, name: m.name }]),
-    ).values(),
-  ].sort((a, b) => a.name.localeCompare(b.name));
+  // Running black-mark totals across all history, not just the filtered range,
+  // so each no-show chip can show the member's overall standing.
+  const marks = await loadMarks();
 
   const channels = await prisma.channel.findMany({
     where: { guildId: env.guildId() },
@@ -443,41 +406,6 @@ export default async function PresencePage({
           </a>
         ) : null}
       </div>
-
-      {marks.ranking.length > 0 || isMaster ? (
-        <Card className="space-y-3">
-          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide">
-            <AlertTriangle size={13} className="text-red-400" />
-            <span className="text-red-400">Marks</span>
-            <span className="text-neutral-600">{marks.ranking.length}</span>
-          </div>
-          {marks.ranking.length === 0 ? (
-            <p className="text-sm text-neutral-600">Nobody has a mark yet.</p>
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              {marks.ranking.map((m) => (
-                <span
-                  key={m.userId}
-                  className="flex max-w-full items-center gap-2 rounded-full border border-neutral-800 bg-neutral-950 py-1 pl-1 pr-2 text-sm"
-                >
-                  <MemberAvatar name={m.name} avatarUrl={m.avatarUrl} />
-                  <span className="min-w-0 truncate">{m.name}</span>
-                  {m.black > 0 ? <BlackMark count={m.black} /> : null}
-                  {m.white > 0 ? <WhiteMark count={m.white} /> : null}
-                </span>
-              ))}
-            </div>
-          )}
-          <p className="text-xs text-neutral-500">
-            Black counts missed meetings plus anything added by hand; white
-            counts credits. Ordered by black minus white. Correcting someone&apos;s
-            status below clears their mark for that meeting.
-          </p>
-          {isMaster ? (
-            <MarksPanel members={rosterMembers} marks={marks.manual} />
-          ) : null}
-        </Card>
-      ) : null}
 
       <Card className="space-y-3">
         <form method="get" className="flex flex-wrap items-end gap-3">

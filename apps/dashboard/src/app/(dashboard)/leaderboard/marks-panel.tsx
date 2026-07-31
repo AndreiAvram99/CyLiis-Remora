@@ -55,7 +55,7 @@ export function MarksPanel({
   }
 
   return (
-    <div className="space-y-3 border-t border-[rgb(var(--line))] pt-3">
+    <div className="space-y-3">
       <form onSubmit={submit} className="flex flex-wrap items-end gap-2">
         <label className="flex min-w-[10rem] flex-1 flex-col gap-1 text-xs text-neutral-500">
           Member
@@ -102,15 +102,13 @@ export function MarksPanel({
             {marks.map((m) => (
               <span
                 key={m.id}
-                className={`flex max-w-full items-center gap-2 rounded-full border px-2 py-1 text-xs ${
-                  m.kind === "WHITE"
-                    ? "border-neutral-500/40 bg-neutral-100/10 text-neutral-200"
-                    : "border-neutral-700 bg-black text-neutral-200"
-                }`}
+                className="flex max-w-full items-center gap-2 rounded-full border border-neutral-700 bg-neutral-900 px-2 py-1 text-xs text-neutral-200"
               >
                 <span
-                  className={`h-2 w-2 shrink-0 rounded-full ${
-                    m.kind === "WHITE" ? "bg-neutral-100" : "bg-neutral-500"
+                  className={`h-3 w-3 shrink-0 rounded-full ring-1 ${
+                    m.kind === "WHITE"
+                      ? "bg-white ring-neutral-400"
+                      : "bg-black ring-neutral-600"
                   }`}
                   aria-hidden
                 />
