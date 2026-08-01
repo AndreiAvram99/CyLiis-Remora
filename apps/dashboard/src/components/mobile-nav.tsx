@@ -12,7 +12,6 @@ import {
   Users,
   Trophy,
   Instagram,
-  Settings,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -26,11 +25,10 @@ type Item = {
 
 const NAV_ITEMS: Item[] = [
   { href: "/events", label: "Schedules", icon: ListChecks, managerOnly: false },
+  { href: "/instagram", label: "Instagram", icon: Instagram, managerOnly: false },
   { href: "/calendar", label: "Calendar", icon: CalendarRange, managerOnly: false },
   { href: "/presence", label: "Presence", icon: Users, managerOnly: false },
   { href: "/leaderboard", label: "Leaderboard", icon: Trophy, managerOnly: false },
-  { href: "/instagram", label: "Instagram", icon: Instagram, managerOnly: false },
-  { href: "/settings", label: "Settings", icon: Settings, managerOnly: true },
 ];
 
 /** Phone-only hamburger that opens a left drawer sliding in from the left. */
