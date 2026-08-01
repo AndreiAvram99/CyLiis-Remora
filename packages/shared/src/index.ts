@@ -196,6 +196,90 @@ export function parsePrintButtonId(customId: string): string | null {
   return parts[1];
 }
 
+/**
+ * Custom ID for the "Mark as read" button on a forwarded Instagram DM. Keyed by
+ * our own row id rather than Instagram's `mid`, which routinely exceeds
+ * Discord's 100-character limit for custom ids.
+ */
+const IG_READ_PREFIX = "igread:";
+
+export function instagramReadButtonId(id: string): string {
+  return `${IG_READ_PREFIX}${id}`;
+}
+
+export function parseInstagramReadButtonId(customId: string): string | null {
+  if (!customId.startsWith(IG_READ_PREFIX)) return null;
+  return customId.slice(IG_READ_PREFIX.length) || null;
+}
+
+export interface InstagramMessageParams {
+  id: string;
+  author: string;
+  text?: string | null;
+  imageUrl?: string | null;
+  attachments?: string[];
+  sentAt: Date;
+  readByName?: string | null;
+  readAt?: Date | null;
+}
+
+const INSTAGRAM_PINK = 0xe1306c;
+const INSTAGRAM_READ = 0x4b5563;
+
+/**
+ * The Discord payload for a forwarded Instagram DM. Shared so the dashboard can
+ * post it from the webhook and the worker can rebuild it once someone marks the
+ * message as read.
+ */
+export function buildInstagramMessagePayload(p: InstagramMessageParams) {
+  const read = Boolean(p.readByName);
+
+  const fields: { name: string; value: string; inline?: boolean }[] = [];
+  if (p.attachments?.length) {
+    fields.push({
+      name: "Attachments",
+      value: p.attachments.join("\n").slice(0, 1000),
+    });
+  }
+  fields.push({
+    name: "\u200b",
+    value: read
+      ? `👀 Read by **${p.readByName}**`
+      : "🔴 Nobody has picked this up yet",
+  });
+
+  return {
+    embeds: [
+      {
+        title: "📩 Instagram DM",
+        author: { name: p.author },
+        description: p.text?.trim()?.slice(0, 4000) || "(no text)",
+        color: read ? INSTAGRAM_READ : INSTAGRAM_PINK,
+        image: p.imageUrl ? { url: p.imageUrl } : undefined,
+        fields,
+        timestamp: p.sentAt.toISOString(),
+      },
+    ],
+    components: [
+      {
+        type: 1,
+        components: [
+          {
+            type: 2,
+            style: read ? 2 : 1,
+            label: read ? `Read by ${p.readByName}` : "Mark as read",
+            custom_id: instagramReadButtonId(p.id),
+            emoji: { name: "👀" },
+            disabled: read,
+          },
+        ],
+      },
+    ],
+    // A DM containing "@everyone" must never ping the server.
+    allowed_mentions: { parse: [] as string[] },
+  };
+}
+
 /** Filament materials offered per print file. */
 export const FILAMENT_TYPES = [
   "PLA",

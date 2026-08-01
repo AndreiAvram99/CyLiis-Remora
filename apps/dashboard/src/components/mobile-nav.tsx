@@ -11,6 +11,7 @@ import {
   CalendarRange,
   Users,
   Trophy,
+  Instagram,
   Settings,
   type LucideIcon,
 } from "lucide-react";
@@ -28,6 +29,7 @@ const NAV_ITEMS: Item[] = [
   { href: "/calendar", label: "Calendar", icon: CalendarRange, managerOnly: false },
   { href: "/presence", label: "Presence", icon: Users, managerOnly: false },
   { href: "/leaderboard", label: "Leaderboard", icon: Trophy, managerOnly: false },
+  { href: "/instagram", label: "Instagram", icon: Instagram, managerOnly: false },
   { href: "/settings", label: "Settings", icon: Settings, managerOnly: true },
 ];
 

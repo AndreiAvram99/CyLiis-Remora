@@ -3,6 +3,7 @@ import { env } from "./env.js";
 import { syncChannels } from "./channels.js";
 import { handleRsvpButton, handleMotivationModal } from "./rsvp.js";
 import { handlePrintClaim } from "./print.js";
+import { handleInstagramRead } from "./instagram.js";
 import { reconcileScheduledEvents } from "./scheduledEvents.js";
 
 export function createClient(): Client {
@@ -33,9 +34,12 @@ export function createClient(): Client {
 
   client.on(Events.InteractionCreate, async (interaction) => {
     if (interaction.isButton()) {
-      const handler = interaction.customId.startsWith("print:")
+      const id = interaction.customId;
+      const handler = id.startsWith("print:")
         ? handlePrintClaim
-        : handleRsvpButton;
+        : id.startsWith("igread:")
+          ? handleInstagramRead
+          : handleRsvpButton;
       await handler(interaction).catch((err) =>
         console.error("[bot] button handler error:", err),
       );
