@@ -189,7 +189,16 @@ export async function POST(req: NextRequest) {
   }
 
   for (const entry of body.entry ?? []) {
-    for (const m of entry.messaging ?? []) {
+    // Meta's "Test" button sends a sample shaped differently from a real DM,
+    // so say what arrived instead of dropping it without a word.
+    if (!entry.messaging?.length) {
+      console.log(
+        `[instagram] entry carried no messaging events, keys: ${Object.keys(entry).join(", ")}`,
+      );
+      continue;
+    }
+
+    for (const m of entry.messaging) {
       const mid = m.message?.mid ?? "unknown";
       if (!shouldForward(m)) {
         console.log(`[instagram] ${mid}: skipped, not a plain DM`);
