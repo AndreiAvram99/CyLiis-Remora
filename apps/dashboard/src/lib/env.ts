@@ -45,6 +45,14 @@ export const env = {
       .split(",")
       .map((s) => s.trim())
       .filter(Boolean),
+  // Instagram DM forwarding. Credentials come from the Meta App Dashboard
+  // under Instagram > API setup with Instagram login (not the generic Meta app
+  // id/secret). Forwarding stays off until the secret and channel are set.
+  instagramAppSecret: () => optional("INSTAGRAM_APP_SECRET"),
+  instagramVerifyToken: () => optional("INSTAGRAM_VERIFY_TOKEN"),
+  instagramAccessToken: () => optional("INSTAGRAM_ACCESS_TOKEN"),
+  instagramChannelId: () =>
+    optional("INSTAGRAM_CHANNEL_ID", "1398623875402563726"),
   googleCalendarEnabled: () =>
     optional("GOOGLE_CALENDAR_ENABLED", "true").toLowerCase() !== "false",
   googleCalendarId: () => optional("GOOGLE_CALENDAR_ID", "primary"),
