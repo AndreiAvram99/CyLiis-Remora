@@ -1,13 +1,13 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@repo/db";
+import { buildInstagramMessagePayload } from "@repo/shared";
 import { env } from "@/lib/env";
 import { postChannelMessage } from "@/lib/discord";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-const INSTAGRAM_PINK = 0xe1306c;
 const GRAPH = "https://graph.instagram.com/v23.0";
 
 interface Attachment {
@@ -109,61 +109,55 @@ function shouldForward(m: Messaging): boolean {
 }
 
 /**
- * Meta retries anything it doesn't get a 200 for, so remember which messages
- * were posted. Keys live in the settings table and are pruned after a week.
+ * Meta retries anything it doesn't get a 200 for, so record the message before
+ * posting it. The unique `mid` makes a retry fail here rather than duplicate
+ * the Discord post, and the row is what the dashboard tab reads later.
  */
-async function claimMessage(mid: string): Promise<boolean> {
+async function claimMessage(m: Messaging): Promise<{ id: string } | null> {
+  const msg = m.message!;
   try {
-    await prisma.setting.create({
-      data: { key: `ig-mid:${mid}`, value: new Date().toISOString() },
+    return await prisma.instagramMessage.create({
+      data: {
+        mid: msg.mid!,
+        senderId: m.sender?.id ?? null,
+        text: msg.text?.trim() || null,
+        imageUrl:
+          msg.attachments?.find((a) => a.type === "image")?.payload?.url ?? null,
+        attachments: (msg.attachments ?? [])
+          .filter((a) => a.type !== "image")
+          .map((a) => `${a.type ?? "file"}${a.payload?.url ? `: ${a.payload.url}` : ""}`),
+        sentAt: sentAt(m.timestamp),
+      },
+      select: { id: true },
     });
-    return true;
   } catch {
-    return false; // already forwarded
+    return null; // already forwarded
   }
 }
 
-async function pruneOldKeys() {
-  const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-  await prisma.setting
-    .deleteMany({
-      where: { key: { startsWith: "ig-mid:" }, updatedAt: { lt: cutoff } },
-    })
-    .catch(() => undefined);
-}
-
-async function forward(m: Messaging) {
+async function forward(id: string, m: Messaging) {
   const msg = m.message!;
   const author = await handleFor(m.sender?.id ?? "");
-  const image = msg.attachments?.find((a) => a.type === "image")?.payload?.url;
-  const others = (msg.attachments ?? []).filter((a) => a.type !== "image");
+  const channelId = env.instagramChannelId();
 
-  const fields = others.length
-    ? [
-        {
-          name: "Attachments",
-          value: others
-            .map((a) => `${a.type ?? "file"}${a.payload?.url ? `: ${a.payload.url}` : ""}`)
-            .join("\n")
-            .slice(0, 1000),
-        },
-      ]
-    : undefined;
+  const payload = buildInstagramMessagePayload({
+    id,
+    author,
+    text: msg.text,
+    imageUrl:
+      msg.attachments?.find((a) => a.type === "image")?.payload?.url ?? null,
+    attachments: (msg.attachments ?? [])
+      .filter((a) => a.type !== "image")
+      .map((a) => `${a.type ?? "file"}${a.payload?.url ? `: ${a.payload.url}` : ""}`),
+    sentAt: sentAt(m.timestamp),
+  });
 
-  await postChannelMessage(env.instagramChannelId(), {
-    embeds: [
-      {
-        title: "📩 Instagram DM",
-        author: { name: author },
-        description: msg.text?.trim()?.slice(0, 4000) || "(no text)",
-        color: INSTAGRAM_PINK,
-        image: image ? { url: image } : undefined,
-        fields,
-        timestamp: sentAt(m.timestamp).toISOString(),
-      },
-    ],
-    // A DM containing "@everyone" must never ping the server.
-    allowed_mentions: { parse: [] },
+  const messageId = await postChannelMessage(channelId, payload);
+
+  // Remember where it landed so the bot can edit it when someone reads it.
+  await prisma.instagramMessage.update({
+    where: { id },
+    data: { senderHandle: author, channelId, messageId },
   });
 }
 
@@ -223,12 +217,13 @@ export async function POST(req: NextRequest) {
         console.log(`[instagram] ${mid}: skipped, not a plain DM`);
         continue;
       }
-      if (!(await claimMessage(mid))) {
+      const row = await claimMessage(m);
+      if (!row) {
         console.log(`[instagram] ${mid}: skipped, already forwarded`);
         continue;
       }
       try {
-        await forward(m);
+        await forward(row.id, m);
         console.log(`[instagram] ${mid}: posted to Discord`);
       } catch (err) {
         console.error(`[instagram] ${mid}: forward failed:`, err);
@@ -236,7 +231,6 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  void pruneOldKeys();
   // Always acknowledge: a non-200 makes Meta retry the whole batch.
   return new NextResponse("EVENT_RECEIVED");
 }

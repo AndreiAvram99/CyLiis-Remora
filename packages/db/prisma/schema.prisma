@@ -236,3 +236,24 @@ model Setting {
   value     String
   updatedAt DateTime @updatedAt
 }
+
+/// An Instagram DM forwarded into Discord. The row is created before the post
+/// goes out, so its unique `mid` doubles as the guard against Meta's retries.
+model InstagramMessage {
+  id           String    @id @default(cuid())
+  mid          String    @unique // Instagram's message id
+  senderId     String? // opaque Instagram-scoped id
+  senderHandle String? // @handle, resolved from the Graph API
+  text         String?
+  imageUrl     String?
+  attachments  String[] // non-image attachments, as "type: url"
+  sentAt       DateTime
+  channelId    String? // where it landed in Discord
+  messageId    String? // Discord message id, so the bot can edit it
+  readById     String? // Discord id of whoever tapped "Mark as read"
+  readByName   String?
+  readAt       DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@index([sentAt])
+}

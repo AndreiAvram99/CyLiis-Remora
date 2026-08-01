@@ -5,6 +5,7 @@ import {
   CalendarRange,
   Users,
   Trophy,
+  Instagram,
   Settings,
 } from "lucide-react";
 import { requireMember } from "@/lib/session";
@@ -27,6 +28,12 @@ const navItems = [
     href: "/leaderboard",
     label: "Leaderboard",
     icon: Trophy,
+    managerOnly: false,
+  },
+  {
+    href: "/instagram",
+    label: "Instagram",
+    icon: Instagram,
     managerOnly: false,
   },
   { href: "/settings", label: "Settings", icon: Settings, managerOnly: true },
