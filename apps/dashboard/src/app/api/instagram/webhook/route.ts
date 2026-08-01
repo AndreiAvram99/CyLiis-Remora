@@ -17,7 +17,7 @@ interface Attachment {
 
 interface Messaging {
   sender?: { id?: string };
-  timestamp?: number;
+  timestamp?: number | string;
   message?: {
     mid?: string;
     text?: string;
@@ -27,6 +27,26 @@ interface Messaging {
     attachments?: Attachment[];
     reply_to?: { story?: unknown; mid?: string };
   };
+}
+
+interface Entry {
+  messaging?: Messaging[];
+  changes?: { field?: string; value?: Messaging }[];
+}
+
+/** Real DMs arrive under `messaging`; Meta's test button uses `changes`. */
+function eventsIn(entry: Entry): Messaging[] {
+  if (entry.messaging?.length) return entry.messaging;
+  return (entry.changes ?? [])
+    .filter((c) => c.field === "messages" && c.value)
+    .map((c) => c.value as Messaging);
+}
+
+/** Timestamps come as epoch millis, except the test sample, which uses seconds. */
+function sentAt(raw: number | string | undefined): Date {
+  const n = Number(raw);
+  if (!n) return new Date();
+  return new Date(n < 1e12 ? n * 1000 : n);
 }
 
 /**
@@ -139,7 +159,7 @@ async function forward(m: Messaging) {
         color: INSTAGRAM_PINK,
         image: image ? { url: image } : undefined,
         fields,
-        timestamp: new Date(m.timestamp ?? Date.now()).toISOString(),
+        timestamp: sentAt(m.timestamp).toISOString(),
       },
     ],
     // A DM containing "@everyone" must never ping the server.
@@ -175,7 +195,7 @@ export async function POST(req: NextRequest) {
     return new NextResponse("Invalid signature", { status: 403 });
   }
 
-  let body: { object?: string; entry?: { messaging?: Messaging[] }[] };
+  let body: { object?: string; entry?: Entry[] };
   try {
     body = JSON.parse(raw);
   } catch {
@@ -189,16 +209,15 @@ export async function POST(req: NextRequest) {
   }
 
   for (const entry of body.entry ?? []) {
-    // Meta's "Test" button sends a sample shaped differently from a real DM,
-    // so say what arrived instead of dropping it without a word.
-    if (!entry.messaging?.length) {
+    const events = eventsIn(entry);
+    if (!events.length) {
       console.log(
-        `[instagram] entry carried no messaging events, keys: ${Object.keys(entry).join(", ")}`,
+        `[instagram] entry carried no message events, keys: ${Object.keys(entry).join(", ")}`,
       );
       continue;
     }
 
-    for (const m of entry.messaging) {
+    for (const m of events) {
       const mid = m.message?.mid ?? "unknown";
       if (!shouldForward(m)) {
         console.log(`[instagram] ${mid}: skipped, not a plain DM`);
