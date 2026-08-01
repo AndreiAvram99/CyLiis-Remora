@@ -32,16 +32,21 @@ interface Messaging {
 /**
  * Meta signs every delivery with the app secret. Reject anything we can't
  * verify — the endpoint is public, so this is the only thing separating a real
- * notification from someone posting into the channel at will.
+ * notification from someone posting into the channel at will. Returns the
+ * reason it failed, or null when the delivery is genuine.
  */
-function verifySignature(raw: string, header: string | null): boolean {
+function signatureProblem(raw: string, header: string | null): string | null {
   const secret = env.instagramAppSecret();
-  if (!secret || !header?.startsWith("sha256=")) return false;
+  if (!secret) return "INSTAGRAM_APP_SECRET is not set";
+  if (!header?.startsWith("sha256=")) return "no x-hub-signature-256 header";
 
   const expected = createHmac("sha256", secret).update(raw, "utf8").digest();
   const received = Buffer.from(header.slice("sha256=".length), "hex");
-  if (received.length !== expected.length) return false;
-  return timingSafeEqual(expected, received);
+  if (received.length !== expected.length) return "malformed signature";
+  if (!timingSafeEqual(expected, received)) {
+    return "signature mismatch — INSTAGRAM_APP_SECRET is probably wrong";
+  }
+  return null;
 }
 
 const profileCache = new Map<string, string>();
@@ -162,7 +167,11 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const raw = await req.text();
-  if (!verifySignature(raw, req.headers.get("x-hub-signature-256"))) {
+  console.log(`[instagram] delivery received (${raw.length} bytes)`);
+
+  const problem = signatureProblem(raw, req.headers.get("x-hub-signature-256"));
+  if (problem) {
+    console.warn(`[instagram] rejected delivery: ${problem}`);
     return new NextResponse("Invalid signature", { status: 403 });
   }
 
@@ -170,19 +179,31 @@ export async function POST(req: NextRequest) {
   try {
     body = JSON.parse(raw);
   } catch {
+    console.warn("[instagram] rejected delivery: body is not JSON");
     return new NextResponse("Bad payload", { status: 400 });
   }
 
-  if (body.object !== "instagram") return new NextResponse("EVENT_RECEIVED");
+  if (body.object !== "instagram") {
+    console.warn(`[instagram] ignored delivery for object=${body.object}`);
+    return new NextResponse("EVENT_RECEIVED");
+  }
 
   for (const entry of body.entry ?? []) {
     for (const m of entry.messaging ?? []) {
-      if (!shouldForward(m)) continue;
-      if (!(await claimMessage(m.message!.mid!))) continue;
+      const mid = m.message?.mid ?? "unknown";
+      if (!shouldForward(m)) {
+        console.log(`[instagram] ${mid}: skipped, not a plain DM`);
+        continue;
+      }
+      if (!(await claimMessage(mid))) {
+        console.log(`[instagram] ${mid}: skipped, already forwarded`);
+        continue;
+      }
       try {
         await forward(m);
+        console.log(`[instagram] ${mid}: posted to Discord`);
       } catch (err) {
-        console.error("[instagram] forward failed:", err);
+        console.error(`[instagram] ${mid}: forward failed:`, err);
       }
     }
   }
