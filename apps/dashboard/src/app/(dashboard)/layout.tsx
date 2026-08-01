@@ -6,7 +6,6 @@ import {
   Users,
   Trophy,
   Instagram,
-  Settings,
 } from "lucide-react";
 import { requireMember } from "@/lib/session";
 import { Providers } from "@/components/providers";
@@ -15,8 +14,16 @@ import { Avatar } from "@/components/personalization";
 import { NavLink } from "@/components/nav-link";
 import { MobileNav } from "@/components/mobile-nav";
 
+// Settings lives under /account rather than the top bar — it's rarely used and
+// manager-only, so it doesn't earn a permanent slot.
 const navItems = [
   { href: "/events", label: "Schedules", icon: ListChecks, managerOnly: false },
+  {
+    href: "/instagram",
+    label: "Instagram",
+    icon: Instagram,
+    managerOnly: false,
+  },
   {
     href: "/calendar",
     label: "Calendar",
@@ -30,13 +37,6 @@ const navItems = [
     icon: Trophy,
     managerOnly: false,
   },
-  {
-    href: "/instagram",
-    label: "Instagram",
-    icon: Instagram,
-    managerOnly: false,
-  },
-  { href: "/settings", label: "Settings", icon: Settings, managerOnly: true },
 ];
 
 export default async function DashboardLayout({

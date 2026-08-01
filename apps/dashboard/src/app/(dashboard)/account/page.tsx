@@ -1,5 +1,7 @@
+import Link from "next/link";
+import { Settings, ChevronRight } from "lucide-react";
 import { requireMember } from "@/lib/session";
-import { Badge } from "@/components/ui";
+import { Badge, Card } from "@/components/ui";
 import { AccountForm } from "./account-form";
 
 export const dynamic = "force-dynamic";
@@ -33,6 +35,21 @@ export default async function AccountPage() {
         name={session.user?.name}
         discordAvatar={session.user?.image}
       />
+
+      {isManager ? (
+        <Link href="/settings" className="block">
+          <Card className="flex items-center gap-4 p-5 transition hover:border-brand/40">
+            <Settings size={20} className="shrink-0 text-brand" />
+            <div className="min-w-0 flex-1">
+              <p className="font-medium text-neutral-100">Server settings</p>
+              <p className="text-sm text-neutral-500">
+                Timezone, channels and default reminders for the whole team.
+              </p>
+            </div>
+            <ChevronRight size={18} className="shrink-0 text-neutral-500" />
+          </Card>
+        </Link>
+      ) : null}
     </div>
   );
 }
