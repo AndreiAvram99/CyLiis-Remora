@@ -110,6 +110,26 @@ export async function editChannelMessage(
   }
 }
 
+/** Remove a bot message from a channel. */
+export async function deleteChannelMessage(
+  channelId: string,
+  messageId: string,
+): Promise<void> {
+  const token = env.botToken();
+  if (!token) throw new Error("DISCORD_BOT_TOKEN is not configured.");
+  const res = await fetch(
+    `${API}/channels/${channelId}/messages/${messageId}`,
+    { method: "DELETE", headers: { Authorization: `Bot ${token}` } },
+  );
+  // 404 means someone deleted it by hand, which is the outcome we wanted.
+  if (!res.ok && res.status !== 404) {
+    const text = await res.text().catch(() => "");
+    throw new Error(
+      `Discord delete failed (${res.status}). ${text.slice(0, 300)}`,
+    );
+  }
+}
+
 let cachedManagerRoleIds: string[] | null = null;
 
 /**
