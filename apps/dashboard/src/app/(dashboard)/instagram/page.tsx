@@ -2,8 +2,9 @@ import { Instagram } from "lucide-react";
 import { prisma } from "@repo/db";
 import { Card } from "@/components/ui";
 import { getGuild } from "@/lib/guild";
-import { requireMember } from "@/lib/session";
+import { isMasterId, requireMember } from "@/lib/session";
 import { formatInTz, relativeTo } from "@/lib/time";
+import { MessageActions } from "./message-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -35,7 +36,8 @@ function ReadBadge({
 }
 
 export default async function InstagramPage() {
-  await requireMember();
+  const session = await requireMember();
+  const isMaster = isMasterId(session.user?.discordId);
   const guild = await getGuild();
 
   const messages = await prisma.instagramMessage.findMany({
@@ -87,11 +89,16 @@ export default async function InstagramPage() {
                     {relativeTo(m.sentAt)}
                   </p>
                 </div>
-                <ReadBadge
-                  name={m.readByName}
-                  at={m.readAt}
-                  timezone={guild.timezone}
-                />
+                <div className="flex shrink-0 items-center gap-2">
+                  <ReadBadge
+                    name={m.readByName}
+                    at={m.readAt}
+                    timezone={guild.timezone}
+                  />
+                  {isMaster ? (
+                    <MessageActions id={m.id} read={Boolean(m.readById)} />
+                  ) : null}
+                </div>
               </div>
 
               <p className="mt-3 whitespace-pre-wrap break-words text-sm text-neutral-300">
