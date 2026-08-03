@@ -244,6 +244,7 @@ model InstagramMessage {
   mid          String    @unique // Instagram's message id
   senderId     String? // opaque Instagram-scoped id
   senderHandle String? // @handle, resolved from the Graph API
+  senderAvatar String? // profile picture; a signed CDN url that eventually expires
   text         String?
   imageUrl     String?
   attachments  String[] // non-image attachments, as "type: url"

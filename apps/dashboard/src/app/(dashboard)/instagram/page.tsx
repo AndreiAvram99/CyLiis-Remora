@@ -5,6 +5,7 @@ import { getGuild } from "@/lib/guild";
 import { isMasterId, requireMember } from "@/lib/session";
 import { formatInTz, relativeTo } from "@/lib/time";
 import { MessageActions } from "./message-actions";
+import { SenderAvatar } from "./sender-avatar";
 
 export const dynamic = "force-dynamic";
 
@@ -141,14 +142,20 @@ export default async function InstagramPage({
               className={`p-5 ${m.readById ? "" : "border-[rgba(229,109,109,0.35)]"}`}
             >
               <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="min-w-0 space-y-1">
-                  <p className="font-semibold text-neutral-100">
-                    {m.senderHandle ?? "Instagram user"}
-                  </p>
-                  <p className="text-xs text-neutral-500">
-                    {formatInTz(m.sentAt, guild.timezone)} ·{" "}
-                    {relativeTo(m.sentAt)}
-                  </p>
+                <div className="flex min-w-0 items-center gap-3">
+                  <SenderAvatar
+                    src={m.senderAvatar}
+                    handle={m.senderHandle ?? "Instagram user"}
+                  />
+                  <div className="min-w-0 space-y-1">
+                    <p className="font-semibold text-neutral-100">
+                      {m.senderHandle ?? "Instagram user"}
+                    </p>
+                    <p className="text-xs text-neutral-500">
+                      {formatInTz(m.sentAt, guild.timezone)} ·{" "}
+                      {relativeTo(m.sentAt)}
+                    </p>
+                  </div>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
                   <ReadBadge
