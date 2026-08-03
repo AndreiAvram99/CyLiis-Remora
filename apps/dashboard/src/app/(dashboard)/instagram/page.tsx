@@ -35,15 +35,35 @@ function ReadBadge({
   );
 }
 
-export default async function InstagramPage() {
+// Senders whose handle we never resolved share one option in the filter.
+const UNKNOWN = "unknown";
+
+export default async function InstagramPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ sender?: string }>;
+}) {
   const session = await requireMember();
   const isMaster = isMasterId(session.user?.discordId);
   const guild = await getGuild();
 
-  const messages = await prisma.instagramMessage.findMany({
-    orderBy: { sentAt: "desc" },
-    take: 100,
-  });
+  const { sender } = await searchParams;
+  const where = sender
+    ? { senderHandle: sender === UNKNOWN ? null : sender }
+    : {};
+
+  const [messages, senders] = await Promise.all([
+    prisma.instagramMessage.findMany({
+      where,
+      orderBy: { sentAt: "desc" },
+      take: 100,
+    }),
+    prisma.instagramMessage.findMany({
+      distinct: ["senderHandle"],
+      select: { senderHandle: true },
+      orderBy: { senderHandle: "asc" },
+    }),
+  ]);
   const unread = messages.filter((m) => !m.readById).length;
 
   return (
@@ -60,6 +80,45 @@ export default async function InstagramPage() {
         </p>
       </div>
 
+      {senders.length > 1 ? (
+        <Card className="p-5">
+          <form method="get" className="flex flex-wrap items-end gap-3">
+            <label className="flex flex-col gap-1 text-xs text-neutral-500">
+              Sender
+              <select
+                name="sender"
+                defaultValue={sender ?? ""}
+                className="rounded-lg border border-[rgb(var(--line))] bg-[rgb(var(--input))] px-3 py-2 text-sm text-neutral-200 outline-none focus:border-brand"
+              >
+                <option value="">Everyone</option>
+                {senders.map((s) => (
+                  <option
+                    key={s.senderHandle ?? UNKNOWN}
+                    value={s.senderHandle ?? UNKNOWN}
+                  >
+                    {s.senderHandle ?? "Instagram user"}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button
+              type="submit"
+              className="rounded-lg border border-neutral-700 bg-neutral-800 px-4 py-2 text-sm font-medium text-neutral-100 transition hover:bg-neutral-700"
+            >
+              Apply
+            </button>
+            {sender ? (
+              <a
+                href="/instagram"
+                className="rounded-lg px-3 py-2 text-sm text-neutral-400 transition hover:text-neutral-100"
+              >
+                Clear
+              </a>
+            ) : null}
+          </form>
+        </Card>
+      ) : null}
+
       {messages.length ? (
         <p className="text-sm text-neutral-400">
           {unread === 0
@@ -70,7 +129,9 @@ export default async function InstagramPage() {
 
       {messages.length === 0 ? (
         <Card className="text-sm text-neutral-400">
-          No messages yet. Anything sent to the Instagram account lands here.
+          {sender
+            ? "No messages from this sender."
+            : "No messages yet. Anything sent to the Instagram account lands here."}
         </Card>
       ) : (
         <div className="space-y-3">
