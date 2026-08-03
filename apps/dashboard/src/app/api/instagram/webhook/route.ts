@@ -69,29 +69,46 @@ function signatureProblem(raw: string, header: string | null): string | null {
   return null;
 }
 
-const profileCache = new Map<string, string>();
+interface Profile {
+  handle: string;
+  avatar: string | null;
+}
 
-/** The sender's handle. Webhooks only carry an opaque id, so look it up. */
-async function handleFor(igsid: string): Promise<string> {
+const UNKNOWN_SENDER: Profile = { handle: "Instagram user", avatar: null };
+const profileCache = new Map<string, Profile>();
+
+/**
+ * The sender's handle and picture. Webhooks only carry an opaque id, so look it
+ * up. Note the picture is a signed CDN url that expires after a while, which is
+ * why anything showing it needs a fallback.
+ */
+async function profileFor(igsid: string): Promise<Profile> {
   const cached = profileCache.get(igsid);
   if (cached) return cached;
 
   const token = env.instagramAccessToken();
-  if (!token) return "Instagram user";
+  if (!token) return UNKNOWN_SENDER;
 
   try {
     const res = await fetch(
-      `${GRAPH}/${igsid}?fields=username,name&access_token=${token}`,
+      `${GRAPH}/${igsid}?fields=username,name,profile_pic&access_token=${token}`,
     );
-    if (!res.ok) return "Instagram user";
-    const data = (await res.json()) as { username?: string; name?: string };
-    const name = data.username
-      ? `@${data.username}`
-      : data.name || "Instagram user";
-    profileCache.set(igsid, name);
-    return name;
+    if (!res.ok) return UNKNOWN_SENDER;
+    const data = (await res.json()) as {
+      username?: string;
+      name?: string;
+      profile_pic?: string;
+    };
+    const profile: Profile = {
+      handle: data.username
+        ? `@${data.username}`
+        : data.name || UNKNOWN_SENDER.handle,
+      avatar: data.profile_pic ?? null,
+    };
+    profileCache.set(igsid, profile);
+    return profile;
   } catch {
-    return "Instagram user";
+    return UNKNOWN_SENDER;
   }
 }
 
@@ -170,12 +187,13 @@ async function claimMessage(m: Messaging): Promise<{ id: string } | null> {
 }
 
 async function forward(id: string, m: Messaging) {
-  const author = await handleFor(m.sender?.id ?? "");
+  const sender = await profileFor(m.sender?.id ?? "");
   const channelId = env.instagramChannelId();
 
   const payload = buildInstagramMessagePayload({
     id,
-    author,
+    author: sender.handle,
+    authorIcon: sender.avatar,
     ...contentOf(m),
     sentAt: sentAt(m.timestamp),
   });
@@ -185,7 +203,12 @@ async function forward(id: string, m: Messaging) {
   // Remember where it landed so the bot can edit it when someone reads it.
   await prisma.instagramMessage.update({
     where: { id },
-    data: { senderHandle: author, channelId, messageId },
+    data: {
+      senderHandle: sender.handle,
+      senderAvatar: sender.avatar,
+      channelId,
+      messageId,
+    },
   });
 }
 

@@ -45,6 +45,7 @@ export async function handleInstagramRead(interaction: ButtonInteraction) {
   const payload = buildInstagramMessagePayload({
     id: updated.id,
     author: updated.senderHandle ?? "Instagram user",
+    authorIcon: updated.senderAvatar,
     text: updated.text,
     imageUrl: updated.imageUrl,
     attachments: updated.attachments,

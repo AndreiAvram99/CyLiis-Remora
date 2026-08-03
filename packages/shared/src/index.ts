@@ -215,6 +215,7 @@ export function parseInstagramReadButtonId(customId: string): string | null {
 export interface InstagramMessageParams {
   id: string;
   author: string;
+  authorIcon?: string | null;
   text?: string | null;
   imageUrl?: string | null;
   attachments?: string[];
@@ -252,7 +253,10 @@ export function buildInstagramMessagePayload(p: InstagramMessageParams) {
     embeds: [
       {
         title: "📩 Instagram DM",
-        author: { name: p.author },
+        author: {
+          name: p.author,
+          icon_url: p.authorIcon ?? undefined,
+        },
         description: p.text?.trim()?.slice(0, 4000) || "(no text)",
         color: read ? INSTAGRAM_READ : INSTAGRAM_PINK,
         image: p.imageUrl ? { url: p.imageUrl } : undefined,
