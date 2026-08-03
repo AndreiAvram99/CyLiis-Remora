@@ -96,16 +96,56 @@ async function handleFor(igsid: string): Promise<string> {
 }
 
 /**
- * Only plain direct messages are forwarded. Story replies, story mentions,
- * echoes of our own replies and deletions are all dropped.
+ * Why a message wasn't forwarded, or null when it should be. Only story traffic
+ * and our own replies are dropped: for anything else, posting it imperfectly
+ * beats losing it, so shared posts and reels come through as links.
  */
-function shouldForward(m: Messaging): boolean {
+function dropReason(m: Messaging): string | null {
   const msg = m.message;
-  if (!msg?.mid) return false;
-  if (msg.is_echo || msg.is_deleted || msg.is_unsupported) return false;
-  if (msg.reply_to?.story) return false;
-  if (msg.attachments?.some((a) => a.type === "story_mention")) return false;
-  return Boolean(msg.text?.trim() || msg.attachments?.length);
+  if (!msg?.mid) return "no message id";
+  if (msg.is_echo) return "echo of our own reply";
+  if (msg.is_deleted) return "deleted by the sender";
+  if (msg.reply_to?.story) return "story reply";
+  if (msg.attachments?.some((a) => a.type === "story_mention")) {
+    return "story mention";
+  }
+  // Unsupported types carry no content, but they still tell the team a DM
+  // arrived, so they're forwarded with a placeholder rather than dropped.
+  if (!msg.text?.trim() && !msg.attachments?.length && !msg.is_unsupported) {
+    return "no text and no attachments";
+  }
+  return null;
+}
+
+/** Attachment types, for the logs, so odd payloads are recognisable. */
+function describe(m: Messaging): string {
+  const types = (m.message?.attachments ?? []).map((a) => a.type ?? "unknown");
+  const parts = [m.message?.text?.trim() ? "text" : null, ...types].filter(
+    Boolean,
+  );
+  if (m.message?.is_unsupported) parts.push("unsupported");
+  return parts.length ? parts.join(" + ") : "empty";
+}
+
+const UNSUPPORTED_NOTE =
+  "(Instagram sent a message type the API can't read — open the inbox to see it)";
+
+interface Content {
+  text: string | null;
+  imageUrl: string | null;
+  attachments: string[];
+}
+
+function contentOf(m: Messaging): Content {
+  const msg = m.message!;
+  const all = msg.attachments ?? [];
+  return {
+    text: msg.text?.trim() || (msg.is_unsupported ? UNSUPPORTED_NOTE : null),
+    imageUrl: all.find((a) => a.type === "image")?.payload?.url ?? null,
+    attachments: all
+      .filter((a) => a.type !== "image")
+      .map((a) => `${a.type ?? "file"}${a.payload?.url ? `: ${a.payload.url}` : ""}`),
+  };
 }
 
 /**
@@ -114,18 +154,12 @@ function shouldForward(m: Messaging): boolean {
  * the Discord post, and the row is what the dashboard tab reads later.
  */
 async function claimMessage(m: Messaging): Promise<{ id: string } | null> {
-  const msg = m.message!;
   try {
     return await prisma.instagramMessage.create({
       data: {
-        mid: msg.mid!,
+        mid: m.message!.mid!,
         senderId: m.sender?.id ?? null,
-        text: msg.text?.trim() || null,
-        imageUrl:
-          msg.attachments?.find((a) => a.type === "image")?.payload?.url ?? null,
-        attachments: (msg.attachments ?? [])
-          .filter((a) => a.type !== "image")
-          .map((a) => `${a.type ?? "file"}${a.payload?.url ? `: ${a.payload.url}` : ""}`),
+        ...contentOf(m),
         sentAt: sentAt(m.timestamp),
       },
       select: { id: true },
@@ -136,19 +170,13 @@ async function claimMessage(m: Messaging): Promise<{ id: string } | null> {
 }
 
 async function forward(id: string, m: Messaging) {
-  const msg = m.message!;
   const author = await handleFor(m.sender?.id ?? "");
   const channelId = env.instagramChannelId();
 
   const payload = buildInstagramMessagePayload({
     id,
     author,
-    text: msg.text,
-    imageUrl:
-      msg.attachments?.find((a) => a.type === "image")?.payload?.url ?? null,
-    attachments: (msg.attachments ?? [])
-      .filter((a) => a.type !== "image")
-      .map((a) => `${a.type ?? "file"}${a.payload?.url ? `: ${a.payload.url}` : ""}`),
+    ...contentOf(m),
     sentAt: sentAt(m.timestamp),
   });
 
@@ -213,10 +241,12 @@ export async function POST(req: NextRequest) {
 
     for (const m of events) {
       const mid = m.message?.mid ?? "unknown";
-      if (!shouldForward(m)) {
-        console.log(`[instagram] ${mid}: skipped, not a plain DM`);
+      const skip = dropReason(m);
+      if (skip) {
+        console.log(`[instagram] ${mid}: skipped, ${skip} (${describe(m)})`);
         continue;
       }
+      console.log(`[instagram] ${mid}: forwarding ${describe(m)}`);
       const row = await claimMessage(m);
       if (!row) {
         console.log(`[instagram] ${mid}: skipped, already forwarded`);
