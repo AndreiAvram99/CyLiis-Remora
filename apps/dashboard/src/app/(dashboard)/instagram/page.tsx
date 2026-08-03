@@ -144,7 +144,13 @@ export default async function InstagramPage({
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-3">
                   <SenderAvatar
-                    src={m.senderAvatar}
+                    // Prefer our cached copy, which also backfills the pictures
+                    // of messages stored before caching existed.
+                    src={
+                      m.senderId
+                        ? `/api/instagram/avatar/${m.senderId}`
+                        : m.senderAvatar
+                    }
                     handle={m.senderHandle ?? "Instagram user"}
                   />
                   <div className="min-w-0 space-y-1">
