@@ -237,6 +237,16 @@ model Setting {
   updatedAt DateTime @updatedAt
 }
 
+/// Our own copy of a sender's profile picture. Instagram serves them from
+/// signed urls that expire, so the bytes are kept here and served from a stable
+/// route instead of pointing anything at a url that will rot.
+model InstagramAvatar {
+  id        String   @id // Instagram-scoped sender id
+  mime      String
+  data      Bytes
+  updatedAt DateTime @updatedAt
+}
+
 /// An Instagram DM forwarded into Discord. The row is created before the post
 /// goes out, so its unique `mid` doubles as the guard against Meta's retries.
 model InstagramMessage {

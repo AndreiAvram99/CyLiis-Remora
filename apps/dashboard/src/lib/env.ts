@@ -53,6 +53,9 @@ export const env = {
   instagramAccessToken: () => optional("INSTAGRAM_ACCESS_TOKEN"),
   instagramChannelId: () =>
     optional("INSTAGRAM_CHANNEL_ID", "1398623875402563726"),
+  // Where this dashboard is reachable, for urls that outlive a request (e.g.
+  // images embedded in Discord messages).
+  publicUrl: () => optional("NEXTAUTH_URL").trim(),
   googleCalendarEnabled: () =>
     optional("GOOGLE_CALENDAR_ENABLED", "true").toLowerCase() !== "false",
   googleCalendarId: () => optional("GOOGLE_CALENDAR_ID", "primary"),

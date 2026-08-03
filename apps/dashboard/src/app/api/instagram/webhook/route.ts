@@ -4,6 +4,7 @@ import { prisma } from "@repo/db";
 import { buildInstagramMessagePayload } from "@repo/shared";
 import { env } from "@/lib/env";
 import { postChannelMessage } from "@/lib/discord";
+import { avatarProxyUrl, cacheAvatar } from "@/lib/instagram-avatar";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -186,14 +187,34 @@ async function claimMessage(m: Messaging): Promise<{ id: string } | null> {
   }
 }
 
+/**
+ * Instagram's picture urls expire, so grab a copy now and hand out our own url
+ * instead — that way the Discord embed still has a face on it months later.
+ */
+async function stableAvatar(
+  senderId: string | undefined,
+  signedUrl: string | null,
+): Promise<string | null> {
+  if (!senderId || !signedUrl) return signedUrl;
+
+  const proxied = avatarProxyUrl(senderId);
+  if (!proxied) return signedUrl; // no public url configured
+
+  await cacheAvatar(senderId, signedUrl).catch((err) =>
+    console.error("[instagram] avatar cache failed:", err),
+  );
+  return proxied;
+}
+
 async function forward(id: string, m: Messaging) {
   const sender = await profileFor(m.sender?.id ?? "");
+  const avatar = await stableAvatar(m.sender?.id, sender.avatar);
   const channelId = env.instagramChannelId();
 
   const payload = buildInstagramMessagePayload({
     id,
     author: sender.handle,
-    authorIcon: sender.avatar,
+    authorIcon: avatar,
     ...contentOf(m),
     sentAt: sentAt(m.timestamp),
   });
@@ -205,7 +226,7 @@ async function forward(id: string, m: Messaging) {
     where: { id },
     data: {
       senderHandle: sender.handle,
-      senderAvatar: sender.avatar,
+      senderAvatar: avatar,
       channelId,
       messageId,
     },
