@@ -128,6 +128,69 @@ export async function ensureGuildMembers(): Promise<void> {
   }
 }
 
+export interface MemberIdentity {
+  username: string | null;
+  displayName: string | null;
+  avatarUrl: string | null;
+}
+
+/** Live roster identity for the given members, keyed by Discord id. */
+export async function rosterIdentities(
+  userIds: string[],
+): Promise<Map<string, MemberIdentity>> {
+  const ids = [...new Set(userIds)];
+  if (ids.length === 0) return new Map();
+  const members = await prisma.guildMember.findMany({
+    where: { id: { in: ids } },
+    select: { id: true, username: true, displayName: true, avatarUrl: true },
+  });
+  return new Map(
+    members.map((m) => [
+      m.id,
+      {
+        username: m.username,
+        displayName: m.displayName,
+        avatarUrl: m.avatarUrl,
+      },
+    ]),
+  );
+}
+
+interface Named {
+  userId: string;
+  username?: string | null;
+  displayName: string | null;
+  avatarUrl?: string | null;
+}
+
+/**
+ * Fill in RSVP names and avatars that were never captured, so a chip never
+ * degrades to a bare Discord id. Prefers the live roster and falls back to the
+ * event's own invitee snapshot, which still holds members who have left.
+ */
+export async function fillIdentities(
+  events: { rsvps: Named[]; invitees: Named[] }[],
+): Promise<void> {
+  const blank = (r: Named) => !r.displayName && !r.username;
+  const missing = events.flatMap((e) =>
+    e.rsvps.filter(blank).map((r) => r.userId),
+  );
+  if (missing.length === 0) return;
+
+  const roster = await rosterIdentities(missing);
+  for (const e of events) {
+    const invited = new Map(e.invitees.map((i) => [i.userId, i]));
+    for (const r of e.rsvps) {
+      if (!blank(r)) continue;
+      const live = roster.get(r.userId);
+      const snapshot = invited.get(r.userId);
+      r.username = live?.username ?? null;
+      r.displayName = live?.displayName ?? snapshot?.displayName ?? null;
+      r.avatarUrl = live?.avatarUrl ?? snapshot?.avatarUrl ?? null;
+    }
+  }
+}
+
 export interface AttendeeCandidate {
   id: string;
   name: string;
