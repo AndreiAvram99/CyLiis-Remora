@@ -8,9 +8,9 @@ import { channelColorOf } from "@/lib/channel-color";
 import { loadMarks } from "@/lib/marks";
 import { BlackMark } from "@/components/marks";
 import { env } from "@/lib/env";
-import { getSession } from "@/lib/session";
+import { getSession, isMasterId } from "@/lib/session";
 import { formatInTz, relativeTo } from "@/lib/time";
-import { EditableMember } from "./member-controls";
+import { AssignStatus, EditableMember } from "./member-controls";
 
 export const dynamic = "force-dynamic";
 
@@ -162,10 +162,14 @@ function MissingZone({
   people,
   started,
   blackMarks,
+  eventId,
+  canAssign,
 }: {
   people: Invitee[];
   started: boolean;
   blackMarks: Map<string, number>;
+  eventId: string;
+  canAssign: boolean;
 }) {
   return (
     <div className="rounded-xl border border-red-500/40 bg-red-500/5 p-4">
@@ -189,6 +193,9 @@ function MissingZone({
               {started ? (
                 <BlackMark count={blackMarks.get(p.userId) ?? 1} />
               ) : null}
+              {canAssign ? (
+                <AssignStatus eventId={eventId} userId={p.userId} />
+              ) : null}
             </span>
           );
         })}
@@ -197,6 +204,9 @@ function MissingZone({
         {started
           ? "They were expected but never answered, so each carries a black mark. The number is their running total."
           : "Expected at this meeting. They still have time to answer in Discord."}
+        {canAssign
+          ? " Setting a status here answers on their behalf and clears the black mark."
+          : null}
       </p>
     </div>
   );
@@ -206,11 +216,13 @@ function EventCard({
   e,
   timezone,
   isManager,
+  isMaster,
   blackMarks,
 }: {
   e: EventWithRsvps;
   timezone: string;
   isManager: boolean;
+  isMaster: boolean;
   blackMarks: Map<string, number>;
 }) {
   const going = e.rsvps.filter((r) => r.status === RsvpStatus.GOING);
@@ -289,6 +301,8 @@ function EventCard({
               people={missing}
               started={isPast}
               blackMarks={blackMarks}
+              eventId={e.id}
+              canAssign={isMaster}
             />
           ) : null}
         </div>
@@ -317,6 +331,7 @@ export default async function PresencePage({
   const guild = await getGuild();
   const session = await getSession();
   const isManager = Boolean(session?.user?.isManager);
+  const isMaster = isMasterId(session?.user?.discordId);
 
   const { from, to } = await searchParams;
   const fromDate = boundary(from, "start", guild.timezone);
@@ -472,6 +487,7 @@ export default async function PresencePage({
                   e={e}
                   timezone={guild.timezone}
                   isManager={isManager}
+                  isMaster={isMaster}
                   blackMarks={marks.blackByUser}
                 />
               ))}
