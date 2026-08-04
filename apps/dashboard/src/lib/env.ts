@@ -63,6 +63,13 @@ export const env = {
   googleCalendarIdMeeting: () => optional("GOOGLE_CALENDAR_ID_MEETING"),
   googleCalendarIdEvent: () => optional("GOOGLE_CALENDAR_ID_EVENT"),
   googleCalendarIdCustom: () => optional("GOOGLE_CALENDAR_ID_CUSTOM"),
+  // Drive folder holding the per-team minutes folders (Branding, Events,
+  // General, …) that meeting agenda docs get filed into.
+  googleAgendaFolderId: () =>
+    optional(
+      "GOOGLE_AGENDA_FOLDER_ID",
+      "1k0hDa-pXW_wgdLPYhesMAsaPiVpZlhQ2",
+    ).trim(),
   googleServiceAccountJson: () => optional("GOOGLE_SERVICE_ACCOUNT_JSON"),
   // Alternative to the inline JSON: an absolute path to the key file on disk.
   // Handy for local dev so the secret never lands in a checked-in file.

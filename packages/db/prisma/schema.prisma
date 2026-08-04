@@ -86,6 +86,8 @@ model Event {
   mentionEveryone         Boolean   @default(false)
   gcalEventId             String?
   gcalCalendarId          String? // which Google calendar the event was pushed to
+  agendaDocId             String? // Google Doc holding the agenda + resume tabs
+  agendaDocUrl            String? // shared across every occurrence of a series
   discordScheduledEventId String?
   interestedCount         Int       @default(0) // snapshot of Discord "interested" count
   printMessageId          String? // Discord message posted for a PRINT request

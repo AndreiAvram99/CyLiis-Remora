@@ -196,6 +196,12 @@ export function parsePrintButtonId(customId: string): string | null {
   return parts[1];
 }
 
+/**
+ * Channels that only take print requests, matched by lowercase Discord name.
+ * Meetings and events can't be scheduled into them.
+ */
+export const PRINT_ONLY_CHANNELS = ["printing"];
+
 export interface Mentions {
   roleIds?: string[];
   userIds?: string[];

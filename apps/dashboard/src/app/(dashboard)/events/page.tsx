@@ -7,6 +7,7 @@ import { getGuild } from "@/lib/guild";
 import { env } from "@/lib/env";
 import { getSession, isMasterId } from "@/lib/session";
 import { formatInTz, relativeTo } from "@/lib/time";
+import { AgendaButton } from "./agenda-button";
 import { DeleteEventButton } from "./delete-button";
 import { PrintCard } from "./print-card";
 
@@ -160,6 +161,9 @@ export default async function EventsPage() {
                 </div>
                 {isManager ? (
                   <div className="flex items-center gap-2">
+                    {e.kind === "MEETING" ? (
+                      <AgendaButton id={e.id} docUrl={e.agendaDocUrl} />
+                    ) : null}
                     <Link
                       href={`/events/${e.id}`}
                       title="Edit"
