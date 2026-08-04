@@ -1,4 +1,5 @@
 import { getGuild, getTextChannels } from "@/lib/guild";
+import { postableChannels } from "@/lib/channel-access";
 import { getKindDefaults } from "@/lib/defaults";
 import { getAttendeeCandidates, getMentionOptions } from "@/lib/members";
 import { requireManager } from "@/lib/session";
@@ -8,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 export default async function NewEventPage() {
   await requireManager();
-  const [guild, channels, kindDefaults, attendees, mentions] =
+  const [guild, allChannels, kindDefaults, attendees, mentions] =
     await Promise.all([
       getGuild(),
       getTextChannels(),
@@ -16,6 +17,12 @@ export default async function NewEventPage() {
       getAttendeeCandidates(),
       getMentionOptions(),
     ]);
+
+  const channels = await postableChannels(allChannels);
+  // The guild default can be a channel this user isn't allowed to post in.
+  const defaultChannelId = channels.some((c) => c.id === guild.defaultChannelId)
+    ? guild.defaultChannelId
+    : (channels[0]?.id ?? null);
 
   return (
     <div className="mx-auto max-w-2xl space-y-8">
@@ -30,7 +37,7 @@ export default async function NewEventPage() {
           color: c.color,
         }))}
         kindDefaults={kindDefaults}
-        defaultChannelId={guild.defaultChannelId}
+        defaultChannelId={defaultChannelId}
         attendeeGroups={attendees.groups}
         mentionRoles={mentions.roles}
         mentionMembers={mentions.members}

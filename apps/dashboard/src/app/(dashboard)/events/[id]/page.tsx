@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { prisma, ReminderStatus } from "@repo/db";
 import type { EventKindName } from "@repo/shared";
 import { getGuild, getTextChannels } from "@/lib/guild";
+import { postableChannels } from "@/lib/channel-access";
 import { getKindDefaults } from "@/lib/defaults";
 import { getAttendeeCandidates, getMentionOptions } from "@/lib/members";
 import { requireManager } from "@/lib/session";
@@ -17,7 +18,7 @@ export default async function EditEventPage({
 }) {
   await requireManager();
   const { id } = await params;
-  const [guild, channels, kindDefaults, attendees, mentions, event] =
+  const [guild, allChannels, kindDefaults, attendees, mentions, event] =
     await Promise.all([
       getGuild(),
       getTextChannels(),
@@ -31,6 +32,13 @@ export default async function EditEventPage({
     ]);
 
   if (!event) notFound();
+
+  // Where it already lives stays selectable even for someone who couldn't have
+  // put it there, so editing the title doesn't quietly move the schedule.
+  const postable = await postableChannels(allChannels);
+  const channels = postable.some((c) => c.id === event.channelId)
+    ? postable
+    : [...postable, ...allChannels.filter((c) => c.id === event.channelId)];
 
   const initial: EventFormInitial = {
     title: event.title,

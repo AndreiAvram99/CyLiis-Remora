@@ -22,6 +22,7 @@ import {
   type PrintStatus,
 } from "@repo/shared";
 import { assertManager, assertMaster } from "@/lib/session";
+import { assertCanPostTo } from "@/lib/channel-access";
 import { getGuild } from "@/lib/guild";
 import { env } from "@/lib/env";
 import { localInputToDate } from "@/lib/time";
@@ -59,7 +60,10 @@ async function colorForChannel(channelId: string): Promise<string | undefined> {
  * Turn form values into concrete start/end times. All-day events (kind EVENT)
  * are a date range; meetings carry a duration from which endAt is derived.
  */
-function resolveSchedule(values: EventFormValues, tz: string): ResolvedSchedule {
+function resolveSchedule(
+  values: EventFormValues,
+  tz: string,
+): ResolvedSchedule {
   const startAt = localInputToDate(values.startAt, tz);
   if (values.allDay) {
     const endAt = values.endAt ? localInputToDate(values.endAt, tz) : startAt;
@@ -134,9 +138,24 @@ async function buildInviteeCreates(values: EventFormValues) {
   });
 }
 
+/** Every channel a schedule posts into: its own, plus any reminder override. */
+function targetChannels(values: EventFormValues): string[] {
+  return [
+    ...new Set([
+      values.channelId,
+      ...values.reminders
+        .map((r) => r.channelId)
+        .filter((id): id is string => Boolean(id)),
+    ]),
+  ];
+}
+
 export async function createEvent(input: EventFormValues) {
   const session = await assertManager();
   const values = eventFormSchema.parse(input);
+  for (const channelId of targetChannels(values)) {
+    await assertCanPostTo(channelId);
+  }
   const guild = await getGuild();
 
   const { startAt, endAt, allDay, durationMinutes } = resolveSchedule(
@@ -201,6 +220,11 @@ export async function updateEvent(id: string, input: EventFormValues) {
   const existing = await prisma.event.findUnique({ where: { id } });
   if (!existing) throw new Error("Event not found");
 
+  // Editing in place is fine; pointing it at a new restricted channel is not.
+  for (const channelId of targetChannels(values)) {
+    if (channelId !== existing.channelId) await assertCanPostTo(channelId);
+  }
+
   const { startAt, endAt, allDay, durationMinutes } = resolveSchedule(
     values,
     guild.timezone,
@@ -232,7 +256,11 @@ export async function updateEvent(id: string, input: EventFormValues) {
       gcalEventId = await createCalendarEvent(calInput, targetCalendar);
       gcalCalendarId = gcalEventId ? targetCalendar : null;
     } else {
-      await updateCalendarEvent(currentCalendar, existing.gcalEventId, calInput);
+      await updateCalendarEvent(
+        currentCalendar,
+        existing.gcalEventId,
+        calInput,
+      );
       gcalCalendarId = currentCalendar;
     }
   } else {
@@ -246,7 +274,10 @@ export async function updateEvent(id: string, input: EventFormValues) {
   // Replace all not-yet-sent reminders; keep SENT ones for the audit trail.
   await prisma.$transaction([
     prisma.reminder.deleteMany({
-      where: { eventId: id, status: { in: [ReminderStatus.PENDING, ReminderStatus.CANCELLED] } },
+      where: {
+        eventId: id,
+        status: { in: [ReminderStatus.PENDING, ReminderStatus.CANCELLED] },
+      },
     }),
     // The picker submits the full expected list, so replace it wholesale.
     prisma.eventInvitee.deleteMany({ where: { eventId: id } }),
@@ -313,9 +344,7 @@ export async function updateEvent(id: string, input: EventFormValues) {
     await postChannelMessage(values.channelId, {
       content: `${ping ? `${ping}\n` : ""}🔄 **Schedule updated** — ${values.title}\n${changes.join("\n")}`,
       allowed_mentions: allowedMentionsFor(mentions),
-    }).catch((err) =>
-      console.error("[events] update message failed:", err),
-    );
+    }).catch((err) => console.error("[events] update message failed:", err));
   }
 
   revalidatePath("/events");
@@ -352,13 +381,17 @@ function normalizeWalls(value: FormDataEntryValue | null): number {
 }
 
 function normalizeColor(value: FormDataEntryValue | null): string {
-  const v = String(value ?? "").trim().toUpperCase();
+  const v = String(value ?? "")
+    .trim()
+    .toUpperCase();
   const match = PRINT_COLORS.find((c) => c.toUpperCase() === v);
   return match ?? DEFAULT_PRINT_COLOR;
 }
 
 function normalizeBool(value: FormDataEntryValue | null): boolean {
-  const v = String(value ?? "").trim().toLowerCase();
+  const v = String(value ?? "")
+    .trim()
+    .toLowerCase();
   return v === "1" || v === "true" || v === "on" || v === "yes";
 }
 
@@ -384,7 +417,8 @@ function normalizeCopies(value: FormDataEntryValue | null): number {
 /** Build a short title from the file names for the dashboard/list view. */
 function titleFromFiles(names: string[]): string {
   if (names.length === 0) return "Print request";
-  const base = names.length === 1 ? names[0] : `${names[0]} +${names.length - 1} more`;
+  const base =
+    names.length === 1 ? names[0] : `${names[0]} +${names.length - 1} more`;
   return base.slice(0, 200);
 }
 
@@ -405,6 +439,7 @@ export async function createPrintRequest(
     const description = String(formData.get("description") ?? "").trim();
     const channelId = String(formData.get("channelId") ?? "").trim();
     if (!channelId) return { error: "Pick a channel to post in." };
+    await assertCanPostTo(channelId);
 
     const rawFiles = formData.getAll("files");
     const orders = formData.getAll("order");
@@ -428,7 +463,9 @@ export async function createPrintRequest(
         needsSupport: normalizeBool(supports[i] ?? null),
       }))
       .filter(
-        (r): r is {
+        (
+          r,
+        ): r is {
           file: File;
           order: number;
           copies: number;
