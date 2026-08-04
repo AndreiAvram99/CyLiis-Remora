@@ -24,6 +24,7 @@ import { getGuild } from "@/lib/guild";
 import { env } from "@/lib/env";
 import { localInputToDate } from "@/lib/time";
 import { channelColorOf } from "@/lib/channel-color";
+import { describeScheduleChanges } from "@/lib/schedule-diff";
 import {
   postChannelMessage,
   postChannelMessageWithFiles,
@@ -277,10 +278,35 @@ export async function updateEvent(id: string, input: EventFormValues) {
     }),
   ]);
 
+  // Tell the channel what moved, so nobody works off the old details. Posted to
+  // the new channel when the schedule was moved, which is where people look.
+  const changes = describeScheduleChanges(existing, {
+    title: values.title,
+    description: values.description || null,
+    kind: values.kind,
+    startAt,
+    endAt,
+    allDay,
+    durationMinutes,
+    location: values.location || null,
+    url: values.url || null,
+    channelId: values.channelId,
+    recurrence: values.recurrence,
+  });
+
+  if (changes.length > 0) {
+    await postChannelMessage(values.channelId, {
+      content: `🔄 **Schedule updated** — ${values.title}\n${changes.join("\n")}`,
+      allowed_mentions: { parse: [] },
+    }).catch((err) =>
+      console.error("[events] update message failed:", err),
+    );
+  }
+
   revalidatePath("/events");
   revalidatePath(`/events/${id}`);
   revalidatePath("/presence");
-  return { id };
+  return { id, changed: changes.length > 0 };
 }
 
 export interface PrintFormState {
