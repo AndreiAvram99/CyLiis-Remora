@@ -4,6 +4,7 @@ import { syncChannels } from "./channels.js";
 import { handleRsvpButton, handleMotivationModal } from "./rsvp.js";
 import { handlePrintClaim } from "./print.js";
 import { handleInstagramRead } from "./instagram.js";
+import { handleAgendaCommand, registerCommands } from "./commands.js";
 import { reconcileScheduledEvents } from "./scheduledEvents.js";
 
 export function createClient(): Client {
@@ -17,6 +18,7 @@ export function createClient(): Client {
   client.once(Events.ClientReady, async (c) => {
     console.log(`[bot] logged in as ${c.user.tag}`);
     try {
+      await registerCommands(client);
       await syncChannels(client, env.guildId());
       await reconcileScheduledEvents(client, env.guildId());
     } catch (err) {
@@ -42,6 +44,10 @@ export function createClient(): Client {
           : handleRsvpButton;
       await handler(interaction).catch((err) =>
         console.error("[bot] button handler error:", err),
+      );
+    } else if (interaction.isChatInputCommand()) {
+      await handleAgendaCommand(interaction).catch((err) =>
+        console.error("[bot] command handler error:", err),
       );
     } else if (interaction.isModalSubmit()) {
       await handleMotivationModal(interaction).catch((err) =>
