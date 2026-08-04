@@ -10,16 +10,22 @@ const SCOPES = [
 
 /**
  * Discord channel -> the folder its minutes live in, inside the shared minutes
- * folder. #announcements is the whole team, so it files under General.
+ * folder. #announcements is the whole team, so it files under General. More than
+ * one name is accepted where Drive and Discord spell things differently.
  */
-const CHANNEL_FOLDERS: Record<string, string> = {
-  announcements: "General",
-  events: "Events",
-  branding: "Branding",
-  hardware: "Hardware",
-  pagination: "Pagination",
-  sustenability: "Sustainability",
+const CHANNEL_FOLDERS: Record<string, string[]> = {
+  announcements: ["General"],
+  events: ["Events"],
+  branding: ["Branding"],
+  hardware: ["Hardware"],
+  pagination: ["Pagination"],
+  sustenability: ["Sustanability", "Sustainability", "Sustenability"],
 };
+
+/** Compare folder names loosely, so spaces, dashes or case don't matter. */
+function normalize(name: string): string {
+  return name.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
 
 let clients: { drive: drive_v3.Drive; docs: docs_v1.Docs } | null | undefined;
 
@@ -58,6 +64,7 @@ async function folderFor(
   if (!wanted) {
     throw new Error(`#${channelName} has no minutes folder in Drive.`);
   }
+  const accepted = wanted.map(normalize);
 
   const root = env.googleAgendaFolderId();
   const res = await drive.files.list({
@@ -69,10 +76,10 @@ async function folderFor(
   });
 
   const match = res.data.files?.find(
-    (f) => f.name?.toLowerCase() === wanted.toLowerCase(),
+    (f) => f.name && accepted.includes(normalize(f.name)),
   );
   if (!match?.id) {
-    throw new Error(`Couldn't find a "${wanted}" folder in Drive.`);
+    throw new Error(`Couldn't find a "${wanted[0]}" folder in Drive.`);
   }
   return match.id;
 }
