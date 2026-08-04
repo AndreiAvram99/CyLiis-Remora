@@ -17,7 +17,12 @@ import {
   parseRsvpButtonId,
 } from "@repo/shared";
 import { env } from "./env.js";
-import { buildEventEmbed, emptyCounts, type RsvpCounts } from "./messages.js";
+import {
+  buildEventEmbed,
+  emptyCounts,
+  type ExpectedAttendee,
+  type RsvpCounts,
+} from "./messages.js";
 
 interface MemberIdentity {
   username: string;
@@ -64,6 +69,39 @@ export async function getRsvpCounts(eventId: string): Promise<RsvpCounts> {
     if (key in counts) counts[key] = g._count.status;
   }
   return counts;
+}
+
+/**
+ * Who was picked as expected at a meeting, in the order shown on the dashboard,
+ * each with the answer they've given so far. Empty for anything but a meeting,
+ * since events are open to the whole server.
+ */
+export async function getExpectedAttendees(
+  eventId: string,
+  kind: string,
+): Promise<ExpectedAttendee[]> {
+  if (kind !== "MEETING") return [];
+
+  const [invitees, answers] = await Promise.all([
+    prisma.eventInvitee.findMany({
+      where: { eventId },
+      orderBy: { displayName: "asc" },
+      select: { userId: true },
+    }),
+    prisma.rsvp.findMany({
+      where: { eventId },
+      select: { userId: true, status: true },
+    }),
+  ]);
+
+  const answered = new Map(answers.map((a) => [a.userId, a.status]));
+  return invitees.map((i) => {
+    const status = answered.get(i.userId);
+    return {
+      userId: i.userId,
+      status: status === "GOING" || status === "MOTIVATED" ? status : null,
+    };
+  });
 }
 
 /** The "Motivation" reason prompt shown when a member excuses their absence. */
@@ -136,11 +174,12 @@ export async function handleRsvpButton(interaction: ButtonInteraction) {
   });
 
   const counts = await getRsvpCounts(eventId);
+  const expected = await getExpectedAttendees(eventId, event.kind);
   const footer = interaction.message.embeds[0]?.footer?.text ?? "RSVP";
 
   try {
     await interaction.update({
-      embeds: [buildEventEmbed(event, counts, footer)],
+      embeds: [buildEventEmbed(event, counts, footer, expected)],
     });
   } catch (err) {
     console.error("[rsvp] failed to update message:", err);
@@ -203,10 +242,11 @@ export async function handleMotivationModal(
 
   // Refresh the counts on the original announcement/reminder message.
   const counts = await getRsvpCounts(eventId);
+  const expected = await getExpectedAttendees(eventId, event.kind);
   if (interaction.isFromMessage()) {
     const footer = interaction.message.embeds[0]?.footer?.text ?? "RSVP";
     await interaction
-      .update({ embeds: [buildEventEmbed(event, counts, footer)] })
+      .update({ embeds: [buildEventEmbed(event, counts, footer, expected)] })
       .catch((err) => console.error("[rsvp] modal update failed:", err));
   }
 
@@ -246,7 +286,9 @@ async function postMotivation(
         name: interaction.user.username,
         iconURL: interaction.user.displayAvatarURL(),
       })
-      .setDescription(`<@${interaction.user.id}> can't make it to **${eventTitle}**`)
+      .setDescription(
+        `<@${interaction.user.id}> can't make it to **${eventTitle}**`,
+      )
       .addFields({ name: "Motivation", value: reason.slice(0, 1024) })
       .setTimestamp(new Date());
 

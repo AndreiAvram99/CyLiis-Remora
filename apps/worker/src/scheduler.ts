@@ -2,7 +2,7 @@ import { type Client } from "discord.js";
 import { prisma, ReminderStatus } from "@repo/db";
 import { env } from "./env.js";
 import { buildEventMessage } from "./messages.js";
-import { getRsvpCounts } from "./rsvp.js";
+import { getExpectedAttendees, getRsvpCounts } from "./rsvp.js";
 import { advanceRecurringSeries } from "./recurrence.js";
 import {
   ensureScheduledEvent,
@@ -38,15 +38,20 @@ async function deliverReminder(client: Client, reminderId: string) {
     }
 
     // Make sure a native Discord scheduled event exists for future events.
-    if (!event.discordScheduledEventId && event.startAt.getTime() > Date.now()) {
+    if (
+      !event.discordScheduledEventId &&
+      event.startAt.getTime() > Date.now()
+    ) {
       await ensureScheduledEvent(client, env.guildId(), event);
     }
 
     const counts = await getRsvpCounts(event.id);
+    const expected = await getExpectedAttendees(event.id, event.kind);
     const message = await channel.send(
       buildEventMessage(event, counts, {
         announcement: reminder.isAnnouncement,
         leadLabel: reminder.label,
+        expected,
       }),
     );
 
@@ -95,7 +100,10 @@ export function startScheduler(client: Client) {
     if (running) return; // avoid overlapping cycles
     running = true;
     try {
-      await advanceRecurringSeries(env.guildId(), await guildTimezone(env.guildId()));
+      await advanceRecurringSeries(
+        env.guildId(),
+        await guildTimezone(env.guildId()),
+      );
       await processDueReminders(client);
       await reconcileScheduledEvents(client, env.guildId());
       await updateInterestedCounts(client, env.guildId());

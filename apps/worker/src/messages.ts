@@ -19,6 +19,12 @@ export interface RsvpCounts {
   MOTIVATED: number;
 }
 
+/** An expected attendee of a meeting and what they've answered so far. */
+export interface ExpectedAttendee {
+  userId: string;
+  status: "GOING" | "MOTIVATED" | null;
+}
+
 export function emptyCounts(): RsvpCounts {
   return { GOING: 0, MOTIVATED: 0 };
 }
@@ -38,10 +44,50 @@ export function buildRsvpRow(eventId: string): ActionRowBuilder<ButtonBuilder> {
   );
 }
 
+const STATUS_MARK: Record<string, string> = { GOING: "✅", MOTIVATED: "📝" };
+
+/** Discord caps an embed field at 1024 characters. */
+const FIELD_LIMIT = 1024;
+
+function joinCapped(parts: string[]): string {
+  const out: string[] = [];
+  let length = 0;
+  for (const [i, part] of parts.entries()) {
+    // Leave room for the overflow hint rather than cutting mid-mention.
+    if (length + part.length + 2 > FIELD_LIMIT - 16) {
+      out.push(`+${parts.length - i} more`);
+      break;
+    }
+    out.push(part);
+    length += part.length + 2;
+  }
+  return out.join("  ");
+}
+
+/**
+ * Roll-call for a meeting: everyone expected, marked with their answer. Events
+ * are open to the whole server, so they get no such list.
+ *
+ * Mentions inside an embed render as names without notifying anyone, which is
+ * what we want — the ping list is chosen separately on the schedule.
+ */
+function attendeeField(expected: ExpectedAttendee[]) {
+  const waiting = expected.filter((a) => !a.status).length;
+  return {
+    name: `👥 Expected (${expected.length})${waiting ? ` · ${waiting} yet to answer` : ""}`,
+    value: joinCapped(
+      expected.map(
+        (a) => `${a.status ? STATUS_MARK[a.status] : "▫️"} <@${a.userId}>`,
+      ),
+    ),
+  };
+}
+
 export function buildEventEmbed(
   event: Event,
   counts: RsvpCounts,
   footer: string,
+  expected: ExpectedAttendee[] = [],
 ): EmbedBuilder {
   const unix = Math.floor(event.startAt.getTime() / 1000);
   const detail: string[] = [`🗓️ <t:${unix}:F> · <t:${unix}:R>`];
@@ -52,7 +98,7 @@ export function buildEventEmbed(
     .filter(Boolean)
     .join("\n\n");
 
-  return new EmbedBuilder()
+  const embed = new EmbedBuilder()
     .setTitle(event.title)
     .setColor(KIND_COLORS[event.kind] ?? 0x209ebb)
     .setDescription(description)
@@ -61,12 +107,21 @@ export function buildEventEmbed(
       value: `✅ **${counts.GOING}** going  ·  📝 **${counts.MOTIVATED}** motivation`,
     })
     .setFooter({ text: footer });
+
+  if (event.kind === "MEETING" && expected.length > 0) {
+    embed.addFields(attendeeField(expected));
+  }
+  return embed;
 }
 
 export function buildEventMessage(
   event: Event,
   counts: RsvpCounts,
-  opts: { announcement?: boolean; leadLabel?: string | null },
+  opts: {
+    announcement?: boolean;
+    leadLabel?: string | null;
+    expected?: ExpectedAttendee[];
+  },
 ): BaseMessageOptions {
   const unix = Math.floor(event.startAt.getTime() / 1000);
   const headline = opts.announcement
@@ -87,7 +142,7 @@ export function buildEventMessage(
 
   return {
     content: ping ? `${ping}\n${headline}` : headline,
-    embeds: [buildEventEmbed(event, counts, footer)],
+    embeds: [buildEventEmbed(event, counts, footer, opts.expected)],
     components: [buildRsvpRow(event.id)],
     allowedMentions: allowedMentionsFor(mentions),
   };
