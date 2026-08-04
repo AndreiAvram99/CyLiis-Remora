@@ -47,8 +47,8 @@ function tabTitles(startAt: Date, timezone: string) {
     .toFormat("d.MM.yyyy");
   return {
     date,
-    agenda: `Agendă meeting ${date}`,
-    resume: `Meeting resume ${date}`,
+    agenda: `Agenda ${date}`,
+    resume: `Resume ${date}`,
   };
 }
 
