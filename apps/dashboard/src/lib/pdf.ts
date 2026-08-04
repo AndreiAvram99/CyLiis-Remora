@@ -36,14 +36,17 @@ export interface PdfInput {
 const LEFT = 50;
 const RIGHT = 545;
 
+// A raw Discord id says nothing on paper, so name the gap instead.
+const UNKNOWN = "Unknown member";
+
+function nameOf(p: PdfPerson | PdfInvitee): string {
+  return p.displayName || ("username" in p ? p.username : null) || UNKNOWN;
+}
+
 function names(people: PdfPerson[]): string {
   if (people.length === 0) return "—";
   return people
-    .map(
-      (p) =>
-        (p.displayName || p.username || p.userId) +
-        (p.overriddenBy ? " (adjusted)" : ""),
-    )
+    .map((p) => nameOf(p) + (p.overriddenBy ? " (adjusted)" : ""))
     .join(", ");
 }
 
@@ -53,10 +56,13 @@ function renderList(
   people: PdfPerson[],
 ) {
   doc.fontSize(10).fillColor("#111827").text(`${label} (${people.length})`);
-  doc.fontSize(9).fillColor("#4b5563").text(names(people), {
-    indent: 10,
-    width: RIGHT - LEFT - 10,
-  });
+  doc
+    .fontSize(9)
+    .fillColor("#4b5563")
+    .text(names(people), {
+      indent: 10,
+      width: RIGHT - LEFT - 10,
+    });
   doc.moveDown(0.3);
 }
 
@@ -67,9 +73,7 @@ function renderMotivations(doc: PDFKit.PDFDocument, people: PdfPerson[]) {
     doc.fontSize(9).fillColor("#4b5563").text("—", { indent: 10 });
   } else {
     for (const p of people) {
-      const who =
-        (p.displayName || p.username || p.userId) +
-        (p.overriddenBy ? " (adjusted)" : "");
+      const who = nameOf(p) + (p.overriddenBy ? " (adjusted)" : "");
       doc
         .fontSize(9)
         .fillColor("#374151")
@@ -95,7 +99,7 @@ function renderMissing(
   const label = started ? "Missed (black mark)" : "Awaiting reply";
   doc.fontSize(10).fillColor("#b91c1c").text(`${label} (${people.length})`);
   for (const p of people) {
-    const who = p.displayName || p.userId;
+    const who = nameOf(p);
     doc
       .fontSize(9)
       .fillColor("#7f1d1d")
@@ -148,11 +152,7 @@ function renderEvent(doc: PDFKit.PDFDocument, e: PdfEvent, tz: string) {
   }
 
   doc.moveDown(0.2);
-  doc
-    .strokeColor("#e5e7eb")
-    .moveTo(LEFT, doc.y)
-    .lineTo(RIGHT, doc.y)
-    .stroke();
+  doc.strokeColor("#e5e7eb").moveTo(LEFT, doc.y).lineTo(RIGHT, doc.y).stroke();
 }
 
 export function buildPresencePdf(input: PdfInput): Promise<Buffer> {

@@ -6,6 +6,7 @@ import { Badge, Card } from "@/components/ui";
 import { getGuild } from "@/lib/guild";
 import { channelColorOf } from "@/lib/channel-color";
 import { loadMarks } from "@/lib/marks";
+import { fillIdentities } from "@/lib/members";
 import { BlackMark } from "@/components/marks";
 import { env } from "@/lib/env";
 import { getSession, isMasterId } from "@/lib/session";
@@ -23,8 +24,11 @@ interface Person {
   overriddenBy: string | null;
 }
 
+// A Discord id is 19 digits of noise, so name the gap instead of showing it.
+const UNKNOWN = "Unknown member";
+
 function displayNameOf(p: Person): string {
-  return p.displayName || p.username || p.userId;
+  return p.displayName || p.username || UNKNOWN;
 }
 
 const KIND_STYLES: Record<string, string> = {
@@ -182,7 +186,7 @@ function MissingZone({
       </div>
       <div className="flex flex-wrap gap-2">
         {people.map((p) => {
-          const name = p.displayName || p.userId;
+          const name = p.displayName || UNKNOWN;
           return (
             <span
               key={p.userId}
@@ -381,6 +385,8 @@ export default async function PresencePage({
   // Print requests don't collect presence, so keep them off this page.
   const presenceEvents = events.filter((e) => e.kind !== "PRINT");
 
+  await fillIdentities(presenceEvents);
+
   // Group the (already date-filtered) events by their announcement channel.
   const byChannel = new Map<string, EventWithRsvps[]>();
   for (const e of presenceEvents) {
@@ -461,9 +467,7 @@ export default async function PresencePage({
 
       {channelIds.length === 0 ? (
         <Card className="text-sm text-neutral-400">
-          {from || to
-            ? "No events in this date range."
-            : "No events yet."}
+          {from || to ? "No events in this date range." : "No events yet."}
         </Card>
       ) : (
         channelIds.map((channelId) => (

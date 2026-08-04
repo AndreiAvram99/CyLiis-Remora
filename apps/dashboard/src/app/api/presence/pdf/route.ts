@@ -6,6 +6,7 @@ import { getGuild } from "@/lib/guild";
 import { env } from "@/lib/env";
 import { buildPresencePdf } from "@/lib/pdf";
 import { loadMarks } from "@/lib/marks";
+import { fillIdentities } from "@/lib/members";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -76,13 +77,13 @@ export async function GET(req: NextRequest) {
   });
 
   const marks = await loadMarks();
+  const reported = events.filter((e) => e.kind !== "PRINT");
+  await fillIdentities(reported);
 
   const pdf = await buildPresencePdf({
     guildName: guild.name,
     timezone: guild.timezone,
-    events: events
-      .filter((e) => e.kind !== "PRINT")
-      .map((e) => ({
+    events: reported.map((e) => ({
       title: e.title,
       kind: e.kind,
       startAt: e.startAt,
