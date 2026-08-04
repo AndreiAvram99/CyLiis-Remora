@@ -9,6 +9,47 @@ import { setRsvpStatus, removeRsvp } from "./actions";
 // Neutral avatar fill — status is shown by the column header, not the avatar.
 const AVATAR_NEUTRAL = "bg-neutral-800 text-neutral-300";
 
+/**
+ * Answer on someone's behalf who never replied in Discord. Picking a status
+ * moves them out of the waiting/missed zone into that group, flagged as
+ * admin-adjusted like any other override.
+ */
+export function AssignStatus({
+  eventId,
+  userId,
+}: {
+  eventId: string;
+  userId: string;
+}) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+
+  function assign(next: RsvpStatusName) {
+    startTransition(async () => {
+      await setRsvpStatus(eventId, userId, next);
+      router.refresh();
+    });
+  }
+
+  return (
+    <select
+      value=""
+      disabled={isPending}
+      onChange={(e) => {
+        if (e.target.value) assign(e.target.value as RsvpStatusName);
+      }}
+      title="Answer for them"
+      className={`shrink-0 rounded-md border border-red-500/40 bg-neutral-900 px-1 py-0.5 text-xs text-neutral-200 outline-none focus:border-brand ${
+        isPending ? "opacity-50" : ""
+      }`}
+    >
+      <option value="">Set…</option>
+      <option value="GOING">Going</option>
+      <option value="MOTIVATED">Motivation</option>
+    </select>
+  );
+}
+
 export function EditableMember({
   eventId,
   userId,
