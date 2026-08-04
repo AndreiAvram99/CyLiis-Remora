@@ -112,6 +112,29 @@ async function createDoc(
   };
 }
 
+/**
+ * Whether the document is still there. Someone clearing out Drive shouldn't
+ * leave a meeting pointing at a dead link, so a trashed or deleted file counts
+ * as gone and the agenda gets built from scratch.
+ */
+export async function agendaDocAlive(docId: string): Promise<boolean> {
+  const c = getClients();
+  if (!c) return false;
+  try {
+    const res = await c.drive.files.get({
+      fileId: docId,
+      fields: "id, trashed",
+      supportsAllDrives: true,
+    });
+    return res.data.trashed !== true;
+  } catch (err) {
+    const status = (err as { status?: number; code?: number }).status ??
+      (err as { code?: number }).code;
+    if (status === 404 || status === 403) return false;
+    throw new Error(describeFailure(err));
+  }
+}
+
 /** Starter content, so a fresh tab isn't an intimidating blank page. */
 function agendaBody(title: string, date: string): string {
   return [
@@ -233,6 +256,9 @@ export interface AgendaResult {
   appended: boolean;
 }
 
+const docUrl = (docId: string) =>
+  `https://docs.google.com/document/d/${docId}/edit`;
+
 /**
  * Ensure the meeting has an agenda document, returning where it lives.
  *
@@ -252,8 +278,11 @@ export async function ensureAgendaDoc(
 
   const { date, agenda, resume } = tabTitles(target.startAt, target.timezone);
 
-  let docId = target.existingDocId ?? null;
-  let url = docId ? `https://docs.google.com/document/d/${docId}/edit` : "";
+  // Don't append to a document someone has since deleted — start a new one.
+  const previous = target.existingDocId;
+  let docId =
+    previous && (await agendaDocAlive(previous)) ? previous : null;
+  let url = docId ? docUrl(docId) : "";
   let agendaTabId: string;
 
   try {
@@ -277,7 +306,7 @@ export async function ensureAgendaDoc(
     throw new Error(describeFailure(err));
   }
 
-  return { docId, url, appended: Boolean(target.existingDocId) };
+  return { docId, url, appended: docId === previous };
 }
 
 /** Turn Google's errors into something a manager can act on. */
