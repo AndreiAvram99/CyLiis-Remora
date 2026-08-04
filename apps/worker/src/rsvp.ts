@@ -104,6 +104,27 @@ export async function getExpectedAttendees(
   });
 }
 
+const NOT_EXPECTED =
+  "This meeting has a set attendee list and you're not on it, so there's nothing to answer. Ask a Remora-Admin to add you if that's wrong.";
+
+/**
+ * Whether the member is barred from answering. A meeting with a picked attendee
+ * list only accepts answers from those members; events are open to the whole
+ * server, and so is a meeting where nobody was picked.
+ */
+async function notExpected(
+  event: { id: string; kind: string },
+  userId: string,
+): Promise<boolean> {
+  if (event.kind !== "MEETING") return false;
+  const invitees = await prisma.eventInvitee.findMany({
+    where: { eventId: event.id },
+    select: { userId: true },
+  });
+  if (invitees.length === 0) return false;
+  return !invitees.some((i) => i.userId === userId);
+}
+
 /** The "Motivation" reason prompt shown when a member excuses their absence. */
 function buildMotivationModal(eventId: string, title: string): ModalBuilder {
   const input = new TextInputBuilder()
@@ -140,6 +161,14 @@ export async function handleRsvpButton(interaction: ButtonInteraction) {
   if (event.startAt.getTime() <= Date.now()) {
     await interaction.reply({
       content: "This has already started — responses are closed.",
+      flags: MessageFlags.Ephemeral,
+    });
+    return;
+  }
+
+  if (await notExpected(event, interaction.user.id)) {
+    await interaction.reply({
+      content: NOT_EXPECTED,
       flags: MessageFlags.Ephemeral,
     });
     return;
@@ -210,6 +239,15 @@ export async function handleMotivationModal(
   if (event.startAt.getTime() <= Date.now()) {
     await interaction.reply({
       content: "This has already started — responses are closed.",
+      flags: MessageFlags.Ephemeral,
+    });
+    return;
+  }
+
+  // Re-checked here because the list can change while the modal sits open.
+  if (await notExpected(event, interaction.user.id)) {
+    await interaction.reply({
+      content: NOT_EXPECTED,
       flags: MessageFlags.Ephemeral,
     });
     return;
