@@ -145,11 +145,14 @@ async function addTab(
   documentId: string,
   title: string,
   parentTabId?: string,
+  index?: number,
 ): Promise<string> {
   const res = await docs.documents.batchUpdate({
     documentId,
     requestBody: {
-      requests: [{ addDocumentTab: { tabProperties: { title, parentTabId } } }],
+      requests: [
+        { addDocumentTab: { tabProperties: { title, parentTabId, index } } },
+      ],
     },
   });
   const tabId =
@@ -171,6 +174,18 @@ async function fillTab(
       requests: [{ insertText: { text, location: { tabId, index: 1 } } }],
     },
   });
+}
+
+/** How many top-level tabs the document has, so a new one can go last. */
+async function rootTabCount(
+  docs: docs_v1.Docs,
+  documentId: string,
+): Promise<number> {
+  const doc = await docs.documents.get({
+    documentId,
+    includeTabsContent: true,
+  });
+  return doc.data.tabs?.length ?? 0;
 }
 
 /** Rename the tab a brand-new document comes with, instead of leaving it empty. */
@@ -243,7 +258,10 @@ export async function ensureAgendaDoc(
 
   try {
     if (docId) {
-      agendaTabId = await addTab(c.docs, docId, agenda);
+      // Each occurrence goes after the ones before it, so the dates read in
+      // order down the tab list.
+      const last = await rootTabCount(c.docs, docId);
+      agendaTabId = await addTab(c.docs, docId, agenda, undefined, last);
     } else {
       const folderId = await folderFor(c.drive, target.channelName);
       const created = await createDoc(c.drive, folderId, target.title);
