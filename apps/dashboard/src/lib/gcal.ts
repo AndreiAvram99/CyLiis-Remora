@@ -17,19 +17,6 @@ export interface CalendarEventInput {
   color?: string | null;
 }
 
-/** A normalized calendar entry pulled from Google, for display in the app. */
-export interface CalendarItem {
-  id: string;
-  title: string;
-  description: string | null;
-  location: string | null;
-  start: Date;
-  end: Date | null;
-  allDay: boolean;
-  htmlLink: string | null;
-  recurringEventId: string | null;
-}
-
 let cached: calendar_v3.Calendar | null | undefined;
 
 /** Resolve the raw service-account JSON from either the inline env or a file. */
@@ -96,17 +83,6 @@ export function calendarIdForKind(kind: string): string {
   return perKind[kind] || env.googleCalendarId();
 }
 
-/** Every distinct calendar the app reads from (per-kind + the default). */
-function configuredCalendarIds(): string[] {
-  const ids = [
-    env.googleCalendarIdMeeting(),
-    env.googleCalendarIdEvent(),
-    env.googleCalendarIdCustom(),
-    env.googleCalendarId(),
-  ].filter(Boolean);
-  return [...new Set(ids)];
-}
-
 function toResource(input: CalendarEventInput): calendar_v3.Schema$Event {
   const descriptionParts = [input.description ?? ""];
   if (input.url) descriptionParts.push(`\nLink: ${input.url}`);
@@ -126,7 +102,9 @@ function toResource(input: CalendarEventInput): calendar_v3.Schema$Event {
 
   if (input.allDay) {
     // Google all-day events use `date` with an EXCLUSIVE end (day after).
-    const startDate = DateTime.fromJSDate(input.startAt).setZone(input.timezone);
+    const startDate = DateTime.fromJSDate(input.startAt).setZone(
+      input.timezone,
+    );
     const endSource = input.endAt ?? input.startAt;
     const endDate = DateTime.fromJSDate(endSource)
       .setZone(input.timezone)
@@ -226,65 +204,7 @@ export async function deleteCalendarEvent(
   }
 }
 
-function toCalendarItem(e: calendar_v3.Schema$Event): CalendarItem | null {
-  const startRaw = e.start?.dateTime ?? e.start?.date;
-  if (!startRaw || !e.id) return null;
-  const allDay = !e.start?.dateTime;
-  const endRaw = e.end?.dateTime ?? e.end?.date ?? null;
-  return {
-    id: e.id,
-    title: e.summary?.trim() || "(no title)",
-    description: e.description ?? null,
-    location: e.location ?? null,
-    start: new Date(startRaw),
-    end: endRaw ? new Date(endRaw) : null,
-    allDay,
-    htmlLink: e.htmlLink ?? null,
-    recurringEventId: e.recurringEventId ?? null,
-  };
-}
-
-/**
- * Pull upcoming events from the connected Google Calendar so they can be
- * shown directly in the app. Returns an empty list if calendar sync is off
- * or the request fails (never throws).
- */
-export async function listCalendarEvents(options?: {
-  timeMin?: Date;
-  timeMax?: Date;
-  maxResults?: number;
-}): Promise<CalendarItem[]> {
-  const cal = getCalendar();
-  if (!cal) return [];
-  const timeMin = options?.timeMin ?? new Date();
-  const timeMax =
-    options?.timeMax ??
-    new Date(timeMin.getTime() + 90 * 24 * 60 * 60 * 1000);
-
-  const byId = new Map<string, CalendarItem>();
-  for (const calendarId of configuredCalendarIds()) {
-    try {
-      const res = await cal.events.list({
-        calendarId,
-        timeMin: timeMin.toISOString(),
-        timeMax: timeMax.toISOString(),
-        singleEvents: true,
-        orderBy: "startTime",
-        maxResults: options?.maxResults ?? 50,
-      });
-      for (const raw of res.data.items ?? []) {
-        const item = toCalendarItem(raw);
-        if (item) byId.set(item.id, item);
-      }
-    } catch (err) {
-      console.error(`[gcal] list failed for ${calendarId}:`, err);
-    }
-  }
-  return [...byId.values()].sort(
-    (a, b) => a.start.getTime() - b.start.getTime(),
-  );
-}
-
+/** Whether the app can push to Google Calendar at all. */
 export function isCalendarEnabled(): boolean {
   return getCalendar() !== null;
 }

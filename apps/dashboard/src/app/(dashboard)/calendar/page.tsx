@@ -7,7 +7,6 @@ import { Card } from "@/components/ui";
 import { getGuild } from "@/lib/guild";
 import { channelColorOf } from "@/lib/channel-color";
 import { env } from "@/lib/env";
-import { listCalendarEvents, isCalendarEnabled } from "@/lib/gcal";
 import { calendarFeedToken } from "@/lib/ics";
 import { SubscribeButton } from "./subscribe-button";
 
@@ -15,12 +14,11 @@ export const dynamic = "force-dynamic";
 
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-// Pill colors per source/kind, reusing the theme-aware palette utilities.
+// Pill colors per kind, reusing the theme-aware palette utilities.
 const PILL_STYLES: Record<string, string> = {
   MEETING: "bg-palette-sky/20 text-palette-sky",
   EVENT: "bg-palette-sun/20 text-palette-sun",
   CUSTOM: "bg-palette-flame/20 text-palette-flame",
-  GOOGLE: "bg-palette-azure/10 text-palette-sky",
 };
 
 interface CalItem {
@@ -29,7 +27,8 @@ interface CalItem {
   start: Date;
   allDay: boolean;
   styleKey: string;
-  // App events are tinted with their channel's color; Google items use styleKey.
+  // Schedules are tinted with their channel's color; kind styling is the
+  // fallback for channels with no color set.
   color?: string;
 }
 
@@ -43,9 +42,9 @@ export default async function CalendarPage({
   const { m } = await searchParams;
 
   const parsed = m ? DateTime.fromFormat(m, "yyyy-LL", { zone }) : null;
-  const month = (parsed?.isValid ? parsed : DateTime.now().setZone(zone)).startOf(
-    "month",
-  );
+  const month = (
+    parsed?.isValid ? parsed : DateTime.now().setZone(zone)
+  ).startOf("month");
 
   // Six-week grid starting on the Monday on/just before the 1st.
   const gridStart = month.startOf("week");
@@ -66,7 +65,6 @@ export default async function CalendarPage({
       allDay: true,
       kind: true,
       channelId: true,
-      gcalEventId: true,
       seriesId: true,
     },
   });
@@ -77,24 +75,8 @@ export default async function CalendarPage({
   });
   const channelColor = new Map(channels.map((c) => [c.id, channelColorOf(c)]));
 
-  // Remora draws its own schedules (materialized rows plus the projected
-  // occurrences below), so drop any Google entry that mirrors one. Recurring
-  // instances carry their master's id in recurringEventId.
-  const linked = await prisma.event.findMany({
-    where: {
-      guildId: env.guildId(),
-      kind: { not: "PRINT" },
-      gcalEventId: { not: null },
-    },
-    select: { gcalEventId: true },
-  });
-  const linkedGcalIds = new Set(
-    linked.map((e) => e.gcalEventId).filter((id): id is string => Boolean(id)),
-  );
-
   // The worker only materializes one occurrence at a time, so project the rest
-  // of each active series locally. This keeps repeats visible here even when
-  // Google sync is off or hasn't caught up yet.
+  // of each active series locally, keeping repeats visible on the grid.
   const seriesRows = await prisma.event.findMany({
     where: {
       guildId: env.guildId(),
@@ -160,16 +142,6 @@ export default async function CalendarPage({
     }
   }
 
-  const gcalItems = isCalendarEnabled()
-    ? (
-        await listCalendarEvents({
-          timeMin: gridStart.toJSDate(),
-          timeMax: gridEnd.toJSDate(),
-          maxResults: 200,
-        })
-      ).filter((i) => !linkedGcalIds.has(i.recurringEventId ?? i.id))
-    : [];
-
   const items: CalItem[] = [
     ...appEvents.map((e) => ({
       id: e.id,
@@ -180,19 +152,14 @@ export default async function CalendarPage({
       color: channelColor.get(e.channelId),
     })),
     ...projected,
-    ...gcalItems.map((g) => ({
-      id: g.id,
-      title: g.title,
-      start: g.start,
-      allDay: g.allDay,
-      styleKey: "GOOGLE",
-    })),
   ];
 
   // Bucket items by their local (guild tz) day.
   const byDay = new Map<string, CalItem[]>();
   for (const it of items) {
-    const key = DateTime.fromJSDate(it.start).setZone(zone).toFormat("yyyy-LL-dd");
+    const key = DateTime.fromJSDate(it.start)
+      .setZone(zone)
+      .toFormat("yyyy-LL-dd");
     const list = byDay.get(key) ?? [];
     list.push(it);
     byDay.set(key, list);
@@ -223,7 +190,7 @@ export default async function CalendarPage({
             {month.toFormat("LLLL yyyy")}
           </h1>
           <p className="text-sm text-neutral-500">
-            Events and Google Calendar meetings. Times in {zone}.
+            Meetings and events from Remora. Times in {zone}.
           </p>
         </div>
         <div className="flex items-center gap-1">
@@ -299,7 +266,10 @@ export default async function CalendarPage({
                       className={`break-words rounded px-1.5 py-0.5 text-[11px] leading-tight ${it.color ? "" : PILL_STYLES[it.styleKey]}`}
                       style={
                         it.color
-                          ? { color: it.color, backgroundColor: `${it.color}22` }
+                          ? {
+                              color: it.color,
+                              backgroundColor: `${it.color}22`,
+                            }
                           : undefined
                       }
                     >
@@ -325,19 +295,9 @@ export default async function CalendarPage({
         </div>
       </Card>
 
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-neutral-500">
-        <span>Schedules use their channel color.</span>
-        <LegendDot className="bg-palette-azure" label="Google Calendar" />
+      <div className="text-xs text-neutral-500">
+        Schedules use their channel color.
       </div>
     </div>
-  );
-}
-
-function LegendDot({ className, label }: { className: string; label: string }) {
-  return (
-    <span className="flex items-center gap-1.5">
-      <span className={`h-2.5 w-2.5 rounded-full ${className}`} />
-      {label}
-    </span>
   );
 }
