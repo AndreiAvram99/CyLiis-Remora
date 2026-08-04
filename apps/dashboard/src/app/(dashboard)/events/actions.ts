@@ -23,7 +23,7 @@ import {
 } from "@repo/shared";
 import { assertManager, assertMaster } from "@/lib/session";
 import { assertCanPostTo, assertKindAllowedIn } from "@/lib/channel-access";
-import { ensureAgendaDoc } from "@/lib/agenda-doc";
+import { agendaDocAlive, ensureAgendaDoc } from "@/lib/agenda-doc";
 import { getGuild } from "@/lib/guild";
 import { env } from "@/lib/env";
 import { localInputToDate } from "@/lib/time";
@@ -716,6 +716,14 @@ export async function updatePrintRequest(
   return { id, changed: true };
 }
 
+/** Drop a document that no longer exists from every occurrence holding it. */
+async function forgetAgendaDoc(docId: string) {
+  await prisma.event.updateMany({
+    where: { agendaDocId: docId },
+    data: { agendaDocId: null, agendaDocUrl: null },
+  });
+}
+
 /**
  * Create (or extend) the meeting's agenda document in Drive and remember where
  * it went. Every occurrence of a recurring meeting shares one document, so the
@@ -729,8 +737,15 @@ export async function createAgendaDoc(id: string) {
   if (event.kind !== "MEETING") {
     throw new Error("Only meetings get an agenda.");
   }
+
+  // A recorded document may have been deleted in Drive since. If it's still
+  // there, hand it over; if not, forget it everywhere it was recorded so the
+  // whole series builds a fresh one.
   if (event.agendaDocId) {
-    return { url: event.agendaDocUrl ?? "", created: false };
+    if (await agendaDocAlive(event.agendaDocId)) {
+      return { url: event.agendaDocUrl ?? "", created: false };
+    }
+    await forgetAgendaDoc(event.agendaDocId);
   }
 
   const guild = await getGuild();
@@ -759,6 +774,11 @@ export async function createAgendaDoc(id: string) {
     channelName: channel.name,
     existingDocId: sibling?.agendaDocId ?? null,
   });
+
+  // The sibling's document was gone too, so nothing should point at it.
+  if (sibling?.agendaDocId && sibling.agendaDocId !== result.docId) {
+    await forgetAgendaDoc(sibling.agendaDocId);
+  }
 
   await prisma.event.update({
     where: { id },
