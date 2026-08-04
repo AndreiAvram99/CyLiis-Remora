@@ -22,7 +22,8 @@ import {
   type PrintStatus,
 } from "@repo/shared";
 import { assertManager, assertMaster } from "@/lib/session";
-import { assertCanPostTo } from "@/lib/channel-access";
+import { assertCanPostTo, assertKindAllowedIn } from "@/lib/channel-access";
+import { ensureAgendaDoc } from "@/lib/agenda-doc";
 import { getGuild } from "@/lib/guild";
 import { env } from "@/lib/env";
 import { localInputToDate } from "@/lib/time";
@@ -155,6 +156,7 @@ export async function createEvent(input: EventFormValues) {
   const values = eventFormSchema.parse(input);
   for (const channelId of targetChannels(values)) {
     await assertCanPostTo(channelId);
+    await assertKindAllowedIn(channelId, values.kind);
   }
   const guild = await getGuild();
 
@@ -222,6 +224,7 @@ export async function updateEvent(id: string, input: EventFormValues) {
 
   // Editing in place is fine; pointing it at a new restricted channel is not.
   for (const channelId of targetChannels(values)) {
+    await assertKindAllowedIn(channelId, values.kind);
     if (channelId !== existing.channelId) await assertCanPostTo(channelId);
   }
 
@@ -711,6 +714,59 @@ export async function updatePrintRequest(
 
   revalidatePath("/events");
   return { id, changed: true };
+}
+
+/**
+ * Create (or extend) the meeting's agenda document in Drive and remember where
+ * it went. Every occurrence of a recurring meeting shares one document, so the
+ * whole series is stamped with the same link.
+ */
+export async function createAgendaDoc(id: string) {
+  await assertManager();
+
+  const event = await prisma.event.findUnique({ where: { id } });
+  if (!event) throw new Error("Schedule not found");
+  if (event.kind !== "MEETING") {
+    throw new Error("Only meetings get an agenda.");
+  }
+  if (event.agendaDocId) {
+    return { url: event.agendaDocUrl ?? "", created: false };
+  }
+
+  const guild = await getGuild();
+  const channel = await prisma.channel.findUnique({
+    where: { id: event.channelId },
+    select: { name: true },
+  });
+  if (!channel) throw new Error("This schedule's channel is gone.");
+
+  // A sibling occurrence may already have the document for this series.
+  const sibling = event.seriesId
+    ? await prisma.event.findFirst({
+        where: {
+          seriesId: event.seriesId,
+          agendaDocId: { not: null },
+          NOT: { id },
+        },
+        select: { agendaDocId: true },
+      })
+    : null;
+
+  const result = await ensureAgendaDoc({
+    title: event.title,
+    startAt: event.startAt,
+    timezone: guild.timezone,
+    channelName: channel.name,
+    existingDocId: sibling?.agendaDocId ?? null,
+  });
+
+  await prisma.event.update({
+    where: { id },
+    data: { agendaDocId: result.docId, agendaDocUrl: result.url },
+  });
+
+  revalidatePath("/events");
+  return { url: result.url, created: true };
 }
 
 export async function deleteEvent(id: string) {

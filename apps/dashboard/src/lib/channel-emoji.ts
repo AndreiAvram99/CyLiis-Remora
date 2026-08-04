@@ -9,7 +9,6 @@ const EXACT: Record<string, string> = {
   announcements: "📢",
   events: "📅",
   hardware: "🔧",
-  "andrei-fun": "🎮",
   "robot-ideas-and-sketches": "💡",
   sustenability: "🌱",
   sustainability: "🌱",

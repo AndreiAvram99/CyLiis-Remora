@@ -1,8 +1,8 @@
-import { readFileSync } from "node:fs";
 import { DateTime } from "luxon";
 import { google, type calendar_v3 } from "googleapis";
 import { googleEventColorId } from "@repo/shared";
 import { env } from "./env";
+import { serviceAccountAuth } from "./google-auth";
 
 export interface CalendarEventInput {
   title: string;
@@ -19,26 +19,6 @@ export interface CalendarEventInput {
 
 let cached: calendar_v3.Calendar | null | undefined;
 
-/** Resolve the raw service-account JSON from either the inline env or a file. */
-function readServiceAccountJson(): string | null {
-  const inline = env.googleServiceAccountJson();
-  if (inline) {
-    return inline.trim().startsWith("{")
-      ? inline
-      : Buffer.from(inline, "base64").toString("utf8");
-  }
-  const file = env.googleServiceAccountFile();
-  if (file) {
-    try {
-      return readFileSync(file, "utf8");
-    } catch (err) {
-      console.error("[gcal] Failed to read service account file:", err);
-      return null;
-    }
-  }
-  return null;
-}
-
 function getCalendar(): calendar_v3.Calendar | null {
   if (cached !== undefined) return cached;
 
@@ -46,27 +26,8 @@ function getCalendar(): calendar_v3.Calendar | null {
     cached = null;
     return cached;
   }
-  const json = readServiceAccountJson();
-  if (!json) {
-    cached = null;
-    return cached;
-  }
-
-  try {
-    const creds = JSON.parse(json) as {
-      client_email: string;
-      private_key: string;
-    };
-    const auth = new google.auth.JWT({
-      email: creds.client_email,
-      key: creds.private_key.replace(/\\n/g, "\n"),
-      scopes: ["https://www.googleapis.com/auth/calendar"],
-    });
-    cached = google.calendar({ version: "v3", auth });
-  } catch (err) {
-    console.error("[gcal] Failed to init Google Calendar client:", err);
-    cached = null;
-  }
+  const auth = serviceAccountAuth(["https://www.googleapis.com/auth/calendar"]);
+  cached = auth ? google.calendar({ version: "v3", auth }) : null;
   return cached;
 }
 

@@ -19,7 +19,6 @@ const DEFAULT_CHANNEL_ALLOWLIST = [
   "announcements",
   "events",
   "hardware",
-  "andrei-fun",
   "sustenability",
   "branding",
   "printing",

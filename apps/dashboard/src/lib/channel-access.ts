@@ -1,4 +1,5 @@
 import { prisma } from "@repo/db";
+import { PRINT_ONLY_CHANNELS } from "@repo/shared";
 import { ensureGuildMembers } from "./members";
 import { getSession, isMasterId } from "./session";
 
@@ -12,17 +13,13 @@ interface Restriction {
 
 /**
  * Channels that aren't open to every manager. #announcements is the team's
- * megaphone, so scheduling into it takes the Announcements role, and
- * #andrei-fun is the owner's own channel. Everything else is unrestricted.
+ * megaphone, so scheduling into it takes the Announcements role. Everything
+ * else in the picker is unrestricted.
  */
 const RESTRICTED: Record<string, Restriction> = {
   "1279013106621616128": {
     need: "the Announcements role",
     roleIds: ["1280868748097486888"],
-  },
-  "1514748130531213492": {
-    need: "owner access",
-    masterOnly: true,
   },
 };
 
@@ -73,4 +70,20 @@ export async function assertCanPostTo(channelId: string): Promise<void> {
   throw new Error(
     `You need ${rule?.need ?? "permission"} to schedule in that channel.`,
   );
+}
+
+/** Throws when this kind of schedule doesn't belong in the channel. */
+export async function assertKindAllowedIn(
+  channelId: string,
+  kind: string,
+): Promise<void> {
+  if (kind === "PRINT") return;
+  const channel = await prisma.channel.findUnique({
+    where: { id: channelId },
+    select: { name: true },
+  });
+  const name = channel?.name.toLowerCase();
+  if (name && PRINT_ONLY_CHANNELS.includes(name)) {
+    throw new Error(`#${name} only takes print requests.`);
+  }
 }

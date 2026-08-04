@@ -14,6 +14,7 @@ import {
   fromOffsetMinutes,
   toOffsetMinutes,
   MEETING_DURATIONS,
+  PRINT_ONLY_CHANNELS,
   RECURRENCES,
   RECURRENCE_LABELS,
   type EventKindName,
@@ -157,6 +158,10 @@ export function EventForm({
       setEndAt("");
     }
     setKind(next);
+    // Leaving PRINT can strand the picker on a print-only channel.
+    if (next !== "PRINT" && !talkChannels.some((c) => c.id === channelId)) {
+      setChannelId(talkChannels[0]?.id ?? "");
+    }
     // In create mode, load that kind's default reminders as a starting point.
     // PRINT has none (it uses its own simple form).
     if (mode === "create" && next !== "PRINT") {
@@ -170,6 +175,15 @@ export function EventForm({
     () =>
       channels.find((c) => c.name.toLowerCase() === "printing")?.id ??
       channels[0]?.id,
+    [channels],
+  );
+
+  // #printing is a queue for files to print, not somewhere to schedule.
+  const talkChannels = useMemo(
+    () =>
+      channels.filter(
+        (c) => !PRINT_ONLY_CHANNELS.includes(c.name.toLowerCase()),
+      ),
     [channels],
   );
 
@@ -324,7 +338,7 @@ export function EventForm({
               <Label htmlFor="channel">Announcement channel</Label>
               <ChannelSelect
                 id="channel"
-                channels={channels}
+                channels={talkChannels}
                 value={channelId}
                 onChange={setChannelId}
                 disabled={noChannels}
@@ -517,7 +531,7 @@ export function EventForm({
                 </Select>
                 <span className="text-sm text-neutral-500">before, in</span>
                 <ChannelSelect
-                  channels={channels}
+                  channels={talkChannels}
                   value={r.channelId}
                   onChange={(id) => updateReminder(idx, { channelId: id })}
                   includeNone
