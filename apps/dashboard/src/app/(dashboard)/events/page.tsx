@@ -1,31 +1,71 @@
 import Link from "next/link";
-import { Plus, Pencil, MapPin, Hash, Bell, Printer } from "lucide-react";
-import { prisma, RsvpStatus } from "@repo/db";
-import { durationLabel, recurrenceBadge } from "@repo/shared";
-import { Badge, Button, Card } from "@/components/ui";
+import {
+  Plus,
+  Printer,
+  Repeat,
+  Video,
+  CalendarDays,
+  LayoutList,
+  type LucideIcon,
+} from "lucide-react";
+import { prisma } from "@repo/db";
+import { Button, Card } from "@/components/ui";
 import { getGuild } from "@/lib/guild";
 import { env } from "@/lib/env";
 import { getSession, isMasterId } from "@/lib/session";
-import { formatInTz, relativeTo } from "@/lib/time";
-import { AgendaButton } from "./agenda-button";
+import { formatInTz } from "@/lib/time";
 import { DeleteEventButton } from "./delete-button";
 import { PrintCard } from "./print-card";
+import { ScheduleCard } from "./schedule-card";
 
 export const dynamic = "force-dynamic";
 
-const KIND_STYLES: Record<string, string> = {
-  MEETING: "bg-palette-sky/10 text-palette-sky",
-  EVENT: "bg-palette-sun/10 text-palette-sun",
-  CUSTOM: "bg-palette-flame/10 text-palette-flame",
-  PRINT: "bg-palette-azure/10 text-palette-azure",
-};
+type View = "all" | "recurring" | "meetings" | "events" | "printing";
 
-export default async function EventsPage() {
+const VIEWS: { key: View; label: string; icon: LucideIcon; empty: string }[] = [
+  { key: "all", label: "All", icon: LayoutList, empty: "Nothing scheduled." },
+  {
+    key: "recurring",
+    label: "Repeating",
+    icon: Repeat,
+    empty: "No repeating meetings.",
+  },
+  {
+    key: "meetings",
+    label: "Meetings",
+    icon: Video,
+    empty: "No one-off meetings.",
+  },
+  { key: "events", label: "Events", icon: CalendarDays, empty: "No events." },
+  {
+    key: "printing",
+    label: "Printing",
+    icon: Printer,
+    empty: "No print requests.",
+  },
+];
+
+/** Which tab a schedule belongs to. Repeating meetings get their own bucket. */
+function viewOf(e: { kind: string; recurrence: string }): View {
+  if (e.kind === "PRINT") return "printing";
+  if (e.kind !== "MEETING") return "events";
+  return e.recurrence === "NONE" ? "meetings" : "recurring";
+}
+
+export default async function EventsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ view?: string }>;
+}) {
   const guild = await getGuild();
   const session = await getSession();
   const isManager = Boolean(session?.user?.isManager);
   const canDelete = isMasterId(session?.user?.discordId);
   const now = new Date();
+
+  const { view } = await searchParams;
+  const current = VIEWS.find((v) => v.key === view) ?? VIEWS[0];
+  const active = current.key;
 
   const events = await prisma.event.findMany({
     where: { guildId: env.guildId() },
@@ -56,15 +96,32 @@ export default async function EventsPage() {
   const printRequests = events
     .filter((e) => e.kind === "PRINT")
     .sort((a, b) => minOrder(a) - minOrder(b));
-  const upcoming = events.filter((e) => e.startAt >= now && e.kind !== "PRINT");
-  const past = events.filter((e) => e.startAt < now && e.kind !== "PRINT");
+
+  const dated = events.filter((e) => e.kind !== "PRINT");
+  const inView = (e: (typeof events)[number]) =>
+    active === "all" || viewOf(e) === active;
+  const upcoming = dated.filter((e) => e.startAt >= now && inView(e));
+  const past = dated.filter((e) => e.startAt < now && inView(e));
+
+  // Tab counts show what's still waiting: schedules ahead, prints not done.
+  const openPrints = printRequests.filter((e) => e.printStatus !== "DONE");
+  const soon = dated.filter((e) => e.startAt >= now);
+  const countFor = (key: View) => {
+    if (key === "printing") return openPrints.length;
+    if (key === "all") return soon.length + openPrints.length;
+    return soon.filter((e) => viewOf(e) === key).length;
+  };
+
+  const showSchedules = active !== "printing";
+  const showPrints =
+    active === "printing" || (active === "all" && printRequests.length > 0);
 
   const guildId = env.guildId();
   const discordLink = (channelId: string, messageId: string) =>
     `https://discord.com/channels/${guildId}/${channelId}/${messageId}`;
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-8">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="space-y-1">
           <h1 className="text-3xl font-bold tracking-tight sm:text-[38px] sm:leading-tight">
@@ -83,148 +140,95 @@ export default async function EventsPage() {
         ) : null}
       </div>
 
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">
-          Upcoming ({upcoming.length})
-        </h2>
-        {upcoming.length === 0 ? (
-          <Card className="text-sm text-neutral-400">
-            No upcoming events.{isManager ? " Create one to get started." : ""}
-          </Card>
-        ) : (
-          upcoming.map((e) => {
-            const going = e.rsvps.filter(
-              (r) => r.status === RsvpStatus.GOING,
-            ).length;
-            const motivated = e.rsvps.filter(
-              (r) => r.status === RsvpStatus.MOTIVATED,
-            ).length;
-            const pending = e.reminders.filter(
-              (r) => r.status === "PENDING" && !r.isAnnouncement,
-            ).length;
-            return (
-              <Card key={e.id} className="flex flex-wrap items-start gap-4">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <Badge className={KIND_STYLES[e.kind]}>{e.kind}</Badge>
-                    {isManager ? (
-                      <Link
-                        href={`/events/${e.id}`}
-                        className="truncate text-lg font-medium hover:underline"
-                      >
-                        {e.title}
-                      </Link>
-                    ) : (
-                      <span className="truncate text-lg font-medium">
-                        {e.title}
-                      </span>
-                    )}
-                  </div>
-                  <div className="mt-1 text-sm text-neutral-300">
-                    {formatInTz(e.startAt, guild.timezone)}{" "}
-                    <span className="text-neutral-500">
-                      ({relativeTo(e.startAt)})
-                    </span>
-                  </div>
-                  <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-neutral-500">
-                    <span className="flex items-center gap-1">
-                      <Hash size={12} />
-                      {channelName.get(e.channelId) ?? "unknown"}
-                    </span>
-                    {e.location ? (
-                      <span className="flex items-center gap-1">
-                        <MapPin size={12} />
-                        {e.location}
-                      </span>
-                    ) : null}
-                    <span className="flex items-center gap-1">
-                      <Bell size={12} />
-                      {pending} reminder{pending === 1 ? "" : "s"} scheduled
-                    </span>
-                    {e.kind === "MEETING" && e.durationMinutes ? (
-                      <span>{durationLabel(e.durationMinutes)}</span>
-                    ) : null}
-                    {recurrenceBadge(e.recurrence) ? (
-                      <span className="text-palette-azure">
-                        {recurrenceBadge(e.recurrence)}
-                      </span>
-                    ) : null}
-                    <span className="flex items-center gap-1.5">
-                      <span className="h-1.5 w-1.5 rounded-full bg-palette-azure" />
-                      {going} going
-                    </span>
-                    <span className="flex items-center gap-1.5">
-                      <span className="h-1.5 w-1.5 rounded-full bg-palette-sun" />
-                      {motivated} motivation
-                    </span>
-                  </div>
-                </div>
-                {isManager ? (
-                  <div className="flex items-center gap-2">
-                    {e.kind === "MEETING" ? (
-                      <AgendaButton id={e.id} docUrl={e.agendaDocUrl} />
-                    ) : null}
-                    <Link
-                      href={`/events/${e.id}`}
-                      title="Edit"
-                      aria-label="Edit"
-                    >
-                      <Button
-                        variant="secondary"
-                        className="w-11 px-0 sm:w-auto sm:px-5"
-                      >
-                        <Pencil size={16} />
-                        <span className="hidden sm:inline">Edit</span>
-                      </Button>
-                    </Link>
-                    {canDelete ? (
-                      <DeleteEventButton id={e.id} title={e.title} />
-                    ) : null}
-                  </div>
-                ) : null}
-              </Card>
-            );
-          })
-        )}
-      </section>
+      <nav className="flex flex-wrap items-center gap-1">
+        {VIEWS.map(({ key, label, icon: Icon }) => {
+          const count = countFor(key);
+          return (
+            <Link
+              key={key}
+              href={key === "all" ? "/events" : `/events?view=${key}`}
+              className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm transition ${
+                active === key
+                  ? "bg-neutral-800 font-medium text-neutral-100"
+                  : "text-neutral-400 hover:text-neutral-100"
+              }`}
+            >
+              <Icon size={14} />
+              {label}
+              {count > 0 ? (
+                <span className="text-xs text-neutral-500">{count}</span>
+              ) : null}
+            </Link>
+          );
+        })}
+      </nav>
 
-      {printRequests.length > 0 ? (
+      {showSchedules ? (
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">
+            Upcoming ({upcoming.length})
+          </h2>
+          {upcoming.length === 0 ? (
+            <Card className="text-sm text-neutral-400">
+              {current.empty}
+              {isManager ? " Create one to get started." : ""}
+            </Card>
+          ) : (
+            upcoming.map((e) => (
+              <ScheduleCard
+                key={e.id}
+                event={e}
+                timezone={guild.timezone}
+                channelName={channelName.get(e.channelId) ?? "unknown"}
+                isManager={isManager}
+                canDelete={canDelete}
+              />
+            ))
+          )}
+        </section>
+      ) : null}
+
+      {showPrints ? (
         <section className="space-y-3">
           <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-neutral-500">
             <Printer size={14} /> Print requests ({printRequests.length})
           </h2>
-          {printRequests.map((e) => (
-            <PrintCard
-              key={e.id}
-              id={e.id}
-              title={e.title}
-              status={e.printStatus}
-              channelName={channelName.get(e.channelId) ?? "unknown"}
-              claimedByName={e.printClaimedByName ?? null}
-              discordHref={
-                e.printMessageId
-                  ? discordLink(e.channelId, e.printMessageId)
-                  : null
-              }
-              isManager={isManager}
-              canDelete={canDelete}
-              files={e.printFiles.map((f) => ({
-                id: f.id,
-                name: f.name,
-                order: f.order,
-                copies: f.copies,
-                filamentType: f.filamentType,
-                infill: f.infill,
-                wallCount: f.wallCount,
-                color: f.color,
-                needsSupport: f.needsSupport,
-              }))}
-            />
-          ))}
+          {printRequests.length === 0 ? (
+            <Card className="text-sm text-neutral-400">{current.empty}</Card>
+          ) : (
+            printRequests.map((e) => (
+              <PrintCard
+                key={e.id}
+                id={e.id}
+                title={e.title}
+                status={e.printStatus}
+                channelName={channelName.get(e.channelId) ?? "unknown"}
+                claimedByName={e.printClaimedByName ?? null}
+                discordHref={
+                  e.printMessageId
+                    ? discordLink(e.channelId, e.printMessageId)
+                    : null
+                }
+                isManager={isManager}
+                canDelete={canDelete}
+                files={e.printFiles.map((f) => ({
+                  id: f.id,
+                  name: f.name,
+                  order: f.order,
+                  copies: f.copies,
+                  filamentType: f.filamentType,
+                  infill: f.infill,
+                  wallCount: f.wallCount,
+                  color: f.color,
+                  needsSupport: f.needsSupport,
+                }))}
+              />
+            ))
+          )}
         </section>
       ) : null}
 
-      {past.length > 0 ? (
+      {showSchedules && past.length > 0 ? (
         <section className="space-y-3">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">
             Past ({past.length})
