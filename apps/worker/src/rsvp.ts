@@ -6,6 +6,7 @@ import {
   TextInputBuilder,
   TextInputStyle,
   type ButtonInteraction,
+  type Client,
   type Guild,
   type ModalSubmitInteraction,
 } from "discord.js";
@@ -125,8 +126,95 @@ async function notExpected(
   return !invitees.some((i) => i.userId === userId);
 }
 
+/**
+ * Why this member can't answer, or null when they can. Shared by every entry
+ * point: the buttons under a post and the ones under an agenda command.
+ */
+export async function answerProblem(
+  event: { id: string; kind: string; startAt: Date },
+  userId: string,
+): Promise<string | null> {
+  if (event.startAt.getTime() <= Date.now()) {
+    return "This has already started — responses are closed.";
+  }
+  if (await notExpected(event, userId)) return NOT_EXPECTED;
+  return null;
+}
+
+/** Save an answer, snapshotting the member's guild name and avatar with it. */
+export async function recordRsvp(
+  interaction: ButtonInteraction | ModalSubmitInteraction,
+  eventId: string,
+  status: "GOING" | "MOTIVATED",
+  note: string | null,
+): Promise<void> {
+  const identity = await resolveIdentity(interaction);
+  await prisma.rsvp.upsert({
+    where: { eventId_userId: { eventId, userId: interaction.user.id } },
+    create: {
+      eventId,
+      userId: interaction.user.id,
+      username: identity.username,
+      displayName: identity.displayName,
+      avatarUrl: identity.avatarUrl,
+      status,
+      note,
+    },
+    // Switching away from "Motivation" clears any previous reason.
+    update: {
+      status,
+      username: identity.username,
+      displayName: identity.displayName,
+      avatarUrl: identity.avatarUrl,
+      note,
+    },
+  });
+}
+
+/**
+ * Re-render every announcement and reminder already posted for the event. Needed
+ * when an answer arrives from somewhere else — an agenda command, say — which
+ * would otherwise leave those posts showing stale counts and roll-call.
+ */
+export async function refreshEventPosts(
+  client: Client,
+  eventId: string,
+): Promise<void> {
+  const event = await prisma.event.findUnique({ where: { id: eventId } });
+  if (!event) return;
+
+  const posts = await prisma.reminder.findMany({
+    where: { eventId, messageId: { not: null } },
+    select: { channelId: true, messageId: true },
+  });
+  if (posts.length === 0) return;
+
+  const counts = await getRsvpCounts(eventId);
+  const expected = await getExpectedAttendees(eventId, event.kind);
+
+  for (const post of posts) {
+    if (!post.messageId) continue;
+    try {
+      const channel = await client.channels.fetch(
+        post.channelId || event.channelId,
+      );
+      if (!channel?.isTextBased() || !("messages" in channel)) continue;
+      const message = await channel.messages.fetch(post.messageId);
+      const footer = message.embeds[0]?.footer?.text ?? "RSVP";
+      await message.edit({
+        embeds: [buildEventEmbed(event, counts, footer, expected)],
+      });
+    } catch (err) {
+      console.error(`[rsvp] could not refresh post ${post.messageId}:`, err);
+    }
+  }
+}
+
 /** The "Motivation" reason prompt shown when a member excuses their absence. */
-function buildMotivationModal(eventId: string, title: string): ModalBuilder {
+export function buildMotivationModal(
+  title: string,
+  customId: string,
+): ModalBuilder {
   const input = new TextInputBuilder()
     .setCustomId(MOTIVATION_INPUT_ID)
     .setLabel("Why can't you make it?")
@@ -136,11 +224,19 @@ function buildMotivationModal(eventId: string, title: string): ModalBuilder {
     .setMaxLength(500);
 
   return new ModalBuilder()
-    .setCustomId(motivationModalId(eventId))
+    .setCustomId(customId)
     .setTitle(`Motivation — ${title}`.slice(0, 45))
     .addComponents(
       new ActionRowBuilder<TextInputBuilder>().addComponents(input),
     );
+}
+
+/** The reason typed into the modal, or a stand-in when it came back blank. */
+export function motivationReason(interaction: ModalSubmitInteraction): string {
+  return (
+    interaction.fields.getTextInputValue(MOTIVATION_INPUT_ID).trim() ||
+    "(no reason given)"
+  );
 }
 
 export async function handleRsvpButton(interaction: ButtonInteraction) {
@@ -157,18 +253,10 @@ export async function handleRsvpButton(interaction: ButtonInteraction) {
     return;
   }
 
-  // Responses close once it has started.
-  if (event.startAt.getTime() <= Date.now()) {
+  const problem = await answerProblem(event, interaction.user.id);
+  if (problem) {
     await interaction.reply({
-      content: "This has already started — responses are closed.",
-      flags: MessageFlags.Ephemeral,
-    });
-    return;
-  }
-
-  if (await notExpected(event, interaction.user.id)) {
-    await interaction.reply({
-      content: NOT_EXPECTED,
+      content: problem,
       flags: MessageFlags.Ephemeral,
     });
     return;
@@ -177,30 +265,13 @@ export async function handleRsvpButton(interaction: ButtonInteraction) {
   // "Motivation" opens a modal so the member can explain their absence; the RSVP
   // is only recorded once they submit that form (see handleMotivationModal).
   if (status === "MOTIVATED") {
-    await interaction.showModal(buildMotivationModal(eventId, event.title));
+    await interaction.showModal(
+      buildMotivationModal(event.title, motivationModalId(eventId)),
+    );
     return;
   }
 
-  const identity = await resolveIdentity(interaction);
-  await prisma.rsvp.upsert({
-    where: { eventId_userId: { eventId, userId: interaction.user.id } },
-    create: {
-      eventId,
-      userId: interaction.user.id,
-      username: identity.username,
-      displayName: identity.displayName,
-      avatarUrl: identity.avatarUrl,
-      status,
-    },
-    // Switching away from "Motivation" clears any previous reason.
-    update: {
-      status,
-      username: identity.username,
-      displayName: identity.displayName,
-      avatarUrl: identity.avatarUrl,
-      note: null,
-    },
-  });
+  await recordRsvp(interaction, eventId, "GOING", null);
 
   const counts = await getRsvpCounts(eventId);
   const expected = await getExpectedAttendees(eventId, event.kind);
@@ -235,48 +306,19 @@ export async function handleMotivationModal(
     return;
   }
 
-  // Responses close once it has started (in case the modal was opened earlier).
-  if (event.startAt.getTime() <= Date.now()) {
+  // Re-checked here because the meeting can start, or the attendee list change,
+  // while the modal sits open.
+  const problem = await answerProblem(event, interaction.user.id);
+  if (problem) {
     await interaction.reply({
-      content: "This has already started — responses are closed.",
+      content: problem,
       flags: MessageFlags.Ephemeral,
     });
     return;
   }
 
-  // Re-checked here because the list can change while the modal sits open.
-  if (await notExpected(event, interaction.user.id)) {
-    await interaction.reply({
-      content: NOT_EXPECTED,
-      flags: MessageFlags.Ephemeral,
-    });
-    return;
-  }
-
-  const reason =
-    interaction.fields.getTextInputValue(MOTIVATION_INPUT_ID).trim() ||
-    "(no reason given)";
-
-  const identity = await resolveIdentity(interaction);
-  await prisma.rsvp.upsert({
-    where: { eventId_userId: { eventId, userId: interaction.user.id } },
-    create: {
-      eventId,
-      userId: interaction.user.id,
-      username: identity.username,
-      displayName: identity.displayName,
-      avatarUrl: identity.avatarUrl,
-      status: "MOTIVATED",
-      note: reason,
-    },
-    update: {
-      status: "MOTIVATED",
-      username: identity.username,
-      displayName: identity.displayName,
-      avatarUrl: identity.avatarUrl,
-      note: reason,
-    },
-  });
+  const reason = motivationReason(interaction);
+  await recordRsvp(interaction, eventId, "MOTIVATED", reason);
 
   // Refresh the counts on the original announcement/reminder message.
   const counts = await getRsvpCounts(eventId);
@@ -301,7 +343,7 @@ export async function handleMotivationModal(
 }
 
 /** Post a member's absence reason to the configured apology channel. */
-async function postMotivation(
+export async function postMotivation(
   interaction: ModalSubmitInteraction,
   eventTitle: string,
   reason: string,

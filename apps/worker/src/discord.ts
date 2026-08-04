@@ -4,15 +4,17 @@ import { syncChannels } from "./channels.js";
 import { handleRsvpButton, handleMotivationModal } from "./rsvp.js";
 import { handlePrintClaim } from "./print.js";
 import { handleInstagramRead } from "./instagram.js";
-import { handleAgendaCommand, registerCommands } from "./commands.js";
+import {
+  handleAgendaButton,
+  handleAgendaCommand,
+  handleAgendaMotivation,
+  registerCommands,
+} from "./commands.js";
 import { reconcileScheduledEvents } from "./scheduledEvents.js";
 
 export function createClient(): Client {
   const client = new Client({
-    intents: [
-      GatewayIntentBits.Guilds,
-      GatewayIntentBits.GuildScheduledEvents,
-    ],
+    intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildScheduledEvents],
   });
 
   client.once(Events.ClientReady, async (c) => {
@@ -41,7 +43,9 @@ export function createClient(): Client {
         ? handlePrintClaim
         : id.startsWith("igread:")
           ? handleInstagramRead
-          : handleRsvpButton;
+          : id.startsWith("agenda:")
+            ? handleAgendaButton
+            : handleRsvpButton;
       await handler(interaction).catch((err) =>
         console.error("[bot] button handler error:", err),
       );
@@ -50,7 +54,10 @@ export function createClient(): Client {
         console.error("[bot] command handler error:", err),
       );
     } else if (interaction.isModalSubmit()) {
-      await handleMotivationModal(interaction).catch((err) =>
+      const handler = interaction.customId.startsWith("agendamotiv:")
+        ? handleAgendaMotivation
+        : handleMotivationModal;
+      await handler(interaction).catch((err) =>
         console.error("[bot] modal handler error:", err),
       );
     }
