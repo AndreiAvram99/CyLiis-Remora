@@ -196,6 +196,39 @@ export function parsePrintButtonId(customId: string): string | null {
   return parts[1];
 }
 
+export interface Mentions {
+  roleIds?: string[];
+  userIds?: string[];
+  everyone?: boolean;
+}
+
+/** The ping line that opens an announcement, or "" when nothing was chosen. */
+export function mentionPrefix(m: Mentions): string {
+  const parts = [
+    ...(m.everyone ? ["@everyone"] : []),
+    ...(m.roleIds ?? []).map((id) => `<@&${id}>`),
+    ...(m.userIds ?? []).map((id) => `<@${id}>`),
+  ];
+  return parts.join(" ");
+}
+
+/**
+ * Discord only rings the people listed here, whatever the message body says. So
+ * a title or description containing "@everyone" can't ping the server, while
+ * the tags actually picked for the schedule still do.
+ */
+export function allowedMentionsFor(m: Mentions): {
+  parse: ("everyone" | "roles" | "users")[];
+  roles: string[];
+  users: string[];
+} {
+  return {
+    parse: m.everyone ? ["everyone"] : [],
+    roles: (m.roleIds ?? []).slice(0, 100),
+    users: (m.userIds ?? []).slice(0, 100),
+  };
+}
+
 /**
  * Custom ID for the "Mark as read" button on a forwarded Instagram DM. Keyed by
  * our own row id rather than Instagram's `mid`, which routinely exceeds

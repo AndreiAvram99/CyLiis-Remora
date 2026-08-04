@@ -81,6 +81,9 @@ model Event {
   url                     String?
   channelId               String // default target channel for announcements/reminders
   announceOnCreate        Boolean   @default(true)
+  mentionRoleIds          String[] // roles to ping on announcements/reminders
+  mentionUserIds          String[] // individual members to ping
+  mentionEveryone         Boolean   @default(false)
   gcalEventId             String?
   gcalCalendarId          String? // which Google calendar the event was pushed to
   discordScheduledEventId String?

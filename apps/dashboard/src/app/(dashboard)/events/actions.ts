@@ -4,8 +4,10 @@ import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { prisma, ReminderStatus, type Prisma } from "@repo/db";
 import {
+  allowedMentionsFor,
   buildPrintMessagePayload,
   computeDueAt,
+  mentionPrefix,
   offsetLabel,
   FILAMENT_TYPES,
   DEFAULT_FILAMENT,
@@ -176,6 +178,9 @@ export async function createEvent(input: EventFormValues) {
       url: values.url || null,
       channelId: values.channelId,
       announceOnCreate: values.announceOnCreate,
+      mentionRoleIds: values.mentionRoleIds,
+      mentionUserIds: values.mentionUserIds,
+      mentionEveryone: values.mentionEveryone,
       createdBy: session.user?.discordId,
       gcalEventId,
       gcalCalendarId: gcalEventId ? calendarId : null,
@@ -265,6 +270,9 @@ export async function updateEvent(id: string, input: EventFormValues) {
         url: values.url || null,
         channelId: values.channelId,
         announceOnCreate: values.announceOnCreate,
+        mentionRoleIds: values.mentionRoleIds,
+        mentionUserIds: values.mentionUserIds,
+        mentionEveryone: values.mentionEveryone,
         gcalEventId,
         gcalCalendarId,
         reminders: {
@@ -295,9 +303,16 @@ export async function updateEvent(id: string, input: EventFormValues) {
   });
 
   if (changes.length > 0) {
+    const mentions = {
+      roleIds: values.mentionRoleIds,
+      userIds: values.mentionUserIds,
+      everyone: values.mentionEveryone,
+    };
+    const ping = mentionPrefix(mentions);
+
     await postChannelMessage(values.channelId, {
-      content: `🔄 **Schedule updated** — ${values.title}\n${changes.join("\n")}`,
-      allowed_mentions: { parse: [] },
+      content: `${ping ? `${ping}\n` : ""}🔄 **Schedule updated** — ${values.title}\n${changes.join("\n")}`,
+      allowed_mentions: allowedMentionsFor(mentions),
     }).catch((err) =>
       console.error("[events] update message failed:", err),
     );

@@ -6,7 +6,7 @@ import {
   type BaseMessageOptions,
 } from "discord.js";
 import type { Event } from "@repo/db";
-import { rsvpButtonId } from "@repo/shared";
+import { allowedMentionsFor, mentionPrefix, rsvpButtonId } from "@repo/shared";
 
 const KIND_COLORS: Record<string, number> = {
   MEETING: 0x209ebb,
@@ -69,7 +69,7 @@ export function buildEventMessage(
   opts: { announcement?: boolean; leadLabel?: string | null },
 ): BaseMessageOptions {
   const unix = Math.floor(event.startAt.getTime() / 1000);
-  const content = opts.announcement
+  const headline = opts.announcement
     ? `📣 **New ${event.kind.toLowerCase()} scheduled**`
     : `⏰ **Reminder** — starts <t:${unix}:R>`;
 
@@ -77,9 +77,18 @@ export function buildEventMessage(
     ? "React below so we can gauge interest"
     : (opts.leadLabel ?? "Reminder");
 
+  // Whoever the schedule was tagged with gets pinged on every post for it.
+  const mentions = {
+    roleIds: event.mentionRoleIds,
+    userIds: event.mentionUserIds,
+    everyone: event.mentionEveryone,
+  };
+  const ping = mentionPrefix(mentions);
+
   return {
-    content,
+    content: ping ? `${ping}\n${headline}` : headline,
     embeds: [buildEventEmbed(event, counts, footer)],
     components: [buildRsvpRow(event.id)],
+    allowedMentions: allowedMentionsFor(mentions),
   };
 }
