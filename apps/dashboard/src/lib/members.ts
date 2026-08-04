@@ -135,24 +135,69 @@ export interface AttendeeCandidate {
   roleIds: string[];
 }
 
-let cachedRoleNames: Map<string, string> | null = null;
+interface RawRole {
+  id: string;
+  name: string;
+  position: number;
+  managed?: boolean;
+}
 
-/** Role id -> name, so groups are labelled with live Discord names. */
-export async function fetchRoleNames(): Promise<Map<string, string>> {
-  if (cachedRoleNames) return cachedRoleNames;
+let cachedRoles: RawRole[] | null = null;
+
+async function fetchGuildRoles(): Promise<RawRole[]> {
+  if (cachedRoles) return cachedRoles;
   const token = env.botToken();
-  if (!token) return new Map();
+  if (!token) return [];
   try {
     const res = await fetch(`${API}/guilds/${env.guildId()}/roles`, {
       headers: { Authorization: `Bot ${token}` },
     });
-    if (!res.ok) return new Map();
-    const roles = (await res.json()) as { id: string; name: string }[];
-    cachedRoleNames = new Map(roles.map((r) => [r.id, r.name]));
-    return cachedRoleNames;
+    if (!res.ok) return [];
+    cachedRoles = (await res.json()) as RawRole[];
+    return cachedRoles;
   } catch {
-    return new Map();
+    return [];
   }
+}
+
+/** Role id -> name, so groups are labelled with live Discord names. */
+export async function fetchRoleNames(): Promise<Map<string, string>> {
+  const roles = await fetchGuildRoles();
+  return new Map(roles.map((r) => [r.id, r.name]));
+}
+
+export interface MentionOptions {
+  roles: { id: string; name: string }[];
+  members: { id: string; name: string; avatarUrl: string | null }[];
+}
+
+/**
+ * Everything the schedule form can ping: the guild's own roles, highest first,
+ * and every human member. Excludes @everyone (offered separately) and the roles
+ * Discord manages for bots and integrations, which nobody wants to tag.
+ */
+export async function getMentionOptions(): Promise<MentionOptions> {
+  await ensureGuildMembers();
+
+  const [roles, members] = await Promise.all([
+    fetchGuildRoles(),
+    prisma.guildMember.findMany({
+      where: { guildId: env.guildId(), isBot: false },
+      orderBy: { displayName: "asc" },
+    }),
+  ]);
+
+  return {
+    roles: roles
+      .filter((r) => r.id !== env.guildId() && !r.managed)
+      .sort((a, b) => b.position - a.position)
+      .map((r) => ({ id: r.id, name: r.name })),
+    members: members.map((m) => ({
+      id: m.id,
+      name: m.displayName || m.username || m.id,
+      avatarUrl: m.avatarUrl,
+    })),
+  };
 }
 
 /** Members eligible to be invited to a meeting, grouped by their role. */

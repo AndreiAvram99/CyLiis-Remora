@@ -21,6 +21,10 @@ export const eventFormSchema = z.object({
   url: z.string().url().optional().or(z.literal("")).nullable(),
   channelId: z.string().min(1, "Select a channel"),
   announceOnCreate: z.boolean().default(true),
+  // Who gets pinged on the announcement and reminders.
+  mentionRoleIds: z.array(z.string()).max(100).default([]),
+  mentionUserIds: z.array(z.string()).max(100).default([]),
+  mentionEveryone: z.boolean().default(false),
   reminders: z.array(reminderInputSchema).max(20).default([]),
 });
 

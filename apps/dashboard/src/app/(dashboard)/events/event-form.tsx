@@ -24,6 +24,11 @@ import { ChannelSelect } from "@/components/channel-select";
 import { createEvent, updateEvent } from "./actions";
 import { PrintForm } from "./print-form";
 import { AttendeePicker, type AttendeeGroup } from "./attendee-picker";
+import {
+  MentionPicker,
+  type MentionOption,
+  type MentionValue,
+} from "./mention-picker";
 
 type FormKind = EventKindName | "PRINT";
 
@@ -54,6 +59,7 @@ export interface EventFormInitial {
   announceOnCreate: boolean;
   reminders: Array<{ offsetMinutes: number; channelId: string | null }>;
   attendeeIds: string[];
+  mentions: MentionValue;
 }
 
 const DEFAULT_DURATION = 60;
@@ -67,6 +73,8 @@ interface EventFormProps {
   kindDefaults: Record<EventKindName, number[]>;
   defaultChannelId?: string | null;
   attendeeGroups: AttendeeGroup[];
+  mentionRoles: MentionOption[];
+  mentionMembers: MentionOption[];
   initial?: EventFormInitial;
 }
 
@@ -96,6 +104,8 @@ export function EventForm({
   kindDefaults,
   defaultChannelId,
   attendeeGroups,
+  mentionRoles,
+  mentionMembers,
   initial,
 }: EventFormProps) {
   const router = useRouter();
@@ -126,6 +136,9 @@ export function EventForm({
   );
   const [attendeeIds, setAttendeeIds] = useState<string[]>(
     initial?.attendeeIds ?? [],
+  );
+  const [mentions, setMentions] = useState<MentionValue>(
+    initial?.mentions ?? { roleIds: [], userIds: [], everyone: false },
   );
   const [reminders, setReminders] = useState<ReminderRow[]>(
     initial
@@ -214,6 +227,9 @@ export function EventForm({
       })),
       // Only meetings track expected attendance.
       attendeeIds: kind === "MEETING" ? attendeeIds : [],
+      mentionRoleIds: mentions.roleIds,
+      mentionUserIds: mentions.userIds,
+      mentionEveryone: mentions.everyone,
     };
 
     startTransition(async () => {
@@ -520,6 +536,13 @@ export function EventForm({
             ))}
           </ul>
         )}
+
+        <MentionPicker
+          roles={mentionRoles}
+          members={mentionMembers}
+          value={mentions}
+          onChange={setMentions}
+        />
 
         <label className="flex items-center gap-2 text-sm text-neutral-300">
           <input
