@@ -49,6 +49,16 @@ interface ResolvedSchedule {
   durationMinutes: number | null;
 }
 
+/** Validate a submitted form, reporting the first problem in plain words. */
+function parseForm(input: EventFormValues): EventFormValues {
+  const parsed = eventFormSchema.safeParse(input);
+  if (parsed.success) return parsed.data;
+  const issue = parsed.error.issues[0];
+  throw new Error(
+    issue ? `${issue.message} (${issue.path.join(".")})` : "Invalid schedule.",
+  );
+}
+
 async function colorForChannel(channelId: string): Promise<string | undefined> {
   const channel = await prisma.channel.findUnique({
     where: { id: channelId },
@@ -153,7 +163,7 @@ function targetChannels(values: EventFormValues): string[] {
 
 export async function createEvent(input: EventFormValues) {
   const session = await assertManager();
-  const values = eventFormSchema.parse(input);
+  const values = parseForm(input);
   for (const channelId of targetChannels(values)) {
     await assertCanPostTo(channelId);
     await assertKindAllowedIn(channelId, values.kind);
@@ -217,7 +227,7 @@ export async function createEvent(input: EventFormValues) {
 
 export async function updateEvent(id: string, input: EventFormValues) {
   await assertManager();
-  const values = eventFormSchema.parse(input);
+  const values = parseForm(input);
   const guild = await getGuild();
   const existing = await prisma.event.findUnique({ where: { id } });
   if (!existing) throw new Error("Event not found");
@@ -274,12 +284,29 @@ export async function updateEvent(id: string, input: EventFormValues) {
 
   const invitees = await buildInviteeCreates(values);
 
-  // Replace all not-yet-sent reminders; keep SENT ones for the audit trail.
+  // Only a delivered announcement should stop us posting one. A pending one is
+  // about to be replaced below, and a failed one deserves another go.
+  const announced = await prisma.reminder.count({
+    where: {
+      eventId: id,
+      isAnnouncement: true,
+      status: ReminderStatus.SENT,
+    },
+  });
+
+  // Replace everything that hasn't been delivered; keep SENT for the audit
+  // trail. Dropping failures too clears the warning once the retry works.
   await prisma.$transaction([
     prisma.reminder.deleteMany({
       where: {
         eventId: id,
-        status: { in: [ReminderStatus.PENDING, ReminderStatus.CANCELLED] },
+        status: {
+          in: [
+            ReminderStatus.PENDING,
+            ReminderStatus.CANCELLED,
+            ReminderStatus.FAILED,
+          ],
+        },
       },
     }),
     // The picker submits the full expected list, so replace it wholesale.
@@ -311,8 +338,8 @@ export async function updateEvent(id: string, input: EventFormValues) {
         gcalCalendarId,
         reminders: {
           create: buildReminderCreates(startAt, values).filter(
-            // Don't re-announce on edit if it was already announced.
-            (r) => !(r.isAnnouncement && existing.announceOnCreate),
+            // Don't announce twice; anything else gets rebuilt from the form.
+            (r) => !(r.isAnnouncement && announced > 0),
           ),
         },
         invitees: { create: invitees },

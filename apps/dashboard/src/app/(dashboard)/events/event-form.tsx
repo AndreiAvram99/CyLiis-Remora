@@ -187,6 +187,31 @@ export function EventForm({
     [channels],
   );
 
+  /**
+   * Things that are allowed but rarely intended: a start that has already been
+   * and gone, or reminders whose moment has passed — both post the second the
+   * worker next looks.
+   */
+  const warning = useMemo(() => {
+    if (!startAt) return null;
+    const start = isAllDay ? new Date(`${startAt}T23:59`) : new Date(startAt);
+    if (Number.isNaN(start.getTime())) return null;
+
+    if (start.getTime() < Date.now()) {
+      return "That start time has already passed. Anything still due for it goes out to Discord as soon as you save.";
+    }
+    const late = reminders.filter((r) => {
+      const value = Number(r.value);
+      if (!value) return false;
+      const at = start.getTime() - toOffsetMinutes(value, r.unit) * 60_000;
+      return at <= Date.now();
+    }).length;
+    if (late > 0) {
+      return `${late} reminder${late === 1 ? " is" : "s are"} already past — ${late === 1 ? "it" : "they"} will be sent right after you save.`;
+    }
+    return null;
+  }, [startAt, isAllDay, reminders]);
+
   function updateReminder(idx: number, patch: Partial<ReminderRow>) {
     setReminders((rows) =>
       rows.map((r, i) => (i === idx ? { ...r, ...patch } : r)),
@@ -205,19 +230,44 @@ export function EventForm({
     setReminders((rows) => rows.filter((_, i) => i !== idx));
   }
 
+  /**
+   * Everything Discord needs before a post can go out. Catching it here keeps
+   * the schedule from being saved and then failing silently in the worker.
+   */
+  function blockingProblem(): string | null {
+    if (!title.trim()) return "Give the schedule a title.";
+    if (!channelId) {
+      return noChannels
+        ? "No channel is available yet — start the bot so it can list them."
+        : "Pick the channel this gets announced in.";
+    }
+    if (!startAt) {
+      return isAllDay ? "Pick the start date." : "Pick when it starts.";
+    }
+    if (!isAllDay && (!durationMinutes || durationMinutes < 1)) {
+      return "Set how long the meeting runs.";
+    }
+    if (isAllDay && endAt && endAt < startAt) {
+      return "The end date can't be before the start date.";
+    }
+    if (url.trim() && !/^https?:\/\/\S+$/i.test(url.trim())) {
+      return "That link needs to start with http:// or https://.";
+    }
+    // Every reminder needs a positive number — reject blank/0 fields instead of
+    // silently coercing them to 0.
+    if (reminders.some((r) => r.value === "" || Number(r.value) < 1)) {
+      return "Enter a number (1 or more) for every reminder, or remove the empty row.";
+    }
+    return null;
+  }
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
 
-    // Every reminder needs a positive number — reject blank/0 fields instead of
-    // silently coercing them to 0.
-    const invalid = reminders.some(
-      (r) => r.value === "" || Number(r.value) < 1,
-    );
-    if (invalid) {
-      setError(
-        "Enter a number (1 or more) for every reminder, or remove the empty row.",
-      );
+    const problem = blockingProblem();
+    if (problem) {
+      setError(problem);
       return;
     }
 
@@ -572,6 +622,12 @@ export function EventForm({
       {error ? (
         <p className="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-400">
           {error}
+        </p>
+      ) : null}
+
+      {warning ? (
+        <p className="rounded-lg bg-palette-sun/10 px-3 py-2 text-sm text-palette-sun">
+          {warning}
         </p>
       ) : null}
 
