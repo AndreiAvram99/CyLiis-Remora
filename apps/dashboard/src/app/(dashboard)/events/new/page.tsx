@@ -38,7 +38,7 @@ export default async function NewEventPage() {
         }))}
         kindDefaults={kindDefaults}
         defaultChannelId={defaultChannelId}
-        attendeeGroups={attendees.groups}
+        attendees={attendees}
         mentionRoles={mentions.roles}
         mentionMembers={mentions.members}
       />

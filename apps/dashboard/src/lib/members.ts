@@ -296,34 +296,41 @@ async function attendeeRoles(): Promise<{ id: string; name: string }[]> {
   return wanted;
 }
 
-/** Members eligible to be invited to a meeting, grouped by their role. */
-export async function getAttendeeCandidates(): Promise<{
-  groups: { roleId: string; roleName: string; members: AttendeeCandidate[] }[];
-}> {
+export interface AttendeeRoster {
+  /** Shortcuts for inviting a whole team at once. */
+  roles: { id: string; name: string; memberIds: string[] }[];
+  /** Everyone in the guild, each listed once — mentors and guests included. */
+  members: AttendeeCandidate[];
+}
+
+/** Who can be invited to a meeting, plus the roles that pick them in bulk. */
+export async function getAttendeeCandidates(): Promise<AttendeeRoster> {
   await ensureGuildMembers();
   const roles = await attendeeRoles();
 
-  const members = await prisma.guildMember.findMany({
-    where: {
-      guildId: env.guildId(),
-      isBot: false,
-      roles: { hasSome: roles.map((r) => r.id) },
-    },
-    orderBy: { displayName: "asc" },
+  const rows = await prisma.guildMember.findMany({
+    where: { guildId: env.guildId(), isBot: false },
   });
 
-  const groups = roles.map((role) => ({
-    roleId: role.id,
-    roleName: role.name,
-    members: members
-      .filter((m) => m.roles.includes(role.id))
-      .map((m) => ({
-        id: m.id,
-        name: m.displayName || m.username || m.id,
-        avatarUrl: m.avatarUrl,
-        roleIds: m.roles,
-      })),
-  }));
+  const members = rows
+    .map((m) => ({
+      id: m.id,
+      name: m.displayName || m.username || m.id,
+      avatarUrl: m.avatarUrl,
+      roleIds: m.roles,
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
 
-  return { groups: groups.filter((g) => g.members.length > 0) };
+  return {
+    roles: roles
+      .map((role) => ({
+        id: role.id,
+        name: role.name,
+        memberIds: members
+          .filter((m) => m.roleIds.includes(role.id))
+          .map((m) => m.id),
+      }))
+      .filter((r) => r.memberIds.length > 0),
+    members,
+  };
 }

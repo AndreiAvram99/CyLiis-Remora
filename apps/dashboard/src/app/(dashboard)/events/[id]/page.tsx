@@ -90,7 +90,7 @@ export default async function EditEventPage({
         }))}
         kindDefaults={kindDefaults}
         defaultChannelId={guild.defaultChannelId}
-        attendeeGroups={attendees.groups}
+        attendees={attendees}
         mentionRoles={mentions.roles}
         mentionMembers={mentions.members}
         initial={initial}
