@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Search, Users } from "lucide-react";
+import { Check, Plus, Search, Users } from "lucide-react";
 import { Label } from "@/components/ui";
 
 export interface AttendeeOption {
@@ -76,7 +76,11 @@ export function AttendeePicker({
     onChange(selected.filter((s) => !drop.has(s)));
   }
 
-  const total = groups.reduce((n, g) => n + g.members.length, 0);
+  // Roles overlap, so count people rather than rows.
+  const total = useMemo(
+    () => new Set(groups.flatMap((g) => g.members.map((m) => m.id))).size,
+    [groups],
+  );
 
   if (total === 0) {
     return (
@@ -100,6 +104,41 @@ export function AttendeePicker({
       </div>
 
       <div className="overflow-hidden rounded-lg border border-[rgb(var(--line))] bg-[rgb(var(--input))]">
+        {/* One tap invites (or drops) everyone holding the role. */}
+        <div className="flex flex-wrap items-center gap-1.5 border-b border-[rgb(var(--line))] px-3 py-2">
+          <span className="mr-0.5 text-xs uppercase tracking-wide text-neutral-600">
+            By role
+          </span>
+          {groups.map((g) => {
+            const all = g.members.every((m) => picked.has(m.id));
+            const some = !all && g.members.some((m) => picked.has(m.id));
+            return (
+              <button
+                key={g.roleId}
+                type="button"
+                onClick={() => (all ? removeAll(g.members) : addAll(g.members))}
+                aria-pressed={all}
+                title={
+                  all
+                    ? `Remove everyone with ${g.roleName}`
+                    : `Select everyone with ${g.roleName}`
+                }
+                className={`flex items-center gap-1.5 rounded-lg border px-2 py-1 text-xs transition ${
+                  all
+                    ? "border-brand bg-brand/10 text-neutral-100"
+                    : some
+                      ? "border-brand/40 text-neutral-200 hover:bg-neutral-800/60"
+                      : "border-[rgb(var(--line))] text-neutral-400 hover:bg-neutral-800/60 hover:text-neutral-100"
+                }`}
+              >
+                {all ? <Check size={12} /> : <Plus size={12} />}
+                {g.roleName}
+                <span className="text-neutral-600">{g.members.length}</span>
+              </button>
+            );
+          })}
+        </div>
+
         <div className="flex items-center gap-2 border-b border-[rgb(var(--line))] px-3 py-2">
           <Search size={14} className="shrink-0 text-neutral-500" />
           <input

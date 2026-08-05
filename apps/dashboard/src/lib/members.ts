@@ -4,11 +4,21 @@ import { env } from "./env";
 const API = "https://discord.com/api/v10";
 const CDN = "https://cdn.discordapp.com";
 
-/** membru-vechi and membru-nou. Override with ATTENDEE_ROLE_IDS. */
+/**
+ * Roles a meeting can invite from, in the order they're offered. Override the
+ * whole list with ATTENDEE_ROLE_IDS.
+ */
 const DEFAULT_ATTENDEE_ROLE_IDS = [
   "1296135916431085690", // membru-vechi
   "1281010678253223967", // membru-nou
+  "1528740902267392151", // Tehnic
+  "1528741191527567411", // NTehnic
+  "1279014393471959151", // Branding
+  "1279014453568081981", // Sustenability
 ];
+
+/** Offered too, matched by Discord name since their ids aren't pinned. */
+const DEFAULT_ATTENDEE_ROLE_NAMES = ["events"];
 
 export function attendeeRoleIds(): string[] {
   const override = env.attendeeRoleIds();
@@ -263,28 +273,50 @@ export async function getMentionOptions(): Promise<MentionOptions> {
   };
 }
 
+/**
+ * The roles a meeting can invite from, in offer order: the pinned ids first,
+ * then any extra matched by name. Names that no longer exist are dropped.
+ */
+async function attendeeRoles(): Promise<{ id: string; name: string }[]> {
+  const roles = await fetchGuildRoles();
+  const byId = new Map(roles.map((r) => [r.id, r.name]));
+
+  const wanted = attendeeRoleIds().map((id) => ({
+    id,
+    name: byId.get(id) ?? "members",
+  }));
+
+  const taken = new Set(wanted.map((r) => r.id));
+  for (const name of DEFAULT_ATTENDEE_ROLE_NAMES) {
+    const match = roles.find(
+      (r) => r.name.toLowerCase() === name && !taken.has(r.id),
+    );
+    if (match) wanted.push({ id: match.id, name: match.name });
+  }
+  return wanted;
+}
+
 /** Members eligible to be invited to a meeting, grouped by their role. */
 export async function getAttendeeCandidates(): Promise<{
   groups: { roleId: string; roleName: string; members: AttendeeCandidate[] }[];
 }> {
   await ensureGuildMembers();
-  const roleIds = attendeeRoleIds();
+  const roles = await attendeeRoles();
 
   const members = await prisma.guildMember.findMany({
     where: {
       guildId: env.guildId(),
       isBot: false,
-      roles: { hasSome: roleIds },
+      roles: { hasSome: roles.map((r) => r.id) },
     },
     orderBy: { displayName: "asc" },
   });
 
-  const roleNames = await fetchRoleNames();
-  const groups = roleIds.map((roleId) => ({
-    roleId,
-    roleName: roleNames.get(roleId) ?? "members",
+  const groups = roles.map((role) => ({
+    roleId: role.id,
+    roleName: role.name,
     members: members
-      .filter((m) => m.roles.includes(roleId))
+      .filter((m) => m.roles.includes(role.id))
       .map((m) => ({
         id: m.id,
         name: m.displayName || m.username || m.id,
