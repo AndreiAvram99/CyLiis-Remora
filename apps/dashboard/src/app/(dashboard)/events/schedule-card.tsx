@@ -28,6 +28,8 @@ export interface ScheduleCardEvent {
     status: string;
     isAnnouncement: boolean;
     error: string | null;
+    attempts: number;
+    nextAttemptAt: Date | null;
   }[];
 }
 
@@ -114,8 +116,12 @@ export function ScheduleCard({
             <span>
               Discord refused the{" "}
               {failed.isAnnouncement ? "announcement" : "reminder"}
-              {failed.error ? `: ${failed.error}` : "."} Edit and save to try
-              again.
+              {failed.error ? `: ${failed.error}` : "."}{" "}
+              {failed.nextAttemptAt
+                ? `Trying again ${relativeTo(failed.nextAttemptAt)} — fix the cause and it posts itself, or save the schedule to force it now.`
+                : failed.attempts > 1
+                  ? `Gave up after ${failed.attempts} tries. Save the schedule to try again.`
+                  : "Save the schedule to try again."}
             </span>
           </p>
         ) : null}
