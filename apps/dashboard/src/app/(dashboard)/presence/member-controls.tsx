@@ -2,9 +2,9 @@
 
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { X, Pencil } from "lucide-react";
+import { X, Pencil, UserMinus } from "lucide-react";
 import type { RsvpStatusName } from "@repo/shared";
-import { setRsvpStatus, removeRsvp } from "./actions";
+import { setRsvpStatus, removeRsvp, dropExpectedAttendee } from "./actions";
 
 // Neutral avatar fill — status is shown by the column header, not the avatar.
 const AVATAR_NEUTRAL = "bg-neutral-800 text-neutral-300";
@@ -47,6 +47,46 @@ export function AssignStatus({
       <option value="GOING">Going</option>
       <option value="MOTIVATED">Motivation</option>
     </select>
+  );
+}
+
+/**
+ * Take someone off a meeting's expected list when it turns out they don't need
+ * to be there. The roll-call in Discord is rewritten to match.
+ */
+export function DropExpected({
+  eventId,
+  userId,
+  name,
+}: {
+  eventId: string;
+  userId: string;
+  name: string;
+}) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+
+  function drop() {
+    if (!confirm(`${name} is no longer expected at this meeting?`)) return;
+    startTransition(async () => {
+      await dropExpectedAttendee(eventId, userId);
+      router.refresh();
+    });
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={drop}
+      disabled={isPending}
+      className={`shrink-0 rounded-md border border-neutral-700 p-1 text-neutral-400 transition hover:border-neutral-500 hover:text-neutral-100 ${
+        isPending ? "opacity-50" : ""
+      }`}
+      aria-label="Not expected"
+      title="Not expected at this meeting"
+    >
+      <UserMinus size={13} strokeWidth={2.5} />
+    </button>
   );
 }
 
