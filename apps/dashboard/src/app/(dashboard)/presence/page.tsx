@@ -1,5 +1,15 @@
+import Link from "next/link";
 import { DateTime } from "luxon";
-import { CalendarDays, Hash, FileDown, AlertTriangle } from "lucide-react";
+import {
+  AlertTriangle,
+  CalendarDays,
+  CalendarRange,
+  ChevronRight,
+  FileDown,
+  Hash,
+  Video,
+  type LucideIcon,
+} from "lucide-react";
 import { prisma, RsvpStatus } from "@repo/db";
 import type { RsvpStatusName } from "@repo/shared";
 import { Badge, Card } from "@/components/ui";
@@ -327,17 +337,109 @@ function boundary(
   return (edge === "start" ? dt.startOf("day") : dt.endOf("day")).toJSDate();
 }
 
+type View = "meetings" | "events";
+
+const VIEWS: { key: View; label: string; icon: LucideIcon; blurb: string }[] = [
+  {
+    key: "meetings",
+    label: "Meetings",
+    icon: Video,
+    blurb: "Meetings, grouped by the channel they were announced in.",
+  },
+  {
+    key: "events",
+    label: "Events",
+    icon: CalendarRange,
+    blurb: "Events, which the whole server can answer.",
+  },
+];
+
+/** Meetings have an expected list; everything else is open to the server. */
+function viewOf(kind: string): View {
+  return kind === "MEETING" ? "meetings" : "events";
+}
+
+/** A channel's worth of schedules, split at today. */
+function ChannelSection({
+  name,
+  color,
+  upcoming,
+  past,
+  openPast,
+  timezone,
+  isManager,
+  isMaster,
+  blackMarks,
+}: {
+  name: string;
+  color?: string;
+  upcoming: EventWithRsvps[];
+  past: EventWithRsvps[];
+  openPast: boolean;
+  timezone: string;
+  isManager: boolean;
+  isMaster: boolean;
+  blackMarks: Map<string, number>;
+}) {
+  const card = (e: EventWithRsvps) => (
+    <EventCard
+      key={e.id}
+      e={e}
+      timezone={timezone}
+      isManager={isManager}
+      isMaster={isMaster}
+      blackMarks={blackMarks}
+    />
+  );
+
+  return (
+    <section className="space-y-3">
+      <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-neutral-400">
+        <span
+          className="h-3.5 w-1.5 rounded-full"
+          style={{ backgroundColor: color }}
+          aria-hidden
+        />
+        <Hash size={14} />
+        {name}
+        <span className="text-neutral-600">
+          ({upcoming.length + past.length})
+        </span>
+      </h2>
+
+      {upcoming.length > 0 ? (
+        <div className="space-y-4">{upcoming.map(card)}</div>
+      ) : null}
+
+      {/* The record stays one click away rather than burying what's coming. */}
+      {past.length > 0 ? (
+        <details open={openPast || upcoming.length === 0} className="group">
+          <summary className="flex cursor-pointer list-none items-center gap-2 py-1 text-xs text-neutral-500 transition hover:text-neutral-300">
+            <ChevronRight
+              size={13}
+              className="transition group-open:rotate-90"
+            />
+            Past ({past.length})
+          </summary>
+          <div className="mt-3 space-y-4">{past.map(card)}</div>
+        </details>
+      ) : null}
+    </section>
+  );
+}
+
 export default async function PresencePage({
   searchParams,
 }: {
-  searchParams: Promise<{ from?: string; to?: string }>;
+  searchParams: Promise<{ from?: string; to?: string; view?: string }>;
 }) {
   const guild = await getGuild();
   const session = await getSession();
   const isManager = Boolean(session?.user?.isManager);
   const isMaster = isMasterId(session?.user?.discordId);
 
-  const { from, to } = await searchParams;
+  const { from, to, view } = await searchParams;
+  const current = VIEWS.find((v) => v.key === view) ?? VIEWS[0];
   const fromDate = boundary(from, "start", guild.timezone);
   const toDate = boundary(to, "end", guild.timezone);
 
@@ -387,9 +489,14 @@ export default async function PresencePage({
 
   await fillIdentities(presenceEvents);
 
-  // Group the (already date-filtered) events by their announcement channel.
+  // Meetings and events answer different questions, so they never share a list.
+  const inView = presenceEvents.filter((e) => viewOf(e.kind) === current.key);
+  const countFor = (key: View) =>
+    presenceEvents.filter((e) => viewOf(e.kind) === key).length;
+
+  // Then by channel, since that's how the team is split day to day.
   const byChannel = new Map<string, EventWithRsvps[]>();
-  for (const e of presenceEvents) {
+  for (const e of inView) {
     const list = byChannel.get(e.channelId) ?? [];
     list.push(e);
     byChannel.set(e.channelId, list);
@@ -398,7 +505,19 @@ export default async function PresencePage({
     (a, b) => (channelPos.get(a) ?? 999) - (channelPos.get(b) ?? 999),
   );
 
-  // Preserve the active date range when exporting.
+  const now = new Date();
+  const filtered = Boolean(from || to);
+
+  // Switching tabs keeps whatever date range is being looked at.
+  const tabHref = (key: View) => {
+    const params = new URLSearchParams();
+    if (from) params.set("from", from);
+    if (to) params.set("to", to);
+    if (key !== VIEWS[0].key) params.set("view", key);
+    const qs = params.toString();
+    return `/presence${qs ? `?${qs}` : ""}`;
+  };
+
   const pdfQuery = new URLSearchParams();
   if (from) pdfQuery.set("from", from);
   if (to) pdfQuery.set("to", to);
@@ -412,7 +531,7 @@ export default async function PresencePage({
             Presence
           </h1>
           <p className="max-w-2xl text-sm text-neutral-500">
-            Who from the server is participating, grouped by channel.
+            {current.blurb}
             {isManager
               ? " You can correct a member's status or remove them; adjusted entries are marked."
               : ""}
@@ -428,8 +547,34 @@ export default async function PresencePage({
         ) : null}
       </div>
 
+      <nav className="flex flex-wrap items-center gap-1">
+        {VIEWS.map(({ key, label, icon: Icon }) => {
+          const count = countFor(key);
+          return (
+            <Link
+              key={key}
+              href={tabHref(key)}
+              className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm transition ${
+                current.key === key
+                  ? "bg-neutral-800 font-medium text-neutral-100"
+                  : "text-neutral-400 hover:text-neutral-100"
+              }`}
+            >
+              <Icon size={14} />
+              {label}
+              {count > 0 ? (
+                <span className="text-xs text-neutral-500">{count}</span>
+              ) : null}
+            </Link>
+          );
+        })}
+      </nav>
+
       <Card className="space-y-3">
         <form method="get" className="flex flex-wrap items-end gap-3">
+          {current.key !== VIEWS[0].key ? (
+            <input type="hidden" name="view" value={current.key} />
+          ) : null}
           <label className="flex flex-col gap-1 text-xs text-neutral-500">
             From
             <input
@@ -454,9 +599,13 @@ export default async function PresencePage({
           >
             Apply
           </button>
-          {from || to ? (
+          {filtered ? (
             <a
-              href="/presence"
+              href={
+                current.key === VIEWS[0].key
+                  ? "/presence"
+                  : `/presence?view=${current.key}`
+              }
               className="rounded-lg px-3 py-2 text-sm text-neutral-400 transition hover:text-neutral-100"
             >
               Clear
@@ -467,37 +616,30 @@ export default async function PresencePage({
 
       {channelIds.length === 0 ? (
         <Card className="text-sm text-neutral-400">
-          {from || to ? "No events in this date range." : "No events yet."}
+          {filtered
+            ? `No ${current.label.toLowerCase()} in this date range.`
+            : `No ${current.label.toLowerCase()} yet.`}
         </Card>
       ) : (
-        channelIds.map((channelId) => (
-          <section key={channelId} className="space-y-3">
-            <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-neutral-400">
-              <span
-                className="h-3.5 w-1.5 rounded-full"
-                style={{ backgroundColor: channelColor.get(channelId) }}
-                aria-hidden
-              />
-              <Hash size={14} />
-              {channelName.get(channelId) ?? "unknown"}
-              <span className="text-neutral-600">
-                ({byChannel.get(channelId)!.length})
-              </span>
-            </h2>
-            <div className="space-y-4">
-              {byChannel.get(channelId)!.map((e) => (
-                <EventCard
-                  key={e.id}
-                  e={e}
-                  timezone={guild.timezone}
-                  isManager={isManager}
-                  isMaster={isMaster}
-                  blackMarks={marks.blackByUser}
-                />
-              ))}
-            </div>
-          </section>
-        ))
+        channelIds.map((channelId) => {
+          const list = byChannel.get(channelId)!;
+          return (
+            <ChannelSection
+              key={channelId}
+              name={channelName.get(channelId) ?? "unknown"}
+              color={channelColor.get(channelId)}
+              // Soonest first, so the next one to answer leads the section.
+              upcoming={list.filter((e) => e.startAt >= now)}
+              // Most recent first: last week matters more than last term.
+              past={list.filter((e) => e.startAt < now).reverse()}
+              openPast={filtered}
+              timezone={guild.timezone}
+              isManager={isManager}
+              isMaster={isMaster}
+              blackMarks={marks.blackByUser}
+            />
+          );
+        })
       )}
     </div>
   );
