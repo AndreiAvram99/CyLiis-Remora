@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Pencil, MapPin, Hash, Bell } from "lucide-react";
+import { Pencil, MapPin, Hash, Bell, AlertTriangle } from "lucide-react";
 import { RsvpStatus } from "@repo/db";
 import { durationLabel, recurrenceBadge } from "@repo/shared";
 import { Badge, Button, Card } from "@/components/ui";
@@ -24,7 +24,11 @@ export interface ScheduleCardEvent {
   location: string | null;
   agendaDocUrl: string | null;
   rsvps: { status: RsvpStatus }[];
-  reminders: { status: string; isAnnouncement: boolean }[];
+  reminders: {
+    status: string;
+    isAnnouncement: boolean;
+    error: string | null;
+  }[];
 }
 
 export function ScheduleCard({
@@ -47,6 +51,8 @@ export function ScheduleCard({
   const pending = event.reminders.filter(
     (r) => r.status === "PENDING" && !r.isAnnouncement,
   ).length;
+  // A post Discord refused is otherwise invisible — the card just looks quiet.
+  const failed = event.reminders.find((r) => r.status === "FAILED");
 
   return (
     <Card className="flex flex-wrap items-start gap-4">
@@ -102,6 +108,17 @@ export function ScheduleCard({
             {motivated} motivation
           </span>
         </div>
+        {failed && isManager ? (
+          <p className="mt-2 flex items-start gap-1.5 text-xs text-red-400">
+            <AlertTriangle size={12} className="mt-0.5 shrink-0" />
+            <span>
+              Discord refused the{" "}
+              {failed.isAnnouncement ? "announcement" : "reminder"}
+              {failed.error ? `: ${failed.error}` : "."} Edit and save to try
+              again.
+            </span>
+          </p>
+        ) : null}
       </div>
       {isManager ? (
         <div className="flex items-center gap-2">
