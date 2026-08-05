@@ -21,12 +21,34 @@ async function guildTimezone(guildId: string): Promise<string> {
 
 const BATCH_SIZE = 25;
 
-async function deliverReminder(client: Client, reminderId: string) {
+/**
+ * A refused post is usually a permission or a channel that will be sorted out
+ * minutes later, so give it a handful of goes on a widening delay rather than
+ * losing the announcement. Minutes after each failure; running out means we
+ * stop and leave it for a manager to save the schedule again.
+ */
+const RETRY_DELAYS = [5, 15, 45, 120, 360];
+
+/** How often the sweep bothers the database, regardless of the poll interval. */
+const RETRY_SWEEP_MS = 5 * 60 * 1000;
+
+/** Few at a time: a broken channel shouldn't cost a burst of API calls. */
+const RETRY_BATCH = 5;
+
+async function deliverReminder(
+  client: Client,
+  reminderId: string,
+  retrying = false,
+) {
   const reminder = await prisma.reminder.findUnique({
     where: { id: reminderId },
     include: { event: true },
   });
-  if (!reminder || reminder.status !== ReminderStatus.PENDING) return;
+  if (!reminder) return;
+  const expected = retrying
+    ? ReminderStatus.FAILED
+    : ReminderStatus.PENDING;
+  if (reminder.status !== expected) return;
 
   const event = reminder.event;
   const channelId = reminder.channelId || event.channelId;
@@ -62,18 +84,32 @@ async function deliverReminder(client: Client, reminderId: string) {
         sentAt: new Date(),
         messageId: message.id,
         error: null,
+        attempts: reminder.attempts + 1,
+        nextAttemptAt: null,
       },
     });
     console.log(
-      `[scheduler] sent ${reminder.isAnnouncement ? "announcement" : "reminder"} for "${event.title}"`,
+      `[scheduler] sent ${reminder.isAnnouncement ? "announcement" : "reminder"} for "${event.title}"${retrying ? " (retry)" : ""}`,
     );
   } catch (err) {
-    console.error(`[scheduler] failed reminder ${reminder.id}:`, err);
+    const attempts = reminder.attempts + 1;
+    const delay = RETRY_DELAYS[attempts - 1];
+    // Nothing to gain from posting a reminder for something already underway.
+    const worthRetrying = delay !== undefined && event.startAt > new Date();
+
+    console.error(
+      `[scheduler] failed reminder ${reminder.id} (try ${attempts}):`,
+      err,
+    );
     await prisma.reminder.update({
       where: { id: reminder.id },
       data: {
         status: ReminderStatus.FAILED,
         error: err instanceof Error ? err.message : String(err),
+        attempts,
+        nextAttemptAt: worthRetrying
+          ? new Date(Date.now() + delay * 60_000)
+          : null,
       },
     });
   }
@@ -92,9 +128,32 @@ async function processDueReminders(client: Client) {
   }
 }
 
+/**
+ * Second pass over posts Discord refused. Whatever was in the way — a missing
+ * permission, a channel nobody had invited the bot to — is usually fixed by
+ * hand soon after, and this picks the post back up without anyone re-saving the
+ * schedule. One indexed query on a slow cadence, so it costs next to nothing.
+ */
+async function retryFailedReminders(client: Client) {
+  const stale = await prisma.reminder.findMany({
+    where: {
+      status: ReminderStatus.FAILED,
+      nextAttemptAt: { lte: new Date() },
+    },
+    orderBy: { nextAttemptAt: "asc" },
+    take: RETRY_BATCH,
+    select: { id: true },
+  });
+
+  for (const r of stale) {
+    await deliverReminder(client, r.id, true);
+  }
+}
+
 export function startScheduler(client: Client) {
   const intervalMs = env.pollSeconds() * 1000;
   let running = false;
+  let lastSweep = 0;
 
   const tick = async () => {
     if (running) return; // avoid overlapping cycles
@@ -105,6 +164,10 @@ export function startScheduler(client: Client) {
         await guildTimezone(env.guildId()),
       );
       await processDueReminders(client);
+      if (Date.now() - lastSweep >= RETRY_SWEEP_MS) {
+        lastSweep = Date.now();
+        await retryFailedReminders(client);
+      }
       await reconcileScheduledEvents(client, env.guildId());
       await updateInterestedCounts(client, env.guildId());
     } catch (err) {
