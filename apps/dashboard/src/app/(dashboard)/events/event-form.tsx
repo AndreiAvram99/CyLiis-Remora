@@ -24,7 +24,7 @@ import { Button, Card, Input, Label, Select, Textarea } from "@/components/ui";
 import { ChannelSelect } from "@/components/channel-select";
 import { createEvent, updateEvent } from "./actions";
 import { PrintForm } from "./print-form";
-import { AttendeePicker, type AttendeeGroup } from "./attendee-picker";
+import { AttendeePicker, type AttendeeRoster } from "./attendee-picker";
 import {
   MentionPicker,
   type MentionOption,
@@ -73,7 +73,7 @@ interface EventFormProps {
   channels: ChannelOption[];
   kindDefaults: Record<EventKindName, number[]>;
   defaultChannelId?: string | null;
-  attendeeGroups: AttendeeGroup[];
+  attendees: AttendeeRoster;
   mentionRoles: MentionOption[];
   mentionMembers: MentionOption[];
   initial?: EventFormInitial;
@@ -104,7 +104,7 @@ export function EventForm({
   channels,
   kindDefaults,
   defaultChannelId,
-  attendeeGroups,
+  attendees,
   mentionRoles,
   mentionMembers,
   initial,
@@ -442,7 +442,7 @@ export function EventForm({
 
             {kind === "MEETING" ? (
               <AttendeePicker
-                groups={attendeeGroups}
+                roster={attendees}
                 selected={attendeeIds}
                 onChange={setAttendeeIds}
               />

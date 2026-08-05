@@ -60,14 +60,10 @@ export default async function LeaderboardPage({
   const rows = sortRows(marks.rows, active);
 
   // The owner can award a mark to anyone on the roster, not only past invitees.
-  const roster = isMaster ? await getAttendeeCandidates() : { groups: [] };
-  const rosterMembers = [
-    ...new Map(
-      roster.groups
-        .flatMap((g) => g.members)
-        .map((m) => [m.id, { id: m.id, name: m.name }]),
-    ).values(),
-  ].sort((a, b) => a.name.localeCompare(b.name));
+  const roster = isMaster
+    ? await getAttendeeCandidates()
+    : { roles: [], members: [] };
+  const rosterMembers = roster.members.map((m) => ({ id: m.id, name: m.name }));
 
   const tab = (key: MarksSort, label: string) => (
     <a
