@@ -391,9 +391,13 @@ export default async function HelpPage() {
               untouched.
             </Point>
             <Point>
-              For meetings, pick the expected attendees. Anyone selected who
-              doesn&apos;t answer before the start shows up in the red zone on
-              Presence and picks up a black mark.
+              For meetings, pick the expected attendees. The role chips at the
+              top invite everyone holding a role in one tap — tap again to drop
+              them — or tick people individually.
+            </Point>
+            <Point>
+              Anyone expected who doesn&apos;t answer before the start shows up
+              in the red zone on Presence and picks up a black mark.
             </Point>
             <Point>
               Reminders can go out at any offset before the start, each in its
