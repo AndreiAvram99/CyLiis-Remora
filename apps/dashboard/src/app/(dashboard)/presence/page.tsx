@@ -5,6 +5,8 @@ import {
   CalendarDays,
   CalendarRange,
   ChevronRight,
+  ChevronsDownUp,
+  ChevronsUpDown,
   FileDown,
   Hash,
   Video,
@@ -403,39 +405,64 @@ function ChannelSection({
     />
   );
 
+  const total = upcoming.length + past.length;
+
   return (
-    <section className="space-y-3">
-      <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-neutral-400">
+    <details
+      open
+      className="group/section overflow-hidden rounded-2xl border border-[rgb(var(--line))]"
+    >
+      {/* The whole bar is the toggle, so a channel can be folded out of the way. */}
+      <summary className="flex cursor-pointer list-none items-center gap-3 bg-neutral-900 px-4 py-3 transition hover:bg-neutral-800 [&::-webkit-details-marker]:hidden">
         <span
-          className="h-3.5 w-1.5 rounded-full"
+          className="h-6 w-1.5 shrink-0 rounded-full"
           style={{ backgroundColor: color }}
           aria-hidden
         />
-        <Hash size={14} />
-        {name}
-        <span className="text-neutral-600">
-          ({upcoming.length + past.length})
+        <Hash size={16} className="shrink-0 text-neutral-500" />
+        <h2 className="min-w-0 truncate text-base font-semibold text-neutral-100">
+          {name}
+        </h2>
+        <span className="rounded-full bg-neutral-800 px-2 py-0.5 text-xs font-medium text-neutral-400">
+          {total}
         </span>
-      </h2>
+        <span className="ml-auto flex shrink-0 items-center gap-3 text-xs text-neutral-500">
+          {upcoming.length > 0 ? (
+            <span className="hidden sm:inline">
+              {upcoming.length} upcoming
+            </span>
+          ) : null}
+          <ChevronsDownUp
+            size={15}
+            className="hidden group-open/section:block"
+            aria-label="Collapse"
+          />
+          <ChevronsUpDown
+            size={15}
+            className="block group-open/section:hidden"
+            aria-label="Expand"
+          />
+        </span>
+      </summary>
 
-      {upcoming.length > 0 ? (
-        <div className="space-y-4">{upcoming.map(card)}</div>
-      ) : null}
+      <div className="space-y-4 border-t border-[rgb(var(--line))] bg-neutral-950 p-4">
+        {upcoming.map(card)}
 
-      {/* The record stays one click away rather than burying what's coming. */}
-      {past.length > 0 ? (
-        <details open={openPast || upcoming.length === 0} className="group">
-          <summary className="flex cursor-pointer list-none items-center gap-2 py-1 text-xs text-neutral-500 transition hover:text-neutral-300">
-            <ChevronRight
-              size={13}
-              className="transition group-open:rotate-90"
-            />
-            Past ({past.length})
-          </summary>
-          <div className="mt-3 space-y-4">{past.map(card)}</div>
-        </details>
-      ) : null}
-    </section>
+        {/* The record stays one click away rather than burying what's coming. */}
+        {past.length > 0 ? (
+          <details open={openPast || upcoming.length === 0} className="group">
+            <summary className="flex cursor-pointer list-none items-center gap-2 py-1 text-xs text-neutral-500 transition hover:text-neutral-300 [&::-webkit-details-marker]:hidden">
+              <ChevronRight
+                size={13}
+                className="transition group-open:rotate-90"
+              />
+              Past ({past.length})
+            </summary>
+            <div className="mt-3 space-y-4">{past.map(card)}</div>
+          </details>
+        ) : null}
+      </div>
+    </details>
   );
 }
 
