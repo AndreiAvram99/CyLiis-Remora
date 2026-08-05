@@ -12,6 +12,7 @@ import {
   Users,
   Trophy,
   Instagram,
+  LifeBuoy,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -29,6 +30,7 @@ const NAV_ITEMS: Item[] = [
   { href: "/calendar", label: "Calendar", icon: CalendarRange, managerOnly: false },
   { href: "/presence", label: "Presence", icon: Users, managerOnly: false },
   { href: "/leaderboard", label: "Leaderboard", icon: Trophy, managerOnly: false },
+  { href: "/help", label: "Help", icon: LifeBuoy, managerOnly: false },
 ];
 
 /** Phone-only hamburger that opens a left drawer sliding in from the left. */
