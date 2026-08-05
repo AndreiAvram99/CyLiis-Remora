@@ -3,8 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { prisma, type RsvpStatus } from "@repo/db";
 import type { RsvpStatusName } from "@repo/shared";
-import { assertManager } from "@/lib/session";
+import { assertManager, assertMaster } from "@/lib/session";
 import { rosterIdentities } from "@/lib/members";
+import { refreshEventPosts } from "@/lib/event-posts";
 
 /**
  * Names and avatars live on the RSVP row, captured when the member taps a
@@ -58,5 +59,20 @@ export async function removeRsvp(eventId: string, userId: string) {
   await prisma.rsvp
     .delete({ where: { eventId_userId: { eventId, userId } } })
     .catch(() => undefined);
+  revalidatePath("/presence");
+}
+
+/**
+ * Someone who turns out not to be needed at this meeting. Dropping them from
+ * the expected list takes away the black mark they'd otherwise pick up, and
+ * rewrites the roll-call in Discord — without announcing the change, since
+ * nothing about the meeting itself moved.
+ */
+export async function dropExpectedAttendee(eventId: string, userId: string) {
+  await assertMaster();
+  await prisma.eventInvitee
+    .delete({ where: { eventId_userId: { eventId, userId } } })
+    .catch(() => undefined);
+  await refreshEventPosts(eventId);
   revalidatePath("/presence");
 }

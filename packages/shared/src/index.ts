@@ -512,3 +512,185 @@ export function buildPrintMessagePayload(p: PrintMessageParams) {
     ],
   };
 }
+
+const KIND_COLORS: Record<string, number> = {
+  MEETING: 0x209ebb,
+  EVENT: 0xffb701,
+  CUSTOM: 0xfc8500,
+};
+
+export interface RsvpCounts {
+  GOING: number;
+  MOTIVATED: number;
+}
+
+export function emptyRsvpCounts(): RsvpCounts {
+  return { GOING: 0, MOTIVATED: 0 };
+}
+
+/** An expected attendee of a meeting and what they've answered so far. */
+export interface ExpectedAttendee {
+  userId: string;
+  status: RsvpStatusName | null;
+}
+
+/** The parts of a schedule that end up in its Discord post. */
+export interface EventMessageParams {
+  id: string;
+  title: string;
+  kind: string;
+  startAt: Date;
+  description?: string | null;
+  location?: string | null;
+  url?: string | null;
+  mentionRoleIds?: string[];
+  mentionUserIds?: string[];
+  mentionEveryone?: boolean;
+}
+
+const STATUS_MARK: Record<string, string> = { GOING: "✅", MOTIVATED: "📝" };
+
+/** Discord caps an embed field at 1024 characters. */
+const FIELD_LIMIT = 1024;
+
+function joinCapped(parts: string[]): string {
+  const out: string[] = [];
+  let length = 0;
+  for (const [i, part] of parts.entries()) {
+    // Leave room for the overflow hint rather than cutting mid-mention.
+    if (length + part.length + 2 > FIELD_LIMIT - 16) {
+      out.push(`+${parts.length - i} more`);
+      break;
+    }
+    out.push(part);
+    length += part.length + 2;
+  }
+  return out.join("  ");
+}
+
+/**
+ * Roll-call for a meeting: everyone expected, marked with their answer. Events
+ * are open to the whole server, so they get no such list.
+ *
+ * Mentions inside an embed render as names without notifying anyone, which is
+ * what we want — the ping list is chosen separately on the schedule.
+ */
+function attendeeField(expected: ExpectedAttendee[]) {
+  const waiting = expected.filter((a) => !a.status).length;
+  return {
+    name: `👥 Expected (${expected.length})${waiting ? ` · ${waiting} yet to answer` : ""}`,
+    value: joinCapped(
+      expected.map(
+        (a) => `${a.status ? STATUS_MARK[a.status] : "▫️"} <@${a.userId}>`,
+      ),
+    ),
+  };
+}
+
+/** The announcement/reminder embed for a schedule, as plain API JSON. */
+export function buildEventEmbedPayload(
+  event: EventMessageParams,
+  counts: RsvpCounts,
+  footer: string,
+  expected: ExpectedAttendee[] = [],
+) {
+  const unix = Math.floor(event.startAt.getTime() / 1000);
+  const detail: string[] = [`🗓️ <t:${unix}:F> · <t:${unix}:R>`];
+  if (event.location) detail.push(`📍 ${event.location}`);
+  if (event.url) detail.push(`🔗 ${event.url}`);
+
+  const description = [event.description?.trim(), detail.join("\n")]
+    .filter(Boolean)
+    .join("\n\n");
+
+  const fields = [
+    {
+      name: "\u200b",
+      value: `✅ **${counts.GOING}** going  ·  📝 **${counts.MOTIVATED}** motivation`,
+    },
+  ];
+  if (event.kind === "MEETING" && expected.length > 0) {
+    fields.push(attendeeField(expected));
+  }
+
+  return {
+    title: event.title,
+    description: description || undefined,
+    color: KIND_COLORS[event.kind] ?? 0x209ebb,
+    fields,
+    footer: { text: footer },
+  };
+}
+
+/**
+ * The line under a post, which says which post it is. Rebuilt rather than read
+ * back off the message so an edit keeps whatever the original said.
+ */
+export function eventPostFooter(
+  announcement: boolean,
+  leadLabel?: string | null,
+): string {
+  return announcement
+    ? "React below so we can gauge interest"
+    : (leadLabel ?? "Reminder");
+}
+
+/** The RSVP buttons that ride along with every post about a schedule. */
+export function buildRsvpRowPayload(eventId: string) {
+  return {
+    type: 1,
+    components: [
+      {
+        type: 2,
+        style: 3,
+        label: "Going",
+        custom_id: rsvpButtonId(eventId, "GOING"),
+        emoji: { name: "✅" },
+      },
+      {
+        type: 2,
+        style: 2,
+        label: "Motivation",
+        custom_id: rsvpButtonId(eventId, "MOTIVATED"),
+        emoji: { name: "📝" },
+      },
+    ],
+  };
+}
+
+/**
+ * The whole Discord message for a schedule. Shared so the worker can post it
+ * and the dashboard can edit it in place — an attendee dropped from the list
+ * has to disappear from the roll-call in the channel too.
+ */
+export function buildEventMessagePayload(
+  event: EventMessageParams,
+  counts: RsvpCounts,
+  opts: {
+    announcement?: boolean;
+    leadLabel?: string | null;
+    expected?: ExpectedAttendee[];
+  },
+) {
+  const unix = Math.floor(event.startAt.getTime() / 1000);
+  const headline = opts.announcement
+    ? `📣 **New ${event.kind.toLowerCase()} scheduled**`
+    : `⏰ **Reminder** — starts <t:${unix}:R>`;
+
+  const footer = eventPostFooter(Boolean(opts.announcement), opts.leadLabel);
+
+  // Whoever the schedule was tagged with gets pinged on every post for it.
+  const mentions: Mentions = {
+    roleIds: event.mentionRoleIds,
+    userIds: event.mentionUserIds,
+    everyone: event.mentionEveryone,
+  };
+  const ping = mentionPrefix(mentions);
+
+  return {
+    content: ping ? `${ping}\n${headline}` : headline,
+    embeds: [buildEventEmbedPayload(event, counts, footer, opts.expected)],
+    components: [buildRsvpRowPayload(event.id)],
+    allowed_mentions: allowedMentionsFor(mentions),
+  };
+}
