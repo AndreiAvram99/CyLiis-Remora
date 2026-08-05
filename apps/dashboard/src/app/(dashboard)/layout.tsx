@@ -6,6 +6,7 @@ import {
   Users,
   Trophy,
   Instagram,
+  LifeBuoy,
 } from "lucide-react";
 import { requireMember } from "@/lib/session";
 import { Providers } from "@/components/providers";
@@ -37,6 +38,7 @@ const navItems = [
     icon: Trophy,
     managerOnly: false,
   },
+  { href: "/help", label: "Help", icon: LifeBuoy, managerOnly: false },
 ];
 
 export default async function DashboardLayout({
