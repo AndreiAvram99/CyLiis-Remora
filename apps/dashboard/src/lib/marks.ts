@@ -173,19 +173,26 @@ export async function loadMarks(): Promise<{
   };
 }
 
+/** Best standing first: white marks lead, black marks trail. */
+function byMarks(a: LeaderboardRow, b: LeaderboardRow): number {
+  return a.net - b.net || b.white - a.white || a.black - b.black;
+}
+
+/** Showed up most, missed least. */
+function byPresence(a: LeaderboardRow, b: LeaderboardRow): number {
+  return b.going - a.going || a.missed - b.missed || b.motivated - a.motivated;
+}
+
 /**
- * Best attendance first, or best standing first when ranking by marks — white
- * marks lead, black marks trail, so the board reads as a credit list rather
- * than a wall of shame.
+ * Whichever column the board is ranked by, the other one settles ties — so
+ * people level on marks are ordered by how often they turn up, and people with
+ * the same attendance by their standing. Names only decide a true draw.
  */
 export function sortRows(rows: LeaderboardRow[], sort: MarksSort) {
-  return [...rows].sort((a, b) =>
-    sort === "marks"
-      ? a.net - b.net || b.white - a.white || a.name.localeCompare(b.name)
-      : b.going - a.going ||
-        a.missed - b.missed ||
-        a.net - b.net ||
-        a.name.localeCompare(b.name),
+  const [first, second] =
+    sort === "marks" ? [byMarks, byPresence] : [byPresence, byMarks];
+  return [...rows].sort(
+    (a, b) => first(a, b) || second(a, b) || a.name.localeCompare(b.name),
   );
 }
 
