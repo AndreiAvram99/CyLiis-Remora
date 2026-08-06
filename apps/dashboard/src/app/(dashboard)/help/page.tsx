@@ -510,6 +510,11 @@ export default async function HelpPage() {
             with a reason.
           </Point>
           <Point>
+            Open a name in the Leaderboard to see where each of their marks came
+            from, and clear any of them — including one earned by missing a
+            meeting.
+          </Point>
+          <Point>
             Mark Instagram messages as read or delete them from the dashboard,
             which removes them from Discord too.
           </Point>
