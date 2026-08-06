@@ -173,14 +173,105 @@ export async function loadMarks(): Promise<{
   };
 }
 
-/** Best attendance first, or worst standing first when ranking by marks. */
+/**
+ * Best attendance first, or best standing first when ranking by marks — white
+ * marks lead, black marks trail, so the board reads as a credit list rather
+ * than a wall of shame.
+ */
 export function sortRows(rows: LeaderboardRow[], sort: MarksSort) {
   return [...rows].sort((a, b) =>
     sort === "marks"
-      ? b.net - a.net || b.black - a.black || a.name.localeCompare(b.name)
+      ? a.net - b.net || b.white - a.white || a.name.localeCompare(b.name)
       : b.going - a.going ||
         a.missed - b.missed ||
         a.net - b.net ||
         a.name.localeCompare(b.name),
   );
+}
+
+/** A black mark a member picked up by not answering a meeting they were at. */
+export interface MissedMeeting {
+  eventId: string;
+  title: string;
+  startAt: Date;
+}
+
+export interface MemberMarkDetail {
+  name: string;
+  missed: MissedMeeting[];
+  manual: ManualMark[];
+}
+
+/**
+ * Where one member's marks come from, so the owner can take any of them back:
+ * the meetings they were expected at and never answered, plus anything added
+ * by hand.
+ */
+export async function loadMemberMarks(
+  userId: string,
+): Promise<MemberMarkDetail | null> {
+  const guildId = env.guildId();
+
+  const [invitations, answers, manual, member] = await Promise.all([
+    prisma.eventInvitee.findMany({
+      where: {
+        userId,
+        event: { guildId, kind: "MEETING", startAt: { lt: new Date() } },
+      },
+      select: {
+        displayName: true,
+        event: { select: { id: true, title: true, startAt: true } },
+      },
+    }),
+    prisma.rsvp.findMany({
+      where: { userId, event: { guildId } },
+      select: { eventId: true, status: true, displayName: true },
+    }),
+    prisma.memberMark.findMany({
+      where: { guildId, userId },
+      orderBy: { createdAt: "desc" },
+    }),
+    prisma.guildMember.findUnique({
+      where: { id: userId },
+      select: { displayName: true, username: true },
+    }),
+  ]);
+
+  if (invitations.length === 0 && manual.length === 0) return null;
+
+  const answered = new Set(
+    answers
+      .filter(
+        (a) =>
+          a.status === RsvpStatus.GOING || a.status === RsvpStatus.MOTIVATED,
+      )
+      .map((a) => a.eventId),
+  );
+
+  const name =
+    member?.displayName ||
+    member?.username ||
+    invitations[0]?.displayName ||
+    answers[0]?.displayName ||
+    userId;
+
+  return {
+    name,
+    missed: invitations
+      .filter((i) => !answered.has(i.event.id))
+      .map((i) => ({
+        eventId: i.event.id,
+        title: i.event.title,
+        startAt: i.event.startAt,
+      }))
+      .sort((a, b) => b.startAt.getTime() - a.startAt.getTime()),
+    manual: manual.map((m) => ({
+      id: m.id,
+      userId: m.userId,
+      name,
+      kind: m.kind,
+      reason: m.reason,
+      createdAt: m.createdAt,
+    })),
+  };
 }
