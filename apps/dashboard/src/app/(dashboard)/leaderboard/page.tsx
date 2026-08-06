@@ -100,9 +100,9 @@ export default async function LeaderboardPage({
           Leaderboard
         </h1>
         <p className="max-w-2xl text-sm text-neutral-500">
-          Meeting attendance and marks across every meeting that has started.
-          Black counts missed meetings plus anything added by hand; white counts
-          credits.
+          Attendance at the meetings each member was expected at, across
+          everything that has started. Black counts missed meetings plus
+          anything added by hand; white counts credits.
         </p>
       </div>
 
