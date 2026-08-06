@@ -7,6 +7,7 @@ export interface LeaderboardRow {
   avatarUrl: string | null;
   /** Past meetings the member was listed as expected at. */
   expected: number;
+  /** Of those, the ones they answered — turning up uninvited doesn't count. */
   going: number;
   motivated: number;
   /** Expected but never answered. */
@@ -87,18 +88,27 @@ export async function loadMarks(): Promise<{
   const whiteByUser = new Map<string, number>();
   const snapshot = new Map<string, { name: string; avatarUrl: string | null }>();
 
-  // Attendance counts every past meeting the member answered, whether or not
-  // they were formally invited; "missed" only applies to expected attendees.
+  // Attendance is measured against what was asked of someone, so only meetings
+  // they were expected at count. Answering one they weren't on the list for is
+  // welcome, but it isn't attendance and can't push the rate past 100%.
+  const invited = new Set(invitees.map((i) => `${i.eventId}:${i.userId}`));
+
   const answered = new Set<string>();
   for (const a of answers) {
-    if (a.status === RsvpStatus.GOING) bump(going, a.userId);
-    else if (a.status === RsvpStatus.MOTIVATED) bump(motivated, a.userId);
-    else continue;
-    answered.add(`${a.eventId}:${a.userId}`);
+    const key = `${a.eventId}:${a.userId}`;
+    if (
+      a.status !== RsvpStatus.GOING &&
+      a.status !== RsvpStatus.MOTIVATED
+    ) {
+      continue;
+    }
+    answered.add(key);
     snapshot.set(a.userId, {
       name: a.displayName || a.username || a.userId,
       avatarUrl: a.avatarUrl,
     });
+    if (!invited.has(key)) continue;
+    bump(a.status === RsvpStatus.GOING ? going : motivated, a.userId);
   }
 
   for (const i of invitees) {
