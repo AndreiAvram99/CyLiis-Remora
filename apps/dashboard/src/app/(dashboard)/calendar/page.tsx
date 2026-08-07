@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { headers } from "next/headers";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Link2 } from "lucide-react";
 import { DateTime } from "luxon";
 import { prisma, type EventKind } from "@repo/db";
 import { Card } from "@/components/ui";
@@ -27,6 +27,8 @@ interface CalItem {
   start: Date;
   allDay: boolean;
   styleKey: string;
+  /** Meeting link or ticket page, when the schedule carries one. */
+  url?: string | null;
   // Schedules are tinted with their channel's color; kind styling is the
   // fallback for channels with no color set.
   color?: string;
@@ -66,6 +68,7 @@ export default async function CalendarPage({
       kind: true,
       channelId: true,
       seriesId: true,
+      url: true,
     },
   });
 
@@ -94,6 +97,7 @@ export default async function CalendarPage({
       channelId: true,
       recurrence: true,
       seriesId: true,
+      url: true,
     },
   });
 
@@ -136,6 +140,7 @@ export default async function CalendarPage({
           allDay: anchor.allDay,
           styleKey: anchor.kind as EventKind,
           color: channelColor.get(anchor.channelId),
+          url: anchor.url,
         });
       }
       dt = dt.plus(step);
@@ -150,6 +155,7 @@ export default async function CalendarPage({
       allDay: e.allDay,
       styleKey: e.kind as EventKind,
       color: channelColor.get(e.channelId),
+      url: e.url,
     })),
     ...projected,
   ];
@@ -259,30 +265,57 @@ export default async function CalendarPage({
                   </span>
                 </div>
                 <div className="space-y-1">
-                  {shown.map((it) => (
-                    <div
-                      key={it.id}
-                      title={it.title}
-                      className={`break-words rounded px-1.5 py-0.5 text-[11px] leading-tight ${it.color ? "" : PILL_STYLES[it.styleKey]}`}
-                      style={
-                        it.color
-                          ? {
-                              color: it.color,
-                              backgroundColor: `${it.color}22`,
-                            }
-                          : undefined
-                      }
-                    >
-                      {!it.allDay ? (
-                        <span className="tabular-nums opacity-80">
-                          {DateTime.fromJSDate(it.start)
-                            .setZone(zone)
-                            .toFormat("HH:mm")}{" "}
-                        </span>
-                      ) : null}
-                      {it.title}
-                    </div>
-                  ))}
+                  {shown.map((it) => {
+                    const style = it.color
+                      ? { color: it.color, backgroundColor: `${it.color}22` }
+                      : undefined;
+                    const className = `break-words rounded px-1.5 py-0.5 text-[11px] leading-tight ${
+                      it.color ? "" : PILL_STYLES[it.styleKey]
+                    }`;
+                    const body = (
+                      <>
+                        {!it.allDay ? (
+                          <span className="tabular-nums opacity-80">
+                            {DateTime.fromJSDate(it.start)
+                              .setZone(zone)
+                              .toFormat("HH:mm")}{" "}
+                          </span>
+                        ) : null}
+                        {it.title}
+                        {it.url ? (
+                          <Link2
+                            size={10}
+                            className="ml-1 inline align-[-1px] opacity-80"
+                            aria-hidden
+                          />
+                        ) : null}
+                      </>
+                    );
+
+                    // A schedule with a link opens it straight from the grid.
+                    return it.url ? (
+                      <a
+                        key={it.id}
+                        href={it.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        title={`${it.title}\n${it.url}`}
+                        className={`${className} block transition hover:brightness-125`}
+                        style={style}
+                      >
+                        {body}
+                      </a>
+                    ) : (
+                      <div
+                        key={it.id}
+                        title={it.title}
+                        className={className}
+                        style={style}
+                      >
+                        {body}
+                      </div>
+                    );
+                  })}
                   {extra > 0 ? (
                     <div className="px-1.5 text-[10px] text-neutral-500">
                       +{extra} more
@@ -295,8 +328,10 @@ export default async function CalendarPage({
         </div>
       </Card>
 
-      <div className="text-xs text-neutral-500">
+      <div className="flex flex-wrap items-center gap-1.5 text-xs text-neutral-500">
         Schedules use their channel color.
+        <Link2 size={11} className="ml-1" aria-hidden /> means there&apos;s a
+        link — click it to open.
       </div>
     </div>
   );
