@@ -135,6 +135,30 @@ export async function agendaDocAlive(docId: string): Promise<boolean> {
   }
 }
 
+/**
+ * Send the agenda to Drive's bin. Recoverable there for a month, which is the
+ * right weight for something that can hold a term's worth of minutes.
+ */
+export async function trashAgendaDoc(docId: string): Promise<void> {
+  const c = getClients();
+  if (!c) {
+    throw new Error("Google isn't configured for Drive access.");
+  }
+  try {
+    await c.drive.files.update({
+      fileId: docId,
+      requestBody: { trashed: true },
+      supportsAllDrives: true,
+    });
+  } catch (err) {
+    const status =
+      (err as { status?: number }).status ?? (err as { code?: number }).code;
+    // Already gone is the outcome we were after.
+    if (status === 404) return;
+    throw new Error(describeFailure(err));
+  }
+}
+
 /** Starter content, so a fresh tab isn't an intimidating blank page. */
 function agendaBody(title: string, date: string): string {
   return [
