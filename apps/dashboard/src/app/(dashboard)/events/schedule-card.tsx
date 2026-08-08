@@ -134,12 +134,11 @@ export function ScheduleCard({
               {event.kind === "MEETING" && event.agendaDocUrl && canDelete ? (
                 <DeleteAgendaButton id={event.id} title={event.title} />
               ) : null}
-          <Link href={`/events/${event.id}`} title="Edit" aria-label="Edit">
-            <Button variant="secondary" className="w-11 px-0 sm:w-auto sm:px-5">
-              <Pencil size={16} />
-              <span className="hidden sm:inline">Edit</span>
-            </Button>
-          </Link>
+              <Link href={`/events/${event.id}`} title="Edit" aria-label="Edit">
+                <Button variant="secondary" className="w-11 px-0">
+                  <Pencil size={18} />
+                </Button>
+              </Link>
           {canDelete ? (
             <DeleteEventButton id={event.id} title={event.title} />
           ) : null}

@@ -24,14 +24,11 @@ export function DeleteEventButton({ id, title }: { id: string; title: string }) 
       variant="danger"
       onClick={handleDelete}
       disabled={isPending}
-      className="w-11 px-0 sm:w-auto sm:px-5"
-      title="Delete"
+      className="w-11 px-0"
+      title={isPending ? "Deleting..." : "Delete"}
       aria-label="Delete"
     >
-      <Trash2 size={16} />
-      <span className="hidden sm:inline">
-        {isPending ? "Deleting..." : "Delete"}
-      </span>
+      <Trash2 size={18} />
     </Button>
   );
 }
