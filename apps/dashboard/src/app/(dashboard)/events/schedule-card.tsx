@@ -4,7 +4,7 @@ import { RsvpStatus } from "@repo/db";
 import { durationLabel, recurrenceBadge } from "@repo/shared";
 import { Badge, Button, Card } from "@/components/ui";
 import { formatInTz, relativeTo } from "@/lib/time";
-import { AgendaButton } from "./agenda-button";
+import { AgendaButton, DeleteAgendaButton } from "./agenda-button";
 import { DeleteEventButton } from "./delete-button";
 
 const KIND_STYLES: Record<string, string> = {
@@ -128,9 +128,12 @@ export function ScheduleCard({
       </div>
       {isManager ? (
         <div className="flex items-center gap-2">
-          {event.kind === "MEETING" ? (
-            <AgendaButton id={event.id} docUrl={event.agendaDocUrl} />
-          ) : null}
+              {event.kind === "MEETING" ? (
+                <AgendaButton id={event.id} docUrl={event.agendaDocUrl} />
+              ) : null}
+              {event.kind === "MEETING" && event.agendaDocUrl && canDelete ? (
+                <DeleteAgendaButton id={event.id} title={event.title} />
+              ) : null}
           <Link href={`/events/${event.id}`} title="Edit" aria-label="Edit">
             <Button variant="secondary" className="w-11 px-0 sm:w-auto sm:px-5">
               <Pencil size={16} />

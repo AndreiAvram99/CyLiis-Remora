@@ -23,7 +23,11 @@ import {
 } from "@repo/shared";
 import { assertManager, assertMaster } from "@/lib/session";
 import { assertCanPostTo, assertKindAllowedIn } from "@/lib/channel-access";
-import { agendaDocAlive, ensureAgendaDoc } from "@/lib/agenda-doc";
+import {
+  agendaDocAlive,
+  ensureAgendaDoc,
+  trashAgendaDoc,
+} from "@/lib/agenda-doc";
 import { getGuild } from "@/lib/guild";
 import { env } from "@/lib/env";
 import { localInputToDate } from "@/lib/time";
@@ -814,6 +818,25 @@ export async function createAgendaDoc(id: string) {
 
   revalidatePath("/events");
   return { url: result.url, created: true };
+}
+
+/**
+ * Bin the meeting's agenda and unhook every occurrence pointing at it. Owner
+ * only, since one document can hold a whole series' minutes. Pressing Agenda
+ * afterwards starts a fresh one.
+ */
+export async function removeAgendaDoc(id: string) {
+  await assertMaster();
+
+  const event = await prisma.event.findUnique({
+    where: { id },
+    select: { agendaDocId: true },
+  });
+  if (!event?.agendaDocId) return;
+
+  await trashAgendaDoc(event.agendaDocId);
+  await forgetAgendaDoc(event.agendaDocId);
+  revalidatePath("/events");
 }
 
 export async function deleteEvent(id: string) {

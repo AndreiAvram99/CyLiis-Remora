@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { headers } from "next/headers";
-import { ChevronLeft, ChevronRight, Link2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, FileText, Link2 } from "lucide-react";
 import { DateTime } from "luxon";
 import { prisma, type EventKind } from "@repo/db";
 import { Card } from "@/components/ui";
@@ -29,6 +29,8 @@ interface CalItem {
   styleKey: string;
   /** Meeting link or ticket page, when the schedule carries one. */
   url?: string | null;
+  /** The meeting's agenda document, once one has been created. */
+  agendaUrl?: string | null;
   // Schedules are tinted with their channel's color; kind styling is the
   // fallback for channels with no color set.
   color?: string;
@@ -69,6 +71,7 @@ export default async function CalendarPage({
       channelId: true,
       seriesId: true,
       url: true,
+      agendaDocUrl: true,
     },
   });
 
@@ -98,6 +101,7 @@ export default async function CalendarPage({
       recurrence: true,
       seriesId: true,
       url: true,
+      agendaDocUrl: true,
     },
   });
 
@@ -141,6 +145,7 @@ export default async function CalendarPage({
           styleKey: anchor.kind as EventKind,
           color: channelColor.get(anchor.channelId),
           url: anchor.url,
+          agendaUrl: anchor.agendaDocUrl,
         });
       }
       dt = dt.plus(step);
@@ -156,6 +161,7 @@ export default async function CalendarPage({
       styleKey: e.kind as EventKind,
       color: channelColor.get(e.channelId),
       url: e.url,
+      agendaUrl: e.agendaDocUrl,
     })),
     ...projected,
   ];
@@ -265,57 +271,54 @@ export default async function CalendarPage({
                   </span>
                 </div>
                 <div className="space-y-1">
-                  {shown.map((it) => {
-                    const style = it.color
-                      ? { color: it.color, backgroundColor: `${it.color}22` }
-                      : undefined;
-                    const className = `break-words rounded px-1.5 py-0.5 text-[11px] leading-tight ${
-                      it.color ? "" : PILL_STYLES[it.styleKey]
-                    }`;
-                    const body = (
-                      <>
-                        {!it.allDay ? (
-                          <span className="tabular-nums opacity-80">
-                            {DateTime.fromJSDate(it.start)
-                              .setZone(zone)
-                              .toFormat("HH:mm")}{" "}
-                          </span>
-                        ) : null}
-                        {it.title}
-                        {it.url ? (
-                          <Link2
-                            size={10}
-                            className="ml-1 inline align-[-1px] opacity-80"
-                            aria-hidden
-                          />
-                        ) : null}
-                      </>
-                    );
-
-                    // A schedule with a link opens it straight from the grid.
-                    return it.url ? (
-                      <a
-                        key={it.id}
-                        href={it.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        title={`${it.title}\n${it.url}`}
-                        className={`${className} block transition hover:brightness-125`}
-                        style={style}
-                      >
-                        {body}
-                      </a>
-                    ) : (
-                      <div
-                        key={it.id}
-                        title={it.title}
-                        className={className}
-                        style={style}
-                      >
-                        {body}
-                      </div>
-                    );
-                  })}
+                  {shown.map((it) => (
+                    <div
+                      key={it.id}
+                      title={it.title}
+                      className={`break-words rounded px-1.5 py-0.5 text-[11px] leading-tight ${
+                        it.color ? "" : PILL_STYLES[it.styleKey]
+                      }`}
+                      style={
+                        it.color
+                          ? { color: it.color, backgroundColor: `${it.color}22` }
+                          : undefined
+                      }
+                    >
+                      {!it.allDay ? (
+                        <span className="tabular-nums opacity-80">
+                          {DateTime.fromJSDate(it.start)
+                            .setZone(zone)
+                            .toFormat("HH:mm")}{" "}
+                        </span>
+                      ) : null}
+                      {it.title}
+                      {/* Whatever this schedule can open, one tap away. */}
+                      {it.agendaUrl ? (
+                        <a
+                          href={it.agendaUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          title="Open the agenda"
+                          aria-label={`Agenda for ${it.title}`}
+                          className="ml-1 inline-block align-[-1px] opacity-70 transition hover:opacity-100"
+                        >
+                          <FileText size={10} />
+                        </a>
+                      ) : null}
+                      {it.url ? (
+                        <a
+                          href={it.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          title={it.url}
+                          aria-label={`Link for ${it.title}`}
+                          className="ml-1 inline-block align-[-1px] opacity-70 transition hover:opacity-100"
+                        >
+                          <Link2 size={10} />
+                        </a>
+                      ) : null}
+                    </div>
+                  ))}
                   {extra > 0 ? (
                     <div className="px-1.5 text-[10px] text-neutral-500">
                       +{extra} more
@@ -330,8 +333,8 @@ export default async function CalendarPage({
 
       <div className="flex flex-wrap items-center gap-1.5 text-xs text-neutral-500">
         Schedules use their channel color.
-        <Link2 size={11} className="ml-1" aria-hidden /> means there&apos;s a
-        link — click it to open.
+        <FileText size={11} className="ml-1" aria-hidden /> opens the agenda,
+        <Link2 size={11} aria-hidden /> the meeting link.
       </div>
     </div>
   );
