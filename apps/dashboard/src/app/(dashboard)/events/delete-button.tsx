@@ -28,7 +28,7 @@ export function DeleteEventButton({ id, title }: { id: string; title: string }) 
       title={isPending ? "Deleting..." : "Delete"}
       aria-label="Delete"
     >
-      <Trash2 size={18} />
+      <Trash2 className="h-5 w-5" />
     </Button>
   );
 }

@@ -28,7 +28,7 @@ export function AgendaButton({
       aria-label={label}
     >
       <Button variant="secondary" className="w-11 px-0 sm:w-auto sm:px-5">
-        <FileText size={16} />
+        <FileText className="h-5 w-5" />
         <span className="hidden sm:inline">Agenda</span>
         {docUrl ? (
           <ExternalLink size={12} className="hidden sm:inline" />
@@ -75,7 +75,7 @@ export function DeleteAgendaButton({
       aria-label="Delete agenda"
       className="w-11 border-[rgba(224,92,92,0.28)] px-0 text-[#E56D6D] hover:bg-[rgba(229,109,109,0.10)] hover:text-red-400"
     >
-      <FileX2 size={18} />
+      <FileX2 className="h-5 w-5" />
     </Button>
   );
 }

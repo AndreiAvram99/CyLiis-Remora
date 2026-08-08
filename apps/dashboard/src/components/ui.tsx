@@ -82,7 +82,9 @@ export function Button({
   return (
     <button
       className={cn(
-        "inline-flex h-11 items-center justify-center gap-2 rounded-[14px] px-5 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50",
+        // Icons keep their size: a lone icon in a fixed-width button would
+        // otherwise be squashed as a flex item.
+        "inline-flex h-11 items-center justify-center gap-2 rounded-[14px] px-5 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50 [&>svg]:shrink-0",
         variants[variant],
         className,
       )}

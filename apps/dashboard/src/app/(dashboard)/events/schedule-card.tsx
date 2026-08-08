@@ -136,7 +136,7 @@ export function ScheduleCard({
               ) : null}
               <Link href={`/events/${event.id}`} title="Edit" aria-label="Edit">
                 <Button variant="secondary" className="w-11 px-0">
-                  <Pencil size={18} />
+                  <Pencil className="h-5 w-5" />
                 </Button>
               </Link>
           {canDelete ? (
