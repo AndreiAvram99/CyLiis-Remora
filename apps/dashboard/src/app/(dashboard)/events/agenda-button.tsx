@@ -2,7 +2,7 @@
 
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { FileText, ExternalLink, FileX } from "lucide-react";
+import { FileText, ExternalLink, FileX2 } from "lucide-react";
 import { Button } from "@/components/ui";
 import { removeAgendaDoc } from "./actions";
 
@@ -73,9 +73,9 @@ export function DeleteAgendaButton({
       disabled={isPending}
       title="Delete agenda"
       aria-label="Delete agenda"
-      className="w-11 px-0 text-[#E56D6D] hover:text-red-400"
+      className="w-11 border-[rgba(224,92,92,0.28)] px-0 text-[#E56D6D] hover:bg-[rgba(229,109,109,0.10)] hover:text-red-400"
     >
-      <FileX size={16} />
+      <FileX2 size={18} />
     </Button>
   );
 }
