@@ -332,7 +332,12 @@ export default async function HelpPage() {
       >
         <Point>
           A request lists each file with filament, infill, walls, color, support
-          and how many copies.
+          and how many copies. New files start from the defaults set in
+          Settings, so usually there&apos;s nothing to adjust.
+        </Point>
+        <Point>
+          Drop in as many files as you like — Discord takes ten attachments per
+          message, so the rest follow underneath the request automatically.
         </Point>
         <Point>
           In Discord, the first person to tap{" "}

@@ -35,7 +35,7 @@ import { channelColorOf } from "@/lib/channel-color";
 import { describeScheduleChanges } from "@/lib/schedule-diff";
 import {
   postChannelMessage,
-  postChannelMessageWithFiles,
+  postChannelMessageWithManyFiles,
   editChannelMessage,
 } from "@/lib/discord";
 import {
@@ -572,7 +572,7 @@ export async function createPrintRequest(
     });
 
     try {
-      const messageId = await postChannelMessageWithFiles(
+      const messageId = await postChannelMessageWithManyFiles(
         channelId,
         payload,
         filePayloads,

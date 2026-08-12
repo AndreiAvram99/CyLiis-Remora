@@ -5,11 +5,9 @@ import { useRouter } from "next/navigation";
 import { GripVertical, Trash2, UploadCloud } from "lucide-react";
 import {
   FILAMENT_TYPES,
-  DEFAULT_FILAMENT,
-  DEFAULT_INFILL,
-  DEFAULT_WALL_COUNT,
-  DEFAULT_PRINT_COLOR,
   PRINT_COLORS,
+  PRINT_DEFAULTS,
+  type PrintDefaults,
 } from "@repo/shared";
 import { Button, Card, Label, Select, Textarea } from "@/components/ui";
 import { ChannelSelect } from "@/components/channel-select";
@@ -65,6 +63,10 @@ function ColorSwatches({
 }
 
 const MAX_BYTES = 8 * 1024 * 1024;
+/** Whole-request ceiling, matching the server action's body limit. */
+const MAX_TOTAL_BYTES = 50 * 1024 * 1024;
+/** Discord's attachments-per-message cap; more than this posts as a follow-up. */
+const FILES_PER_MESSAGE = 10;
 
 function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -75,9 +77,11 @@ function formatSize(bytes: number): string {
 export function PrintForm({
   channels,
   defaultChannelId,
+  defaults = PRINT_DEFAULTS,
 }: {
   channels: ChannelOption[];
   defaultChannelId?: string;
+  defaults?: PrintDefaults;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -99,11 +103,7 @@ export function PrintForm({
       id: nextId.current++,
       file,
       copies: 1,
-      filamentType: DEFAULT_FILAMENT,
-      infill: DEFAULT_INFILL,
-      wallCount: DEFAULT_WALL_COUNT,
-      color: DEFAULT_PRINT_COLOR,
-      needsSupport: false,
+      ...defaults,
     }));
     setRows((r) => [...r, ...added]);
     setError(null);
@@ -140,6 +140,12 @@ export function PrintForm({
     const tooBig = rows.find((r) => r.file.size > MAX_BYTES);
     if (tooBig) {
       return setError(`"${tooBig.file.name}" is larger than 8 MB — Discord won't accept it.`);
+    }
+    const total = rows.reduce((sum, r) => sum + r.file.size, 0);
+    if (total > MAX_TOTAL_BYTES) {
+      return setError(
+        `That's ${formatSize(total)} in one go — send up to ${formatSize(MAX_TOTAL_BYTES)} per request and split the rest into a second one.`,
+      );
     }
 
     const fd = new FormData();
@@ -237,6 +243,9 @@ export function PrintForm({
             <>
               <p className="text-xs text-neutral-500">
                 Drag the rows to set print order — the top file prints first.
+                {rows.length > FILES_PER_MESSAGE
+                  ? ` ${rows.length} files go out as ${Math.ceil(rows.length / FILES_PER_MESSAGE)} Discord posts — the first one carries the details and the claim button.`
+                  : ""}
               </p>
               <ul className="space-y-2">
                 {rows.map((row, i) => (

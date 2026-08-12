@@ -1,10 +1,11 @@
 import { prisma } from "@repo/db";
-import type { EventKindName } from "@repo/shared";
+import { printDefaultsOf, type EventKindName } from "@repo/shared";
 import { getGuild, getTextChannels } from "@/lib/guild";
 import { env } from "@/lib/env";
 import { isCalendarEnabled } from "@/lib/gcal";
 import { requireManager } from "@/lib/session";
 import { SettingsForm } from "./settings-form";
+import { PrintDefaultsForm } from "./print-defaults";
 import { ChannelColorEditor } from "./channel-colors";
 
 export const dynamic = "force-dynamic";
@@ -55,6 +56,8 @@ export default async function SettingsPage() {
         }))}
         defaults={grouped}
       />
+
+      <PrintDefaultsForm initial={printDefaultsOf(guild)} />
 
       <ChannelColorEditor
         channels={channels.map((c) => ({

@@ -37,6 +37,15 @@ model Guild {
   defaultChannelId String?
   timezone         String   @default("Europe/Bucharest")
   memberCount      Int      @default(0) // updated by the bot, used for reach %
+
+  // Slicer settings a new print file starts with, so the common case is one
+  // upload and no fiddling.
+  printFilament  String  @default("PLA")
+  printInfill    Int     @default(15)
+  printWallCount Int     @default(4)
+  printColor     String  @default("#132884")
+  printSupport   Boolean @default(false)
+
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 

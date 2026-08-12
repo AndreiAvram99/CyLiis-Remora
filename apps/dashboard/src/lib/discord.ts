@@ -62,6 +62,70 @@ export async function postChannelMessageWithFiles(
   return msg.id ?? null;
 }
 
+/** Discord takes ten attachments per message, and 25 MiB in total. */
+const MAX_FILES_PER_MESSAGE = 10;
+const MAX_BYTES_PER_MESSAGE = 20 * 1024 * 1024;
+
+/** Split an upload into batches Discord will actually accept. */
+function batchFiles<T extends { data: Buffer }>(files: T[]): T[][] {
+  const batches: T[][] = [];
+  let current: T[] = [];
+  let bytes = 0;
+
+  for (const file of files) {
+    const tooMany = current.length >= MAX_FILES_PER_MESSAGE;
+    const tooBig = current.length > 0 && bytes + file.data.length > MAX_BYTES_PER_MESSAGE;
+    if (tooMany || tooBig) {
+      batches.push(current);
+      current = [];
+      bytes = 0;
+    }
+    current.push(file);
+    bytes += file.data.length;
+  }
+  if (current.length > 0) batches.push(current);
+  return batches;
+}
+
+/**
+ * Post a message whose attachments may outnumber what Discord allows. The first
+ * message carries the embed and buttons, and the rest follow underneath as
+ * plain attachment posts, so a request of any size lands as one readable
+ * thread. Returns the id of the first message — the one worth editing later.
+ */
+export async function postChannelMessageWithManyFiles(
+  channelId: string,
+  payload: Record<string, unknown>,
+  files: { name: string; data: Buffer }[],
+): Promise<string | null> {
+  const batches = batchFiles(files);
+  if (batches.length === 0) {
+    return postChannelMessage(channelId, payload);
+  }
+
+  const first = await postChannelMessageWithFiles(
+    channelId,
+    payload,
+    batches[0],
+  );
+
+  let sent = batches[0].length;
+  for (const batch of batches.slice(1)) {
+    const from = sent + 1;
+    sent += batch.length;
+    await postChannelMessageWithFiles(
+      channelId,
+      {
+        content: `📎 Files ${from}–${sent} of ${files.length} for the request above`,
+        allowed_mentions: { parse: [] as string[] },
+      },
+      batch,
+    );
+  }
+
+  return first;
+}
+
 /** Post a plain (no-file) message to a channel via the bot. Returns message id. */
 export async function postChannelMessage(
   channelId: string,

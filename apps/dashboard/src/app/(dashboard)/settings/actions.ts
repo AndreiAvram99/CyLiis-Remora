@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@repo/db";
-import { offsetLabel } from "@repo/shared";
+import { offsetLabel, printDefaultsOf, type PrintDefaults } from "@repo/shared";
 import { assertManager } from "@/lib/session";
 import { env } from "@/lib/env";
 import { channelColorOf } from "@/lib/channel-color";
@@ -35,6 +35,36 @@ export async function updateSettings(input: SettingsValues) {
       skipDuplicates: true,
     }),
   ]);
+
+  revalidatePath("/settings");
+  revalidatePath("/events/new");
+  return { ok: true };
+}
+
+/**
+ * The slicer settings every new print file starts with. Managers set them once
+ * so the usual request is a drag-and-drop with nothing to adjust.
+ */
+export async function updatePrintDefaults(input: PrintDefaults) {
+  await assertManager();
+  const values = printDefaultsOf({
+    printFilament: input.filamentType,
+    printInfill: input.infill,
+    printWallCount: input.wallCount,
+    printColor: input.color,
+    printSupport: input.needsSupport,
+  });
+
+  await prisma.guild.update({
+    where: { id: env.guildId() },
+    data: {
+      printFilament: values.filamentType,
+      printInfill: values.infill,
+      printWallCount: values.wallCount,
+      printColor: values.color,
+      printSupport: values.needsSupport,
+    },
+  });
 
   revalidatePath("/settings");
   revalidatePath("/events/new");

@@ -14,10 +14,12 @@ import {
   fromOffsetMinutes,
   toOffsetMinutes,
   MEETING_DURATIONS,
+  PRINT_DEFAULTS,
   PRINT_ONLY_CHANNELS,
   RECURRENCES,
   RECURRENCE_LABELS,
   type EventKindName,
+  type PrintDefaults,
   type ReminderUnit,
 } from "@repo/shared";
 import { Button, Card, Input, Label, Select, Textarea } from "@/components/ui";
@@ -76,6 +78,8 @@ interface EventFormProps {
   attendees: AttendeeRoster;
   mentionRoles: MentionOption[];
   mentionMembers: MentionOption[];
+  /** Slicer settings a newly attached print file starts with. */
+  printDefaults?: PrintDefaults;
   initial?: EventFormInitial;
 }
 
@@ -107,6 +111,7 @@ export function EventForm({
   attendees,
   mentionRoles,
   mentionMembers,
+  printDefaults = PRINT_DEFAULTS,
   initial,
 }: EventFormProps) {
   const router = useRouter();
@@ -369,7 +374,11 @@ export function EventForm({
       </Card>
 
       {kind === "PRINT" ? (
-        <PrintForm channels={channels} defaultChannelId={printingChannelId} />
+        <PrintForm
+          channels={channels}
+          defaultChannelId={printingChannelId}
+          defaults={printDefaults}
+        />
       ) : (
         <form onSubmit={handleSubmit} className="space-y-6">
           <Card className="space-y-4">

@@ -1,3 +1,4 @@
+import { printDefaultsOf } from "@repo/shared";
 import { getGuild, getTextChannels } from "@/lib/guild";
 import { postableChannels } from "@/lib/channel-access";
 import { getKindDefaults } from "@/lib/defaults";
@@ -41,6 +42,7 @@ export default async function NewEventPage() {
         attendees={attendees}
         mentionRoles={mentions.roles}
         mentionMembers={mentions.members}
+        printDefaults={printDefaultsOf(guild)}
       />
     </div>
   );

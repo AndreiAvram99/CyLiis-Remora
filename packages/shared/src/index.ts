@@ -338,9 +338,56 @@ export const FILAMENT_TYPES = [
 export type FilamentType = (typeof FILAMENT_TYPES)[number];
 
 export const DEFAULT_FILAMENT: FilamentType = "PLA";
-export const DEFAULT_INFILL = 60;
+export const DEFAULT_INFILL = 15;
 export const DEFAULT_WALL_COUNT = 4;
 export const DEFAULT_PRINT_COLOR = "#132884";
+export const DEFAULT_PRINT_SUPPORT = false;
+
+/** What a freshly added print file is pre-filled with, set per server. */
+export interface PrintDefaults {
+  filamentType: FilamentType;
+  infill: number;
+  wallCount: number;
+  color: string;
+  needsSupport: boolean;
+}
+
+export const PRINT_DEFAULTS: PrintDefaults = {
+  filamentType: DEFAULT_FILAMENT,
+  infill: DEFAULT_INFILL,
+  wallCount: DEFAULT_WALL_COUNT,
+  color: DEFAULT_PRINT_COLOR,
+  needsSupport: DEFAULT_PRINT_SUPPORT,
+};
+
+/** Coerce stored settings into something a print form can rely on. */
+export function printDefaultsOf(row: {
+  printFilament?: string | null;
+  printInfill?: number | null;
+  printWallCount?: number | null;
+  printColor?: string | null;
+  printSupport?: boolean | null;
+}): PrintDefaults {
+  const infill = row.printInfill;
+  const walls = row.printWallCount;
+  return {
+    filamentType: FILAMENT_TYPES.includes(row.printFilament as FilamentType)
+      ? (row.printFilament as FilamentType)
+      : DEFAULT_FILAMENT,
+    infill:
+      typeof infill === "number" && infill >= 0 && infill <= 100
+        ? infill
+        : DEFAULT_INFILL,
+    wallCount:
+      typeof walls === "number" && walls >= 1 ? walls : DEFAULT_WALL_COUNT,
+    color: PRINT_COLORS.some(
+      (c) => c.toUpperCase() === (row.printColor ?? "").toUpperCase(),
+    )
+      ? (row.printColor as string)
+      : DEFAULT_PRINT_COLOR,
+    needsSupport: Boolean(row.printSupport),
+  };
+}
 
 /** Swatch palette for choosing a print color. */
 export const PRINT_COLORS: string[] = [
