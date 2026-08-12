@@ -3,6 +3,8 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { X } from "lucide-react";
+import { MARK_LABELS, type MarkKind } from "@repo/shared";
+import { MarkBullet } from "@/components/marks";
 import { clearMissedMark, removeMemberMark } from "./actions";
 
 export interface MissedRow {
@@ -16,17 +18,6 @@ export interface ManualRow {
   kind: string;
   reason: string | null;
   when: string;
-}
-
-function Bullet({ white }: { white?: boolean }) {
-  return (
-    <span
-      className={`h-3 w-3 shrink-0 rounded-full ring-1 ${
-        white ? "bg-white ring-neutral-400" : "bg-black ring-neutral-600"
-      }`}
-      aria-hidden
-    />
-  );
 }
 
 /**
@@ -114,7 +105,7 @@ export function MemberMarks({
             run(() => clearMissedMark(m.eventId, userId));
           }}
         >
-          <Bullet />
+          <MarkBullet kind="BLACK" />
           <span className="min-w-0">
             <span className="block truncate text-neutral-200">{m.title}</span>
             <span className="text-xs text-neutral-500">
@@ -130,10 +121,11 @@ export function MemberMarks({
           label="Withdraw this mark"
           onRemove={() => run(() => removeMemberMark(m.id))}
         >
-          <Bullet white={m.kind === "WHITE"} />
+          <MarkBullet kind={m.kind} />
           <span className="min-w-0">
             <span className="block truncate text-neutral-200">
-              {m.reason || `${m.kind === "WHITE" ? "White" : "Black"} mark`}
+              {m.reason ||
+                `${MARK_LABELS[m.kind as MarkKind] ?? "Black"} mark`}
             </span>
             <span className="text-xs text-neutral-500">
               {m.when} · added by hand

@@ -418,6 +418,32 @@ function asFilament(value?: string | null): FilamentType {
     : DEFAULT_FILAMENT;
 }
 
+/**
+ * Marks a member can carry. Black counts against them, white counts in their
+ * favour, and a star is the rare one — reserved for something that deserves
+ * more than a white bullet.
+ */
+export const MARK_KINDS = ["BLACK", "WHITE", "STAR"] as const;
+export type MarkKind = (typeof MARK_KINDS)[number];
+
+export const MARK_LABELS: Record<MarkKind, string> = {
+  BLACK: "Black",
+  WHITE: "White",
+  STAR: "Star",
+};
+
+/** What a star is worth when a standing is worked out. */
+export const STAR_WHITE_VALUE = 5;
+
+export function isMarkKind(value: unknown): value is MarkKind {
+  return MARK_KINDS.includes(value as MarkKind);
+}
+
+/** White marks a member is credited for, counting each star as five. */
+export function whiteCredit(white: number, stars: number): number {
+  return white + stars * STAR_WHITE_VALUE;
+}
+
 export const PRINT_STATUSES = ["PENDING", "PRINTING", "DONE"] as const;
 export type PrintStatus = (typeof PRINT_STATUSES)[number];
 

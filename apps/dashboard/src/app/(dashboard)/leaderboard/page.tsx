@@ -1,6 +1,7 @@
 import { Trophy } from "lucide-react";
+import { STAR_WHITE_VALUE } from "@repo/shared";
 import { Card } from "@/components/ui";
-import { BlackMark, WhiteMark } from "@/components/marks";
+import { BlackMark, StarMark, WhiteMark } from "@/components/marks";
 import { getAttendeeCandidates } from "@/lib/members";
 import {
   loadMarks,
@@ -102,7 +103,8 @@ export default async function LeaderboardPage({
         <p className="max-w-2xl text-sm text-neutral-500">
           Attendance at the meetings each member was expected at, across
           everything that has started. Black counts missed meetings plus
-          anything added by hand; white counts credits.
+          anything added by hand; white counts credits, and a star is worth{" "}
+          {STAR_WHITE_VALUE} of them.
         </p>
       </div>
 
@@ -170,9 +172,10 @@ export default async function LeaderboardPage({
                   </td>
                   <td className="px-4 py-3">
                     <span className="flex items-center justify-end gap-1.5">
+                      {r.stars > 0 ? <StarMark count={r.stars} /> : null}
                       {r.black > 0 ? <BlackMark count={r.black} /> : null}
                       {r.white > 0 ? <WhiteMark count={r.white} /> : null}
-                      {r.black === 0 && r.white === 0 ? (
+                      {r.black === 0 && r.white === 0 && r.stars === 0 ? (
                         <span className="text-neutral-600">—</span>
                       ) : null}
                     </span>

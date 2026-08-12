@@ -2,7 +2,14 @@
 
 import { useState, useTransition } from "react";
 import { X, Plus } from "lucide-react";
+import {
+  MARK_KINDS,
+  MARK_LABELS,
+  STAR_WHITE_VALUE,
+  type MarkKind,
+} from "@repo/shared";
 import { Button, Input, Select } from "@/components/ui";
+import { MarkBullet } from "@/components/marks";
 import { addMemberMark, removeMemberMark } from "./actions";
 
 export interface MarkMember {
@@ -28,7 +35,7 @@ export function MarksPanel({
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [userId, setUserId] = useState("");
-  const [kind, setKind] = useState<"BLACK" | "WHITE">("BLACK");
+  const [kind, setKind] = useState<MarkKind>("BLACK");
   const [reason, setReason] = useState("");
 
   function run(fn: () => Promise<void>) {
@@ -72,10 +79,14 @@ export function MarksPanel({
           Mark
           <Select
             value={kind}
-            onChange={(e) => setKind(e.target.value as "BLACK" | "WHITE")}
+            onChange={(e) => setKind(e.target.value as MarkKind)}
           >
-            <option value="BLACK">Black</option>
-            <option value="WHITE">White</option>
+            {MARK_KINDS.map((k) => (
+              <option key={k} value={k}>
+                {MARK_LABELS[k]}
+                {k === "STAR" ? ` (${STAR_WHITE_VALUE} white)` : ""}
+              </option>
+            ))}
           </Select>
         </label>
         <label className="flex min-w-[10rem] flex-1 flex-col gap-1 text-xs text-neutral-500">
@@ -104,14 +115,7 @@ export function MarksPanel({
                 key={m.id}
                 className="flex max-w-full items-center gap-2 rounded-full border border-neutral-700 bg-neutral-900 px-2 py-1 text-xs text-neutral-200"
               >
-                <span
-                  className={`h-3 w-3 shrink-0 rounded-full ring-1 ${
-                    m.kind === "WHITE"
-                      ? "bg-white ring-neutral-400"
-                      : "bg-black ring-neutral-600"
-                  }`}
-                  aria-hidden
-                />
+                <MarkBullet kind={m.kind} />
                 <span className="min-w-0 truncate">
                   {m.name}
                   {m.reason ? ` — ${m.reason}` : ""}

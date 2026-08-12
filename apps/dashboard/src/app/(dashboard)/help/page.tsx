@@ -16,6 +16,7 @@ import {
   Trophy,
   Users,
 } from "lucide-react";
+import { STAR_WHITE_VALUE } from "@repo/shared";
 import { Badge, Card } from "@/components/ui";
 import { getSession, isMasterId } from "@/lib/session";
 
@@ -271,7 +272,7 @@ export default async function HelpPage() {
         id="marks"
         icon={Trophy}
         tone="flame"
-        title="Black marks, white marks, leaderboard"
+        title="Black marks, white marks, stars"
         lead="A running tally per person, not a per-meeting score."
       >
         <Point>
@@ -283,6 +284,10 @@ export default async function HelpPage() {
         <Point>
           White marks are credits the owner adds by hand, for example when you
           covered something for the team. Your standing is black minus white.
+        </Point>
+        <Point>
+          A star is the rare one, kept for something that deserves more than a
+          credit — it counts as {STAR_WHITE_VALUE} white marks.
         </Point>
         <Point>
           <Link href="/leaderboard" className="text-brand hover:underline">
@@ -511,8 +516,8 @@ export default async function HelpPage() {
             clears their black mark.
           </Point>
           <Point>
-            Add or remove black and white marks by hand from the Leaderboard,
-            with a reason.
+            Add or remove black marks, white marks and stars by hand from the
+            Leaderboard, with a reason.
           </Point>
           <Point>
             Open a name in the Leaderboard to see where each of their marks came

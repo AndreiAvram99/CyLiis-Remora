@@ -233,12 +233,13 @@ model Rsvp {
 
 /// A mark awarded by hand by the master account, on top of the black marks
 /// derived from missed meetings. BLACK counts against a member, WHITE counts
-/// in their favour; the two are reported side by side.
+/// in their favour, and STAR is worth five whites; all are reported side by
+/// side.
 model MemberMark {
   id        String   @id @default(cuid())
   guildId   String
   userId    String // Discord user id
-  kind      String // BLACK | WHITE
+  kind      String // BLACK | WHITE | STAR
   reason    String?
   createdBy String? // Discord id of the master who added it
   createdAt DateTime @default(now())

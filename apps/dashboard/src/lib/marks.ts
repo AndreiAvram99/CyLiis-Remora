@@ -1,4 +1,5 @@
 import { prisma, RsvpStatus } from "@repo/db";
+import { whiteCredit } from "@repo/shared";
 import { env } from "./env";
 
 export interface LeaderboardRow {
@@ -16,7 +17,9 @@ export interface LeaderboardRow {
   black: number;
   /** Hand-added white marks. */
   white: number;
-  /** black - white, used to rank by standing. */
+  /** Hand-added stars, each worth five white marks. */
+  stars: number;
+  /** black - white credit, used to rank by standing. */
   net: number;
 }
 
@@ -86,6 +89,7 @@ export async function loadMarks(): Promise<{
   const missed = new Map<string, number>();
   const blackByUser = new Map<string, number>();
   const whiteByUser = new Map<string, number>();
+  const starsByUser = new Map<string, number>();
   const snapshot = new Map<string, { name: string; avatarUrl: string | null }>();
 
   // Attendance is measured against what was asked of someone, so only meetings
@@ -125,7 +129,13 @@ export async function loadMarks(): Promise<{
   }
 
   for (const m of marks) {
-    bump(m.kind === "WHITE" ? whiteByUser : blackByUser, m.userId);
+    const target =
+      m.kind === "WHITE"
+        ? whiteByUser
+        : m.kind === "STAR"
+          ? starsByUser
+          : blackByUser;
+    bump(target, m.userId);
   }
 
   const userIds = [
@@ -135,6 +145,7 @@ export async function loadMarks(): Promise<{
       ...motivated.keys(),
       ...blackByUser.keys(),
       ...whiteByUser.keys(),
+      ...starsByUser.keys(),
     ]),
   ];
 
@@ -155,6 +166,7 @@ export async function loadMarks(): Promise<{
   const rows: LeaderboardRow[] = userIds.map((userId) => {
     const black = blackByUser.get(userId) ?? 0;
     const white = whiteByUser.get(userId) ?? 0;
+    const stars = starsByUser.get(userId) ?? 0;
     return {
       userId,
       name: nameOf(userId),
@@ -165,7 +177,8 @@ export async function loadMarks(): Promise<{
       missed: missed.get(userId) ?? 0,
       black,
       white,
-      net: black - white,
+      stars,
+      net: black - whiteCredit(white, stars),
     };
   });
 
@@ -183,9 +196,14 @@ export async function loadMarks(): Promise<{
   };
 }
 
-/** Best standing first: white marks lead, black marks trail. */
+/** Best standing first: stars lead, then white marks, and black marks trail. */
 function byMarks(a: LeaderboardRow, b: LeaderboardRow): number {
-  return a.net - b.net || b.white - a.white || a.black - b.black;
+  return (
+    a.net - b.net ||
+    b.stars - a.stars ||
+    b.white - a.white ||
+    a.black - b.black
+  );
 }
 
 /** Showed up most, missed least. */

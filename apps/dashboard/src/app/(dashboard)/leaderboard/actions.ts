@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@repo/db";
+import { isMarkKind, type MarkKind } from "@repo/shared";
 import { assertMaster } from "@/lib/session";
 import { env } from "@/lib/env";
 import { refreshEventPosts } from "@/lib/event-posts";
@@ -9,11 +10,12 @@ import { refreshEventPosts } from "@/lib/event-posts";
 /** Award a mark by hand. Owner-only, on top of the ones derived from meetings. */
 export async function addMemberMark(
   userId: string,
-  kind: "BLACK" | "WHITE",
+  kind: MarkKind,
   reason: string,
 ) {
   const session = await assertMaster();
   if (!userId) throw new Error("Pick a member first.");
+  if (!isMarkKind(kind)) throw new Error("That isn't a kind of mark.");
 
   await prisma.memberMark.create({
     data: {
