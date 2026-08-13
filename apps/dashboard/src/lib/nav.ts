@@ -2,7 +2,6 @@ import {
   CalendarRange,
   Contact,
   Instagram,
-  LifeBuoy,
   ListChecks,
   Trophy,
   Users,
@@ -17,26 +16,13 @@ export type NavItem = {
 };
 
 /**
- * The three pages a member opens during a normal week. They keep a permanent
- * slot in the header.
+ * The pages that belong to the team's work, in the order they're reached for.
+ * What belongs to a person — their profile, the server's settings, and this
+ * page's own help — hangs off the avatar instead, which keeps the bar short
+ * enough to read without folding anything away behind a second tap.
  */
-export const PRIMARY_NAV: NavItem[] = [
+export const NAV_ITEMS: NavItem[] = [
   { href: "/events", label: "Schedules", icon: ListChecks, managerOnly: false },
-  {
-    href: "/calendar",
-    label: "Calendar",
-    icon: CalendarRange,
-    managerOnly: false,
-  },
-  { href: "/presence", label: "Presence", icon: Users, managerOnly: false },
-];
-
-/**
- * Visited now and then rather than daily, so they live behind "More" instead of
- * crowding the header — which is what made room for Contacts in the first place.
- */
-export const SECONDARY_NAV: NavItem[] = [
-  { href: "/contacts", label: "Contacts", icon: Contact, managerOnly: false },
   {
     href: "/instagram",
     label: "Instagram",
@@ -44,12 +30,19 @@ export const SECONDARY_NAV: NavItem[] = [
     managerOnly: false,
   },
   {
+    href: "/calendar",
+    label: "Calendar",
+    icon: CalendarRange,
+    managerOnly: false,
+  },
+  { href: "/presence", label: "Presence", icon: Users, managerOnly: false },
+  { href: "/contacts", label: "Contacts", icon: Contact, managerOnly: false },
+  {
     href: "/leaderboard",
     label: "Leaderboard",
     icon: Trophy,
     managerOnly: false,
   },
-  { href: "/help", label: "Help", icon: LifeBuoy, managerOnly: false },
 ];
 
 export function visibleTo(items: NavItem[], isManager: boolean): NavItem[] {

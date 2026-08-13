@@ -2,6 +2,7 @@ import Link from "next/link";
 import {
   BadgeCheck,
   CalendarRange,
+  Compass,
   Contact as ContactIcon,
   FileText,
   Hash,
@@ -104,6 +105,7 @@ export default async function HelpPage() {
   const isOwner = isMasterId(session?.user?.discordId);
 
   const jump = [
+    { id: "around", label: "Getting around" },
     { id: "answering", label: "Answering" },
     { id: "commands", label: "Discord commands" },
     { id: "calendar", label: "Calendar" },
@@ -158,6 +160,44 @@ export default async function HelpPage() {
           </a>
         ))}
       </nav>
+
+      <Section
+        id="around"
+        icon={Compass}
+        tone="sky"
+        title="Getting around"
+        lead="The bar holds the team's pages; your picture holds everything that's yours."
+      >
+        <Point>
+          Along the top: <span className="text-neutral-100">Schedules</span> for
+          what&apos;s coming and what to print,{" "}
+          <span className="text-neutral-100">Instagram</span> for messages to
+          the team account, <span className="text-neutral-100">Calendar</span>{" "}
+          for the month at a glance,{" "}
+          <span className="text-neutral-100">Presence</span> for who answered,{" "}
+          <span className="text-neutral-100">Contacts</span> for sponsors and
+          our own details, and{" "}
+          <span className="text-neutral-100">Leaderboard</span> for standings.
+        </Point>
+        <Point>
+          Your picture, top right, opens your{" "}
+          <Link href="/account" className="text-brand hover:underline">
+            profile
+          </Link>
+          {isManager ? (
+            <>
+              , the{" "}
+              <Link href="/settings" className="text-brand hover:underline">
+                server settings
+              </Link>
+            </>
+          ) : null}
+          , this page, and the way out.
+        </Point>
+        <Point>
+          On a phone the bar becomes the menu behind the ☰ button, top left.
+        </Point>
+      </Section>
 
       <Section
         id="answering"
@@ -372,8 +412,8 @@ export default async function HelpPage() {
       >
         <Point>
           A request lists each file with filament, infill, walls, color, support
-          and how many copies. New files start from the defaults set in
-          Settings, so usually there&apos;s nothing to adjust.
+          and how many copies. New files start from the defaults a Remora-Admin
+          set in the server settings, so usually there&apos;s nothing to adjust.
         </Point>
         <Point>
           Drop in as many files as you like — Discord takes ten attachments per
@@ -405,10 +445,11 @@ export default async function HelpPage() {
       >
         <Point>
           <Link href="/account" className="text-brand hover:underline">
-            Account
-          </Link>{" "}
-          is where you pick light, dark or system, upload a picture, and choose
-          the color behind your initials.
+            Profile
+          </Link>
+          , under your picture in the top right, is where you pick light, dark
+          or system, upload a picture, and choose the color behind your
+          initials.
         </Point>
         <Point>
           These settings don&apos;t follow you to another device — they live in
@@ -520,9 +561,10 @@ export default async function HelpPage() {
           >
             <Point>
               <Link href="/settings" className="text-brand hover:underline">
-                Settings
-              </Link>{" "}
-              sets the timezone every date on the dashboard is shown in.
+                Server settings
+              </Link>
+              , under your picture in the top right, sets the timezone every
+              date on the dashboard is shown in.
             </Point>
             <Point>
               Default reminders for meetings and events pre-fill the form, so

@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { BrandMark } from "@/components/brand-mark";
-import { PRIMARY_NAV, SECONDARY_NAV, visibleTo, type NavItem } from "@/lib/nav";
+import { NAV_ITEMS, visibleTo, type NavItem } from "@/lib/nav";
 
 function DrawerLink({
   item,
@@ -40,10 +40,7 @@ function DrawerLink({
 export function MobileNav({ isManager }: { isManager: boolean }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
-  // The drawer has the room to show everything, so "More" only becomes a
-  // heading here rather than another tap.
-  const primary = visibleTo(PRIMARY_NAV, isManager);
-  const secondary = visibleTo(SECONDARY_NAV, isManager);
+  const items = visibleTo(NAV_ITEMS, isManager);
 
   // Close on route change, lock body scroll + close on Escape while open.
   useEffect(() => setOpen(false), [pathname]);
@@ -109,19 +106,7 @@ export function MobileNav({ isManager }: { isManager: boolean }) {
           </div>
 
           <nav className="flex flex-col gap-1 overflow-y-auto px-3 py-2">
-            {primary.map((item) => (
-              <DrawerLink
-                key={item.href}
-                item={item}
-                pathname={pathname}
-                onNavigate={() => setOpen(false)}
-              />
-            ))}
-
-            <p className="px-3 pb-1 pt-4 text-[11px] font-semibold uppercase tracking-wide text-neutral-600">
-              More
-            </p>
-            {secondary.map((item) => (
+            {items.map((item) => (
               <DrawerLink
                 key={item.href}
                 item={item}

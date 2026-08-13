@@ -3,15 +3,13 @@ import { requireMember } from "@/lib/session";
 import { Providers } from "@/components/providers";
 import { UserMenu } from "@/components/user-menu";
 import { NavLink } from "@/components/nav-link";
-import { MoreMenu } from "@/components/more-menu";
 import { MobileNav } from "@/components/mobile-nav";
 import { BrandMark } from "@/components/brand-mark";
 import { currentAvatarUrl } from "@/lib/members";
-import { PRIMARY_NAV, visibleTo } from "@/lib/nav";
+import { NAV_ITEMS, visibleTo } from "@/lib/nav";
 
-// Settings hangs off the avatar menu rather than the top bar — it's rarely used
-// and manager-only, so it doesn't earn a permanent slot. The occasional pages
-// sit behind "More" for the same reason; the header keeps the weekly three.
+// The bar carries the team's pages. Anything about you rather than the work —
+// your profile, the server's settings, the help page — hangs off the avatar.
 
 export default async function DashboardLayout({
   children,
@@ -26,12 +24,11 @@ export default async function DashboardLayout({
   );
   const navLinks = (
     <>
-      {visibleTo(PRIMARY_NAV, isManager).map((item) => (
+      {visibleTo(NAV_ITEMS, isManager).map((item) => (
         <NavLink key={item.href} href={item.href} label={item.label}>
           <item.icon size={16} />
         </NavLink>
       ))}
-      <MoreMenu isManager={isManager} />
     </>
   );
 

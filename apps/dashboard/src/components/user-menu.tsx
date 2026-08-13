@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { signOut } from "next-auth/react";
-import { LogOut, Settings, User } from "lucide-react";
+import { LifeBuoy, LogOut, Settings, User } from "lucide-react";
 import { Avatar } from "@/components/personalization";
 
 const ITEM =
@@ -11,8 +11,9 @@ const ITEM =
 
 /**
  * The avatar opens what belongs to the person rather than to the schedule: their
- * own profile, the server's settings when they're allowed to change them, and
- * the way out. Keeping the three together leaves the header with one control.
+ * own profile, the server's settings when they're allowed to change them, how
+ * any of it works, and the way out. Keeping them together leaves the bar for
+ * the team's pages.
  */
 export function UserMenu({
   name,
@@ -29,7 +30,8 @@ export function UserMenu({
   useEffect(() => {
     if (!open) return;
     const onClick = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (ref.current && !ref.current.contains(e.target as Node))
+        setOpen(false);
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setOpen(false);
@@ -79,6 +81,10 @@ export function UserMenu({
               Server settings
             </Link>
           ) : null}
+          <Link href="/help" onClick={() => setOpen(false)} className={ITEM}>
+            <LifeBuoy size={16} className="shrink-0" />
+            How Remora works
+          </Link>
           <div className="my-1 border-t border-[rgb(var(--line))]" />
           <button
             type="button"
