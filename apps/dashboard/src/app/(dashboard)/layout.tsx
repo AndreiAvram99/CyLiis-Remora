@@ -1,5 +1,4 @@
 import Link from "next/link";
-import Image from "next/image";
 import {
   ListChecks,
   CalendarRange,
@@ -14,6 +13,7 @@ import { SignOutButton } from "@/components/sign-out-button";
 import { Avatar } from "@/components/personalization";
 import { NavLink } from "@/components/nav-link";
 import { MobileNav } from "@/components/mobile-nav";
+import { BrandMark } from "@/components/brand-mark";
 
 // Settings lives under /account rather than the top bar — it's rarely used and
 // manager-only, so it doesn't earn a permanent slot.
@@ -73,13 +73,7 @@ export default async function DashboardLayout({
                   href="/events"
                   className="flex shrink-0 items-center gap-2.5 text-lg font-semibold tracking-tight text-neutral-100"
                 >
-                  <Image
-                    src="/logo.png"
-                    alt="CyLiis Remora"
-                    width={34}
-                    height={34}
-                    priority
-                  />
+                  <BrandMark size={34} priority />
                   <span>CyLiis Remora</span>
                 </Link>
                 {/* Inline nav on tablet/desktop; drawer on phones. */}

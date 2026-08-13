@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
   Menu,
@@ -16,6 +15,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { BrandMark } from "@/components/brand-mark";
 
 type Item = {
   href: string;
@@ -92,7 +92,7 @@ export function MobileNav({ isManager }: { isManager: boolean }) {
               onClick={() => setOpen(false)}
               className="flex items-center gap-2.5 text-lg font-semibold tracking-tight text-neutral-100"
             >
-              <Image src="/logo.png" alt="CyLiis Remora" width={30} height={30} />
+              <BrandMark size={30} />
               <span>CyLiis Remora</span>
             </Link>
             <button

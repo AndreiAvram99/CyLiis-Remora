@@ -98,3 +98,20 @@ body {
   /* Solid app background — no translucent wash, so surfaces read cleanly. */
   background-color: var(--bg-base);
 }
+
+/* Two tones of the logo ship together; each theme keeps the readable one. */
+.brand-on-dark {
+  display: none;
+}
+
+.brand-on-light {
+  display: block;
+}
+
+.dark .brand-on-dark {
+  display: block;
+}
+
+.dark .brand-on-light {
+  display: none;
+}
