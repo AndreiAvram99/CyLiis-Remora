@@ -169,15 +169,15 @@ export default async function HelpPage() {
         lead="The bar holds the team's pages; your picture holds everything that's yours."
       >
         <Point>
-          Along the top: <span className="text-neutral-100">Schedules</span> for
-          what&apos;s coming and what to print,{" "}
-          <span className="text-neutral-100">Instagram</span> for messages to
-          the team account, <span className="text-neutral-100">Calendar</span>{" "}
-          for the month at a glance,{" "}
-          <span className="text-neutral-100">Presence</span> for who answered,{" "}
-          <span className="text-neutral-100">Contacts</span> for sponsors and
-          our own details, and{" "}
-          <span className="text-neutral-100">Leaderboard</span> for standings.
+          The bar follows a meeting&apos;s life:{" "}
+          <span className="text-neutral-100">Schedules</span> is where it&apos;s
+          arranged, <span className="text-neutral-100">Calendar</span> shows the
+          month it lands in, <span className="text-neutral-100">Presence</span>{" "}
+          records who turned up, and{" "}
+          <span className="text-neutral-100">Leaderboard</span> is what that
+          adds up to over a term.{" "}
+          <span className="text-neutral-100">Contacts</span> sits at the end —
+          sponsors and our own details, there when you need them.
         </Point>
         <Point>
           Your picture, top right, opens your{" "}
@@ -361,12 +361,9 @@ export default async function HelpPage() {
           on it, so two people don&apos;t answer the same person.
         </Point>
         <Point>
-          The{" "}
-          <Link href="/instagram" className="text-brand hover:underline">
-            Instagram
-          </Link>{" "}
-          tab keeps the full history, tells you how many are still waiting, and
-          can filter by sender.
+          Everything stays in Discord, in <Key>#mesaje-instagram</Key> — that
+          channel is the history, so answering happens where the team already
+          is, with no second inbox to keep an eye on.
         </Point>
       </Section>
 
@@ -608,8 +605,8 @@ export default async function HelpPage() {
             meeting.
           </Point>
           <Point>
-            Mark Instagram messages as read or delete them from the dashboard,
-            which removes them from Discord too.
+            Drop someone from a meeting&apos;s expected list after the fact,
+            which also corrects the message in Discord.
           </Point>
         </Section>
       ) : null}

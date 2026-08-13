@@ -1,7 +1,6 @@
 import {
   CalendarRange,
   Contact,
-  Instagram,
   ListChecks,
   Trophy,
   Users,
@@ -16,19 +15,16 @@ export type NavItem = {
 };
 
 /**
- * The pages that belong to the team's work, in the order they're reached for.
- * What belongs to a person — their profile, the server's settings, and this
- * page's own help — hangs off the avatar instead, which keeps the bar short
- * enough to read without folding anything away behind a second tap.
+ * Ordered the way a meeting actually moves: it's arranged, then it's somewhere
+ * in the month, then people either turn up or don't, and that adds up over a
+ * term. Contacts closes the row because it's a reference rather than something
+ * that happens.
+ *
+ * What belongs to a person — their profile, the server's settings, the help
+ * page — hangs off the avatar instead.
  */
 export const NAV_ITEMS: NavItem[] = [
   { href: "/events", label: "Schedules", icon: ListChecks, managerOnly: false },
-  {
-    href: "/instagram",
-    label: "Instagram",
-    icon: Instagram,
-    managerOnly: false,
-  },
   {
     href: "/calendar",
     label: "Calendar",
@@ -36,13 +32,13 @@ export const NAV_ITEMS: NavItem[] = [
     managerOnly: false,
   },
   { href: "/presence", label: "Presence", icon: Users, managerOnly: false },
-  { href: "/contacts", label: "Contacts", icon: Contact, managerOnly: false },
   {
     href: "/leaderboard",
     label: "Leaderboard",
     icon: Trophy,
     managerOnly: false,
   },
+  { href: "/contacts", label: "Contacts", icon: Contact, managerOnly: false },
 ];
 
 export function visibleTo(items: NavItem[], isManager: boolean): NavItem[] {
