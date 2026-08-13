@@ -265,6 +265,47 @@ model InstagramAvatar {
   updatedAt DateTime @updatedAt
 }
 
+/// Our own details, the ones a sponsor or a school asks for: legal name, fiscal
+/// code, bank account, who signs. One row per guild, so it reads as "us".
+model OrgProfile {
+  guildId        String   @id
+  name           String?
+  address        String?
+  fiscalCode     String? // CUI / CIF
+  iban           String?
+  bank           String?
+  representative String?
+  email          String?
+  phone          String?
+  website        String?
+  instagram      String?
+  linkedin       String?
+  notes          String?
+  updatedAt      DateTime @updatedAt
+}
+
+/// Someone outside the team worth keeping in reach: a sponsor, or a partner an
+/// event was run with. Every way of reaching them is optional — a phone number
+/// alone is a perfectly good contact.
+model Contact {
+  id        String   @id @default(cuid())
+  guildId   String
+  kind      String // SPONSOR | COLLABORATION
+  name      String // company or organisation
+  person    String? // who we actually talk to
+  role      String? // their job, when it matters
+  email     String?
+  phone     String?
+  instagram String?
+  linkedin  String?
+  website   String?
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([guildId, kind])
+}
+
 /// An Instagram DM forwarded into Discord. The row is created before the post
 /// goes out, so its unique `mid` doubles as the guard against Meta's retries.
 model InstagramMessage {

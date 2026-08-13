@@ -3,41 +3,47 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  Menu,
-  X,
-  ListChecks,
-  CalendarRange,
-  Users,
-  Trophy,
-  Instagram,
-  LifeBuoy,
-  type LucideIcon,
-} from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { BrandMark } from "@/components/brand-mark";
+import { PRIMARY_NAV, SECONDARY_NAV, visibleTo, type NavItem } from "@/lib/nav";
 
-type Item = {
-  href: string;
-  label: string;
-  icon: LucideIcon;
-  managerOnly: boolean;
-};
-
-const NAV_ITEMS: Item[] = [
-  { href: "/events", label: "Schedules", icon: ListChecks, managerOnly: false },
-  { href: "/instagram", label: "Instagram", icon: Instagram, managerOnly: false },
-  { href: "/calendar", label: "Calendar", icon: CalendarRange, managerOnly: false },
-  { href: "/presence", label: "Presence", icon: Users, managerOnly: false },
-  { href: "/leaderboard", label: "Leaderboard", icon: Trophy, managerOnly: false },
-  { href: "/help", label: "Help", icon: LifeBuoy, managerOnly: false },
-];
+function DrawerLink({
+  item,
+  pathname,
+  onNavigate,
+}: {
+  item: NavItem;
+  pathname: string;
+  onNavigate: () => void;
+}) {
+  const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+  return (
+    <Link
+      href={item.href}
+      onClick={onNavigate}
+      aria-current={active ? "page" : undefined}
+      className={cn(
+        "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition",
+        active
+          ? "bg-neutral-800 text-neutral-100"
+          : "text-neutral-400 hover:bg-neutral-800 hover:text-neutral-100",
+      )}
+    >
+      <item.icon size={18} className={active ? "text-brand" : ""} />
+      {item.label}
+    </Link>
+  );
+}
 
 /** Phone-only hamburger that opens a left drawer sliding in from the left. */
 export function MobileNav({ isManager }: { isManager: boolean }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
-  const items = NAV_ITEMS.filter((i) => !i.managerOnly || isManager);
+  // The drawer has the room to show everything, so "More" only becomes a
+  // heading here rather than another tap.
+  const primary = visibleTo(PRIMARY_NAV, isManager);
+  const secondary = visibleTo(SECONDARY_NAV, isManager);
 
   // Close on route change, lock body scroll + close on Escape while open.
   useEffect(() => setOpen(false), [pathname]);
@@ -67,10 +73,7 @@ export function MobileNav({ isManager }: { isManager: boolean }) {
 
       {/* Overlay + sliding panel. Always mounted so it can animate. */}
       <div
-        className={cn(
-          "fixed inset-0 z-50",
-          open ? "" : "pointer-events-none",
-        )}
+        className={cn("fixed inset-0 z-50", open ? "" : "pointer-events-none")}
         aria-hidden={!open}
       >
         <div
@@ -105,31 +108,27 @@ export function MobileNav({ isManager }: { isManager: boolean }) {
             </button>
           </div>
 
-          <nav className="flex flex-col gap-1 px-3 py-2">
-            {items.map((item) => {
-              const active =
-                pathname === item.href || pathname.startsWith(`${item.href}/`);
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={() => setOpen(false)}
-                  aria-current={active ? "page" : undefined}
-                  className={cn(
-                    "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition",
-                    active
-                      ? "bg-neutral-800 text-neutral-100"
-                      : "text-neutral-400 hover:bg-neutral-800 hover:text-neutral-100",
-                  )}
-                >
-                  <item.icon
-                    size={18}
-                    className={active ? "text-brand" : ""}
-                  />
-                  {item.label}
-                </Link>
-              );
-            })}
+          <nav className="flex flex-col gap-1 overflow-y-auto px-3 py-2">
+            {primary.map((item) => (
+              <DrawerLink
+                key={item.href}
+                item={item}
+                pathname={pathname}
+                onNavigate={() => setOpen(false)}
+              />
+            ))}
+
+            <p className="px-3 pb-1 pt-4 text-[11px] font-semibold uppercase tracking-wide text-neutral-600">
+              More
+            </p>
+            {secondary.map((item) => (
+              <DrawerLink
+                key={item.href}
+                item={item}
+                pathname={pathname}
+                onNavigate={() => setOpen(false)}
+              />
+            ))}
           </nav>
         </div>
       </div>

@@ -1,45 +1,17 @@
 import Link from "next/link";
-import {
-  ListChecks,
-  CalendarRange,
-  Users,
-  Trophy,
-  Instagram,
-  LifeBuoy,
-} from "lucide-react";
 import { requireMember } from "@/lib/session";
 import { Providers } from "@/components/providers";
 import { UserMenu } from "@/components/user-menu";
 import { NavLink } from "@/components/nav-link";
+import { MoreMenu } from "@/components/more-menu";
 import { MobileNav } from "@/components/mobile-nav";
 import { BrandMark } from "@/components/brand-mark";
 import { currentAvatarUrl } from "@/lib/members";
+import { PRIMARY_NAV, visibleTo } from "@/lib/nav";
 
 // Settings hangs off the avatar menu rather than the top bar — it's rarely used
-// and manager-only, so it doesn't earn a permanent slot.
-const navItems = [
-  { href: "/events", label: "Schedules", icon: ListChecks, managerOnly: false },
-  {
-    href: "/instagram",
-    label: "Instagram",
-    icon: Instagram,
-    managerOnly: false,
-  },
-  {
-    href: "/calendar",
-    label: "Calendar",
-    icon: CalendarRange,
-    managerOnly: false,
-  },
-  { href: "/presence", label: "Presence", icon: Users, managerOnly: false },
-  {
-    href: "/leaderboard",
-    label: "Leaderboard",
-    icon: Trophy,
-    managerOnly: false,
-  },
-  { href: "/help", label: "Help", icon: LifeBuoy, managerOnly: false },
-];
+// and manager-only, so it doesn't earn a permanent slot. The occasional pages
+// sit behind "More" for the same reason; the header keeps the weekly three.
 
 export default async function DashboardLayout({
   children,
@@ -52,15 +24,14 @@ export default async function DashboardLayout({
     session.user?.discordId,
     session.user?.image,
   );
-  const visibleNav = navItems.filter((i) => !i.managerOnly || isManager);
-
   const navLinks = (
     <>
-      {visibleNav.map((item) => (
+      {visibleTo(PRIMARY_NAV, isManager).map((item) => (
         <NavLink key={item.href} href={item.href} label={item.label}>
           <item.icon size={16} />
         </NavLink>
       ))}
+      <MoreMenu isManager={isManager} />
     </>
   );
 

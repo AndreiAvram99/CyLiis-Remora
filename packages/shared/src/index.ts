@@ -407,7 +407,10 @@ export const PRINT_COLOR_META: Record<string, { name: string; dot: string }> = {
   "#618B53": { name: "Green", dot: "🟢" },
 };
 
-export function printColorMeta(hex?: string | null): { name: string; dot: string } {
+export function printColorMeta(hex?: string | null): {
+  name: string;
+  dot: string;
+} {
   const key = (hex ?? "").toUpperCase();
   return PRINT_COLOR_META[key] ?? { name: hex ?? "Custom", dot: "🎨" };
 }
@@ -442,6 +445,24 @@ export function isMarkKind(value: unknown): value is MarkKind {
 /** White marks a member is credited for, counting each star as five. */
 export function whiteCredit(white: number, stars: number): number {
   return white + stars * STAR_WHITE_VALUE;
+}
+
+export const CONTACT_KINDS = ["SPONSOR", "COLLABORATION"] as const;
+export type ContactKind = (typeof CONTACT_KINDS)[number];
+
+export const CONTACT_KIND_LABELS: Record<ContactKind, string> = {
+  SPONSOR: "Sponsor",
+  COLLABORATION: "Collaboration",
+};
+
+/** Plural headings, since the page groups contacts under them. */
+export const CONTACT_KIND_TITLES: Record<ContactKind, string> = {
+  SPONSOR: "Sponsors",
+  COLLABORATION: "Event collaborations",
+};
+
+export function isContactKind(value: unknown): value is ContactKind {
+  return CONTACT_KINDS.includes(value as ContactKind);
 }
 
 export const PRINT_STATUSES = ["PENDING", "PRINTING", "DONE"] as const;

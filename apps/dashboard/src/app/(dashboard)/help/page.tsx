@@ -2,6 +2,7 @@ import Link from "next/link";
 import {
   BadgeCheck,
   CalendarRange,
+  Contact as ContactIcon,
   FileText,
   Hash,
   Instagram,
@@ -109,6 +110,7 @@ export default async function HelpPage() {
     { id: "presence", label: "Presence" },
     { id: "marks", label: "Marks" },
     { id: "instagram", label: "Instagram" },
+    { id: "contacts", label: "Contacts" },
     { id: "printing", label: "Printing" },
     { id: "account", label: "Your account" },
     ...(isManager
@@ -200,8 +202,8 @@ export default async function HelpPage() {
           next to each one.
         </Point>
         <Point>
-          <Key>/week</Key> covers the next 7 days and shows only what you&apos;re
-          expected at. Add <Key>all: true</Key> to see everything.
+          <Key>/week</Key> covers the next 7 days and shows only what
+          you&apos;re expected at. Add <Key>all: true</Key> to see everything.
         </Point>
         <Point>
           Both replies are private. Add <Key>share: true</Key> to post the list
@@ -325,6 +327,34 @@ export default async function HelpPage() {
           </Link>{" "}
           tab keeps the full history, tells you how many are still waiting, and
           can filter by sender.
+        </Point>
+      </Section>
+
+      <Section
+        id="contacts"
+        icon={ContactIcon}
+        tone="azure"
+        title="Contacts"
+        lead="Our own details for paperwork, and everyone worth reaching outside the team."
+      >
+        <Point>
+          <Link href="/contacts" className="text-brand hover:underline">
+            Contacts
+          </Link>{" "}
+          opens with our organisation: legal name, fiscal code, IBAN, bank and
+          who represents us. <span className="text-neutral-100">Copy</span> puts
+          the whole block on the clipboard, ready to paste into a chat or an
+          email.
+        </Point>
+        <Point>
+          Below that sit sponsors and event collaborations, each with whatever
+          we have on them — Instagram, LinkedIn, phone, email, website. Only the
+          name is required; a phone number on its own is a perfectly good
+          contact.
+        </Point>
+        <Point>
+          Anyone in the server can read them. Remora-Admins add and edit;
+          deleting is the owner&apos;s call.
         </Point>
       </Section>
 
@@ -536,9 +566,7 @@ export default async function HelpPage() {
           <LifeBuoy size={20} />
         </span>
         <div className="min-w-0 space-y-1">
-          <h2 className="text-lg font-medium text-neutral-100">
-            Still stuck?
-          </h2>
+          <h2 className="text-lg font-medium text-neutral-100">Still stuck?</h2>
           <p className="text-sm text-neutral-400">
             Ask a Remora-Admin in Discord. If something looks broken rather than
             confusing — a missing answer, a mark that shouldn&apos;t be there —
