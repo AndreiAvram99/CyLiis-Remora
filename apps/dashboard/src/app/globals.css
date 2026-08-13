@@ -52,38 +52,38 @@
   color-scheme: dark;
 
   /*
-   * Dark theme — premium SaaS palette (Linear/Vercel/GitHub-dark inspired).
-   * Surfaces climb 950 (app bg) -> 900 (cards) -> 800 (elevated/hover rows)
-   * -> 700 (hover). Text uses 100 (primary) -> 300 (secondary) -> 500 (muted)
-   * -> 600 (disabled).
+   * Dark theme — indigo navy rather than near-black, so surfaces separate by
+   * lightness instead of by outline. Surfaces climb 950 (app bg) -> 900 (cards)
+   * -> 800 (elevated/hover rows) -> 700 (hover). Text uses 100 (primary) -> 300
+   * (secondary) -> 500 (muted) -> 600 (disabled).
    */
   --n-50: 255 255 255;
-  --n-100: 245 248 251; /* primary text  #F5F8FB */
-  --n-200: 205 221 234;
-  --n-300: 168 195 216; /* secondary text #A8C3D8 */
-  --n-400: 143 171 192;
-  --n-500: 115 148 172; /* muted / metadata #7394AC */
-  --n-600: 90 114 133; /* disabled #5A7285 */
-  --n-700: 10 30 50; /* quiet elevated */
-  --n-800: 16 38 58; /* card hover / neutral fill */
-  --n-900: 4 20 38; /* cards (solid) — matches the reference image */
-  --n-950: 1 15 29; /* app background (solid) — matches the reference image */
+  --n-100: 242 246 252; /* primary text #F2F6FC */
+  --n-200: 208 219 234;
+  --n-300: 176 190 212; /* secondary text #B0BED4 */
+  --n-400: 152 168 194;
+  --n-500: 132 151 181; /* muted / metadata #8497B5 */
+  --n-600: 105 122 150; /* disabled #697A96 */
+  --n-700: 31 45 72; /* quiet elevated #1F2D48 */
+  --n-800: 24 36 60; /* card hover / neutral fill #18243C */
+  --n-900: 17 26 46; /* cards (solid) #111A2E */
+  --n-950: 10 16 32; /* app background (solid) #0A1020 */
 
-  --pal-sky: 138 202 232; /* light blue #8ACAE8 */
-  --pal-azure: 32 158 219; /* primary blue #209EDB */
+  --pal-sky: 150 190 245; /* light blue #96BEF5 */
+  --pal-azure: 76 154 240; /* primary blue #4C9AF0 */
   --pal-navy: 32 48 71; /* #203047 */
   --pal-sun: 255 226 1; /* yellow #FFE201 */
   --pal-flame: 252 165 12; /* orange #FCA50C */
 
   /* Special surfaces + hairline (dark theme). */
-  --nav: 2 13 26; /* navbar — matches the reference image */
-  --input: 1 12 24; /* inputs — inset, a touch darker than cards */
-  --hairline: 138 202 232; /* legacy */
-  --line: 24 44 64; /* subtle solid border over dark cards */
+  --nav: 8 14 28; /* navbar — a step below the page */
+  --input: 13 20 38; /* inputs — inset, a touch darker than cards */
+  --hairline: 150 190 245; /* legacy */
+  --line: 34 48 76; /* subtle solid border over dark cards */
 
-  --shadow-card: 0 12px 32px rgba(0, 0, 0, 0.35);
+  --shadow-card: 0 12px 32px rgba(2, 6, 23, 0.45);
 
-  --bg-base: #010f1d;
+  --bg-base: #0a1020;
 }
 
 html,

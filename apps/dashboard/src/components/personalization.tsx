@@ -12,7 +12,7 @@ const ACCENT_KEY = "remora:accent";
 const AVATAR_KEY = "remora:avatar";
 const THEME_KEY = "remora:theme";
 
-export const DEFAULT_ACCENT = "#209edb";
+export const DEFAULT_ACCENT = "#4c9af0";
 
 export type ThemePreference = "light" | "dark" | "system";
 export const DEFAULT_THEME: ThemePreference = "dark";
@@ -31,8 +31,9 @@ function applyTheme(theme: ThemePreference) {
 }
 
 export const PALETTE_SWATCHES = [
+  "#4c9af0",
   "#209edb",
-  "#8acae8",
+  "#96bef5",
   "#203047",
   "#ffe201",
   "#fca50c",

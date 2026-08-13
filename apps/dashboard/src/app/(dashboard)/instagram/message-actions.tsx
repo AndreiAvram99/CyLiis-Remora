@@ -27,7 +27,7 @@ export function MessageActions({ id, read }: { id: string; read: boolean }) {
           disabled={isPending}
           title="Mark as read"
           aria-label="Mark as read"
-          className={`${ICON_BUTTON} border-[rgba(32,158,219,0.30)] text-brand hover:bg-neutral-800`}
+          className={`${ICON_BUTTON} border-[rgb(var(--line))] text-brand hover:bg-neutral-800`}
         >
           <Check size={15} />
         </button>

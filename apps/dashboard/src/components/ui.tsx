@@ -70,11 +70,12 @@ export function Button({
   ...props
 }: ButtonProps) {
   const variants: Record<string, string> = {
-    primary: "bg-brand text-brand-fg shadow-soft hover:bg-[#39aee8]",
+    // Hover lifts the accent itself, so a chosen accent stays the accent.
+    primary: "bg-brand text-brand-fg shadow-soft hover:brightness-110",
     // Success maps to the primary blue — the design system forbids green.
-    success: "bg-brand text-brand-fg shadow-soft hover:bg-[#39aee8]",
+    success: "bg-brand text-brand-fg shadow-soft hover:brightness-110",
     secondary:
-      "border border-[rgba(32,158,219,0.30)] bg-transparent text-neutral-100 hover:bg-neutral-800",
+      "border border-[rgb(var(--line))] bg-transparent text-neutral-100 hover:bg-neutral-800",
     danger:
       "border border-[rgba(224,92,92,0.28)] bg-transparent text-[#E56D6D] hover:bg-[rgba(229,109,109,0.10)]",
     ghost: "text-neutral-300 hover:bg-neutral-800 hover:text-neutral-100",
