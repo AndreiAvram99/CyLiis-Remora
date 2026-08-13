@@ -170,8 +170,14 @@ type Reachable = {
   website: string | null;
 };
 
+function canReach(c: Reachable): boolean {
+  return Boolean(c.email || c.phone || c.instagram || c.linkedin || c.website);
+}
+
 /** Every way we have of reaching someone, in one row. */
 function Reaches({ contact: c }: { contact: Reachable }) {
+  if (!canReach(c)) return null;
+
   return (
     <div className="flex flex-wrap gap-2">
       {c.email ? (
@@ -382,7 +388,6 @@ export default async function ContactsPage() {
                           {c.notes}
                         </p>
                       ) : null}
-                      <Reaches contact={c} />
                     </div>
 
                     <SponsorLogo
@@ -393,15 +398,21 @@ export default async function ContactsPage() {
                     />
                   </div>
 
-                  {/* Kept off in the corner: fetching the file is an errand,
-                      not part of reading who the sponsor is. */}
-                  {c.logoUrl || c.logoLightUrl ? (
-                    <div className="flex justify-end">
-                      <LogoDownloads
-                        name={c.name}
-                        dark={c.logoUrl}
-                        light={c.logoLightUrl}
-                      />
+                  {/*
+                   * A footer for the two errands: how to reach them on the left,
+                   * their files on the right. Both sit below the description, so
+                   * neither interrupts it.
+                   */}
+                  {canReach(c) || c.logoUrl || c.logoLightUrl ? (
+                    <div className="flex flex-wrap items-center gap-3">
+                      <Reaches contact={c} />
+                      <div className="ml-auto">
+                        <LogoDownloads
+                          name={c.name}
+                          dark={c.logoUrl}
+                          light={c.logoLightUrl}
+                        />
+                      </div>
                     </div>
                   ) : null}
                 </div>
