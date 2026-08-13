@@ -385,20 +385,25 @@ export default async function ContactsPage() {
                       <Reaches contact={c} />
                     </div>
 
-                    <div className="flex shrink-0 flex-col items-start gap-3 sm:items-end">
-                      <SponsorLogo
-                        name={c.name}
-                        dark={c.logoUrl}
-                        light={c.logoLightUrl}
-                        className="h-16 max-w-[220px] sm:h-20 sm:max-w-[260px]"
-                      />
+                    <SponsorLogo
+                      name={c.name}
+                      dark={c.logoUrl}
+                      light={c.logoLightUrl}
+                      className="h-20 max-w-[240px] shrink-0 sm:h-24 sm:max-w-[300px]"
+                    />
+                  </div>
+
+                  {/* Kept off in the corner: fetching the file is an errand,
+                      not part of reading who the sponsor is. */}
+                  {c.logoUrl || c.logoLightUrl ? (
+                    <div className="flex justify-end">
                       <LogoDownloads
                         name={c.name}
                         dark={c.logoUrl}
                         light={c.logoLightUrl}
                       />
                     </div>
-                  </div>
+                  ) : null}
                 </div>
               </div>
             ))}
