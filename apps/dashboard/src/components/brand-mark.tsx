@@ -20,7 +20,7 @@ export function BrandMark({
         width={size}
         height={size}
         priority={priority}
-        className="brand-on-dark"
+        className="show-on-dark"
       />
       <Image
         src="/logo-light.png"
@@ -29,7 +29,7 @@ export function BrandMark({
         width={size}
         height={size}
         priority={priority}
-        className="brand-on-light"
+        className="show-on-light"
       />
     </>
   );

@@ -77,6 +77,44 @@ function Reach({
   );
 }
 
+/**
+ * A sponsor's own mark, in whichever version survives the current background.
+ * When only one file was given it's used for both — most logos cope.
+ */
+function SponsorLogo({
+  name,
+  dark,
+  light,
+  className,
+}: {
+  name: string;
+  dark: string | null;
+  light: string | null;
+  className: string;
+}) {
+  if (!dark && !light) return null;
+  const onDark = dark ?? light!;
+  const onLight = light ?? dark!;
+
+  return (
+    <>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={onDark}
+        alt={name}
+        className={`show-on-dark w-auto object-contain ${className}`}
+      />
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={onLight}
+        alt=""
+        aria-hidden
+        className={`show-on-light w-auto object-contain ${className}`}
+      />
+    </>
+  );
+}
+
 type Reachable = {
   email: string | null;
   phone: string | null;
@@ -258,9 +296,18 @@ export default async function ContactsPage() {
                         <Star size={12} className="shrink-0" />
                         Main sponsor
                       </span>
-                      <p className="text-2xl font-semibold tracking-tight text-neutral-100">
-                        {c.name}
-                      </p>
+                      <SponsorLogo
+                        name={c.name}
+                        dark={c.logoUrl}
+                        light={c.logoLightUrl}
+                        className="h-16 max-w-[260px]"
+                      />
+                      {/* The logo carries the name, including for screen readers. */}
+                      {c.logoUrl || c.logoLightUrl ? null : (
+                        <p className="text-2xl font-semibold tracking-tight text-neutral-100">
+                          {c.name}
+                        </p>
+                      )}
                       {c.person ? (
                         <p className="text-sm text-neutral-500">
                           {c.person}
@@ -312,6 +359,12 @@ export default async function ContactsPage() {
                   <Card key={c.id} className="space-y-3 p-5">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
+                        <SponsorLogo
+                          name={c.name}
+                          dark={c.logoUrl}
+                          light={c.logoLightUrl}
+                          className="mb-1.5 h-7 max-w-[150px]"
+                        />
                         <p className="truncate font-medium text-neutral-100">
                           {c.name}
                         </p>

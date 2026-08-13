@@ -32,11 +32,11 @@ enum RsvpStatus {
 
 /// A Discord server. This instance is single-guild, but the model supports more.
 model Guild {
-  id               String   @id // Discord guild id
+  id               String  @id // Discord guild id
   name             String
   defaultChannelId String?
-  timezone         String   @default("Europe/Bucharest")
-  memberCount      Int      @default(0) // updated by the bot, used for reach %
+  timezone         String  @default("Europe/Bucharest")
+  memberCount      Int     @default(0) // updated by the bot, used for reach %
 
   // Slicer settings a new print file starts with, so the common case is one
   // upload and no fiddling.
@@ -46,8 +46,8 @@ model Guild {
   printColor     String  @default("#132884")
   printSupport   Boolean @default(false)
 
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   channels         Channel[]
   events           Event[]
@@ -153,8 +153,8 @@ model EventInvitee {
 /// A single file attached to a PRINT request, with its own importance and
 /// print-queue order so a job's files can be prioritized individually.
 model PrintFile {
-  id        String   @id @default(cuid())
-  eventId   String
+  id           String   @id @default(cuid())
+  eventId      String
   name         String
   url          String? // Discord attachment URL captured after posting
   order        Int      @default(0) // print-queue position (0 = unset)
@@ -288,21 +288,25 @@ model OrgProfile {
 /// event was run with. Every way of reaching them is optional — a phone number
 /// alone is a perfectly good contact.
 model Contact {
-  id        String   @id @default(cuid())
-  guildId   String
-  kind      String // SPONSOR | COLLABORATION
-  name      String // company or organisation
-  featured  Boolean  @default(false) // a main sponsor, shown with its own frame
-  person    String? // who we actually talk to
-  role      String? // their job, when it matters
-  email     String?
-  phone     String?
-  instagram String?
-  linkedin  String?
-  website   String?
-  notes     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           String   @id @default(cuid())
+  guildId      String
+  kind         String // SPONSOR | COLLABORATION
+  name         String // company or organisation
+  featured     Boolean  @default(false) // a main sponsor, shown with its own frame
+  // Most logos are drawn for one background only, so a second file can be given
+  // for the other theme. One on its own is used everywhere.
+  logoUrl      String?
+  logoLightUrl String?
+  person       String? // who we actually talk to
+  role         String? // their job, when it matters
+  email        String?
+  phone        String?
+  instagram    String?
+  linkedin     String?
+  website      String?
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   @@index([guildId, kind])
 }

@@ -99,20 +99,24 @@ body {
   background-color: var(--bg-base);
 }
 
-/* Two tones of the logo ship together; each theme keeps the readable one. */
-.brand-on-dark {
+/*
+ * A drawing made for one background disappears on the other, so two tones ship
+ * together and the theme keeps the readable one. Used by our own mark and by
+ * sponsor logos, which come the same way.
+ */
+.show-on-dark {
   display: none;
 }
 
-.brand-on-light {
+.show-on-light {
   display: block;
 }
 
-.dark .brand-on-dark {
+.dark .show-on-dark {
   display: block;
 }
 
-.dark .brand-on-light {
+.dark .show-on-light {
   display: none;
 }
 

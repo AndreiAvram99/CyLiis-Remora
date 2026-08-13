@@ -15,6 +15,8 @@ const EMPTY: ContactValues = {
   kind: "SPONSOR",
   name: "",
   featured: false,
+  logoUrl: null,
+  logoLightUrl: null,
   person: null,
   role: null,
   email: null,
@@ -203,6 +205,29 @@ export function ContactForm({
             />
           </div>
         </div>
+
+        {values.kind === "SPONSOR" ? (
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <Label htmlFor="logoUrl">Logo</Label>
+              <Input
+                id="logoUrl"
+                value={text("logoUrl")}
+                onChange={(e) => patch({ logoUrl: e.target.value })}
+                placeholder="/sponsors/name.svg or https://..."
+              />
+            </div>
+            <div>
+              <Label htmlFor="logoLightUrl">Logo for light backgrounds</Label>
+              <Input
+                id="logoLightUrl"
+                value={text("logoLightUrl")}
+                onChange={(e) => patch({ logoLightUrl: e.target.value })}
+                placeholder="Only if the logo above is pale"
+              />
+            </div>
+          </div>
+        ) : null}
 
         <div>
           <Label htmlFor="notes">Notes</Label>

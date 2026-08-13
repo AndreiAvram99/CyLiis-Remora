@@ -21,6 +21,8 @@ export default async function EditContactPage({
     kind: isContactKind(contact.kind) ? contact.kind : "SPONSOR",
     name: contact.name,
     featured: contact.featured,
+    logoUrl: contact.logoUrl,
+    logoLightUrl: contact.logoLightUrl,
     person: contact.person,
     role: contact.role,
     email: contact.email,

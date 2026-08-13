@@ -41,6 +41,10 @@ const MAIN_SPONSOR = {
   featured: true,
   email: "office.ro@heavensolutions.com",
   website: "https://www.heavensolutions.com/",
+  // Their own two versions: the pale one for our dark theme, the dark one for
+  // the light theme. Both ship under the dashboard's public folder.
+  logoUrl: "/sponsors/heaven-solutions.svg",
+  logoLightUrl: "/sponsors/heaven-solutions-light.svg",
   notes: [
     "Aligning IT and business — software for regulated industries: medical devices and healthcare, transportation and logistics, oil and gas.",
     "Around 100 people across Iași, Gzira and Kirkland, in business for over 20 years. They back robotics teams and student scholarships.",
@@ -80,10 +84,19 @@ async function main() {
 
   const existing = await prisma.contact.findFirst({
     where: { guildId: GUILD_ID, name: MAIN_SPONSOR.name },
-    select: { id: true },
+    select: { id: true, logoUrl: true, logoLightUrl: true },
   });
   if (existing) {
-    console.log(`${MAIN_SPONSOR.name} already saved, left as it is`);
+    // The row predates the logo, so gaps get filled — anything already there,
+    // typed or corrected by hand, stays.
+    await prisma.contact.update({
+      where: { id: existing.id },
+      data: {
+        logoUrl: existing.logoUrl ?? MAIN_SPONSOR.logoUrl,
+        logoLightUrl: existing.logoLightUrl ?? MAIN_SPONSOR.logoLightUrl,
+      },
+    });
+    console.log(`${MAIN_SPONSOR.name} already saved, filled any gaps`);
   } else {
     await prisma.contact.create({
       data: { guildId: GUILD_ID, ...MAIN_SPONSOR },
