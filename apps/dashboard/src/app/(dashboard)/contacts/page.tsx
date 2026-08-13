@@ -289,32 +289,12 @@ export default async function ContactsPage() {
 
             {headline.map((c) => (
               <div key={c.id} className="sponsor-frame">
-                <div className="space-y-4 bg-neutral-900 p-6 sm:p-7">
+                <div className="space-y-5 bg-neutral-900 p-6 sm:p-7">
                   <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0 space-y-2">
-                      <span className="inline-flex items-center gap-1.5 rounded-xl bg-brand/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-brand">
-                        <Star size={12} className="shrink-0" />
-                        Main sponsor
-                      </span>
-                      <SponsorLogo
-                        name={c.name}
-                        dark={c.logoUrl}
-                        light={c.logoLightUrl}
-                        className="h-16 max-w-[260px]"
-                      />
-                      {/* The logo carries the name, including for screen readers. */}
-                      {c.logoUrl || c.logoLightUrl ? null : (
-                        <p className="text-2xl font-semibold tracking-tight text-neutral-100">
-                          {c.name}
-                        </p>
-                      )}
-                      {c.person ? (
-                        <p className="text-sm text-neutral-500">
-                          {c.person}
-                          {c.role ? ` · ${c.role}` : ""}
-                        </p>
-                      ) : null}
-                    </div>
+                    <span className="inline-flex items-center gap-1.5 rounded-xl bg-brand/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-brand">
+                      <Star size={12} className="shrink-0" />
+                      Main sponsor
+                    </span>
                     {isManager ? (
                       <div className="flex shrink-0 items-center gap-1.5">
                         <Link
@@ -331,13 +311,40 @@ export default async function ContactsPage() {
                     ) : null}
                   </div>
 
-                  {c.notes ? (
-                    <p className="max-w-2xl whitespace-pre-wrap text-sm text-neutral-300">
-                      {c.notes}
-                    </p>
-                  ) : null}
+                  {/*
+                   * Who they are on the left, their mark on the right. Narrow
+                   * screens can't hold both, so the mark goes on top, where it
+                   * still introduces what follows.
+                   */}
+                  <div className="flex flex-col-reverse gap-6 sm:flex-row sm:items-center sm:justify-between sm:gap-10">
+                    <div className="min-w-0 space-y-4">
+                      {/* The logo carries the name, including for screen readers. */}
+                      {c.logoUrl || c.logoLightUrl ? null : (
+                        <p className="text-2xl font-semibold tracking-tight text-neutral-100">
+                          {c.name}
+                        </p>
+                      )}
+                      {c.person ? (
+                        <p className="text-sm text-neutral-500">
+                          {c.person}
+                          {c.role ? ` · ${c.role}` : ""}
+                        </p>
+                      ) : null}
+                      {c.notes ? (
+                        <p className="whitespace-pre-wrap text-sm text-neutral-300">
+                          {c.notes}
+                        </p>
+                      ) : null}
+                      <Reaches contact={c} />
+                    </div>
 
-                  <Reaches contact={c} />
+                    <SponsorLogo
+                      name={c.name}
+                      dark={c.logoUrl}
+                      light={c.logoLightUrl}
+                      className="h-16 max-w-[220px] shrink-0 sm:h-20 sm:max-w-[260px]"
+                    />
+                  </div>
                 </div>
               </div>
             ))}
