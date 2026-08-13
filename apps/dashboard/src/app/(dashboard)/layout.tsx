@@ -9,15 +9,14 @@ import {
 } from "lucide-react";
 import { requireMember } from "@/lib/session";
 import { Providers } from "@/components/providers";
-import { SignOutButton } from "@/components/sign-out-button";
-import { Avatar } from "@/components/personalization";
+import { UserMenu } from "@/components/user-menu";
 import { NavLink } from "@/components/nav-link";
 import { MobileNav } from "@/components/mobile-nav";
 import { BrandMark } from "@/components/brand-mark";
 import { currentAvatarUrl } from "@/lib/members";
 
-// Settings lives under /account rather than the top bar — it's rarely used and
-// manager-only, so it doesn't earn a permanent slot.
+// Settings hangs off the avatar menu rather than the top bar — it's rarely used
+// and manager-only, so it doesn't earn a permanent slot.
 const navItems = [
   { href: "/events", label: "Schedules", icon: ListChecks, managerOnly: false },
   {
@@ -92,14 +91,11 @@ export default async function DashboardLayout({
                     View only
                   </span>
                 ) : null}
-                <Link
-                  href="/account"
-                  className="flex items-center gap-2 rounded-lg px-1.5 py-1 transition hover:bg-neutral-800"
-                  title="Account & personalization"
-                >
-                  <Avatar name={session.user?.name} src={myAvatar} />
-                </Link>
-                <SignOutButton />
+                <UserMenu
+                  name={session.user?.name}
+                  avatarUrl={myAvatar}
+                  isManager={isManager}
+                />
               </div>
             </div>
           </div>
