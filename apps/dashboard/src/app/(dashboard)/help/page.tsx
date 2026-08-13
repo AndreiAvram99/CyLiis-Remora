@@ -398,6 +398,12 @@ export default async function HelpPage() {
           who backs us first.
         </Point>
         <Point>
+          Sponsors can carry their logo, uploaded as an SVG so it stays sharp at
+          any size. A second file can be given for light backgrounds when the
+          first one is pale. Both are downloadable from the card, named after
+          the sponsor, for when you need one for a poster or a slide.
+        </Point>
+        <Point>
           Anyone in the server can read them. Remora-Admins add and edit;
           deleting is the owner&apos;s call.
         </Point>

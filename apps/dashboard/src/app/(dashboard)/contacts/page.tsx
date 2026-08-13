@@ -2,6 +2,7 @@ import Link from "next/link";
 import {
   Building2,
   Contact as ContactIcon,
+  Download,
   Globe,
   Handshake,
   Instagram,
@@ -112,6 +113,52 @@ function SponsorLogo({
         className={`show-on-light w-auto object-contain ${className}`}
       />
     </>
+  );
+}
+
+function slugOf(name: string): string {
+  return (
+    name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "") || "logo"
+  );
+}
+
+/**
+ * Sponsors ask for their own mark back more often than you'd think — for a
+ * poster, a slide, a t-shirt. Both versions are downloadable from where they're
+ * shown, named after the sponsor rather than after our route.
+ */
+function LogoDownloads({
+  name,
+  dark,
+  light,
+}: {
+  name: string;
+  dark: string | null;
+  light: string | null;
+}) {
+  const files = [
+    { href: dark, label: "Logo", suffix: "" },
+    { href: light, label: "Light version", suffix: "-light" },
+  ].filter((f) => f.href);
+  if (files.length === 0) return null;
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      {files.map((f) => (
+        <a
+          key={f.label}
+          href={f.href!}
+          download={`${slugOf(name)}${f.suffix}.svg`}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-[rgb(var(--line))] px-2.5 py-1 text-xs text-neutral-400 transition hover:text-neutral-100"
+        >
+          <Download size={13} className="shrink-0" />
+          {f.label}
+        </a>
+      ))}
+    </div>
   );
 }
 
@@ -338,12 +385,19 @@ export default async function ContactsPage() {
                       <Reaches contact={c} />
                     </div>
 
-                    <SponsorLogo
-                      name={c.name}
-                      dark={c.logoUrl}
-                      light={c.logoLightUrl}
-                      className="h-16 max-w-[220px] shrink-0 sm:h-20 sm:max-w-[260px]"
-                    />
+                    <div className="flex shrink-0 flex-col items-start gap-3 sm:items-end">
+                      <SponsorLogo
+                        name={c.name}
+                        dark={c.logoUrl}
+                        light={c.logoLightUrl}
+                        className="h-16 max-w-[220px] sm:h-20 sm:max-w-[260px]"
+                      />
+                      <LogoDownloads
+                        name={c.name}
+                        dark={c.logoUrl}
+                        light={c.logoLightUrl}
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -405,6 +459,12 @@ export default async function ContactsPage() {
                         {c.notes}
                       </p>
                     ) : null}
+
+                    <LogoDownloads
+                      name={c.name}
+                      dark={c.logoUrl}
+                      light={c.logoLightUrl}
+                    />
                   </Card>
                 ))}
               </div>

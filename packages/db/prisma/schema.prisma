@@ -308,7 +308,25 @@ model Contact {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
+  logos ContactLogo[]
+
   @@index([guildId, kind])
+}
+
+/// An uploaded logo, kept here so it outlives a redeploy without needing a
+/// bucket. Served from /api/contacts/<id>/logo, which is what the contact's
+/// logo url points at once a file has been given.
+model ContactLogo {
+  id        String   @id @default(cuid())
+  contactId String
+  tone      String // DARK | LIGHT — the background it was drawn for
+  mime      String
+  data      Bytes
+  updatedAt DateTime @updatedAt
+
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@unique([contactId, tone])
 }
 
 /// An Instagram DM forwarded into Discord. The row is created before the post

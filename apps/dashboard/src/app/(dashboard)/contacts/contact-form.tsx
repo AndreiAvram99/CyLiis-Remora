@@ -9,7 +9,8 @@ import {
 } from "@repo/shared";
 import { Button, Card, Input, Label, Textarea } from "@/components/ui";
 import type { ContactValues } from "@/lib/validation";
-import { createContact, updateContact } from "./actions";
+import { saveContact } from "./actions";
+import { LogoField } from "./logo-field";
 
 const EMPTY: ContactValues = {
   kind: "SPONSOR",
@@ -52,17 +53,26 @@ export function ContactForm({
     return typeof value === "string" ? value : "";
   }
 
-  function submit(e: React.FormEvent) {
+  function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
     if (!values.name.trim()) {
       setError("A name is required.");
       return;
     }
+
+    // The files are read straight off the form; everything else is state, so
+    // it's written in alongside them.
+    const data = new FormData(e.currentTarget);
+    if (id) data.set("id", id);
+    for (const [field, value] of Object.entries(values)) {
+      if (typeof value === "string") data.set(field, value);
+      if (field === "featured") data.set("featured", value ? "1" : "");
+    }
+
     startTransition(async () => {
       try {
-        if (id) await updateContact(id, values);
-        else await createContact(values);
+        await saveContact(data);
         router.push("/contacts");
         router.refresh();
       } catch (err) {
@@ -208,24 +218,20 @@ export function ContactForm({
 
         {values.kind === "SPONSOR" ? (
           <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <Label htmlFor="logoUrl">Logo</Label>
-              <Input
-                id="logoUrl"
-                value={text("logoUrl")}
-                onChange={(e) => patch({ logoUrl: e.target.value })}
-                placeholder="/sponsors/name.svg or https://..."
-              />
-            </div>
-            <div>
-              <Label htmlFor="logoLightUrl">Logo for light backgrounds</Label>
-              <Input
-                id="logoLightUrl"
-                value={text("logoLightUrl")}
-                onChange={(e) => patch({ logoLightUrl: e.target.value })}
-                placeholder="Only if the logo above is pale"
-              />
-            </div>
+            <LogoField
+              field="logo"
+              label="Logo"
+              hint="SVG, up to 512 KB"
+              currentUrl={values.logoUrl}
+              onDark
+            />
+            <LogoField
+              field="logoLight"
+              label="Logo for light backgrounds"
+              hint="Only if the one above is pale"
+              currentUrl={values.logoLightUrl}
+              onDark={false}
+            />
           </div>
         ) : null}
 
