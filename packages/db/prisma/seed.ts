@@ -16,6 +16,21 @@ const DEFAULTS: Array<{
 ];
 
 /**
+ * Who we are on paper. Set once here so the details are never missing when a
+ * sponsor or a school asks for them; edits made in the dashboard win, since
+ * this only fills the row in when there isn't one.
+ */
+const ORG_PROFILE = {
+  name: 'Asociaţia Părinţi-Profesori a Liceului Teoretic de Informatică "Grigore Moisil" Iaşi, LIIS',
+  address: "Str. Petre Andrei nr. 9, Iaşi, Iaşi, Romania",
+  fiscalCode: "15386962",
+  iban: "RO40 RNCB 0175033577820001",
+  bank: "BCR Iaşi",
+  representative: "Corina Homeucă",
+  email: "parinti.profesori@gmail.com",
+};
+
+/**
  * The sponsor behind the team. Written here rather than typed in by hand so a
  * fresh database still knows who backs us — but only created when absent, so
  * anything edited in the dashboard afterwards is left alone.
@@ -55,6 +70,13 @@ async function main() {
     });
   }
   console.log(`Seeded ${DEFAULTS.length} default reminders`);
+
+  await prisma.orgProfile.upsert({
+    where: { guildId: GUILD_ID },
+    create: { guildId: GUILD_ID, ...ORG_PROFILE },
+    update: {},
+  });
+  console.log("Seeded our own details");
 
   const existing = await prisma.contact.findFirst({
     where: { guildId: GUILD_ID, name: MAIN_SPONSOR.name },
