@@ -67,6 +67,11 @@ async function folderFor(
   const accepted = wanted.map(normalize);
 
   const root = env.googleAgendaFolderId();
+  if (!root) {
+    throw new Error(
+      "Set GOOGLE_AGENDA_FOLDER_ID to the Drive folder holding the minutes folders.",
+    );
+  }
   const res = await drive.files.list({
     q: `'${root}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
     fields: "files(id, name)",

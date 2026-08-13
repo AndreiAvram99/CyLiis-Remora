@@ -12,28 +12,18 @@ export async function getGuild(): Promise<Guild> {
 }
 
 /**
- * Channels shown in the picker by default. Set CHANNEL_ALLOWLIST to override.
- * Names are matched case-insensitively against the synced Discord channels.
+ * Text channels the bot has cached, for a picker. Which of them belongs to the
+ * server rather than to this code: CHANNEL_ALLOWLIST names the ones worth
+ * offering, matched case-insensitively, and an unset list offers all of them.
  */
-const DEFAULT_CHANNEL_ALLOWLIST = [
-  "announcements",
-  "events",
-  "hardware",
-  "sustenability",
-  "branding",
-  "printing",
-  "pagination",
-];
-
-/** Text channels the bot has cached, filtered to the allowlist, for a picker. */
 export async function getTextChannels() {
-  const override = env.channelAllowlist();
-  const allow = new Set(override.length ? override : DEFAULT_CHANNEL_ALLOWLIST);
+  const allow = new Set(env.channelAllowlist());
 
   const channels = await prisma.channel.findMany({
     where: { guildId: env.guildId(), isTextable: true, archived: false },
     orderBy: [{ position: "asc" }, { name: "asc" }],
   });
 
+  if (allow.size === 0) return channels;
   return channels.filter((c) => allow.has(c.name.toLowerCase()));
 }

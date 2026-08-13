@@ -187,6 +187,13 @@ Steps:
 
 See [`.env.example`](.env.example) for the full annotated list.
 
+Nothing in the source names a particular Discord server. Server ids, role ids,
+the owner account, the Drive folder for agendas and the channel allowlist all
+come from the environment, and any feature whose ids are missing stays off
+instead of guessing. Point the variables at your own server and it runs there —
+subject to the [licence](LICENSE), which permits reading this code but not
+deploying it.
+
 ## Presence tracking
 
 - **RSVP buttons** (Going / Can't make it / Motivation) on every announcement and
@@ -216,3 +223,8 @@ participation from Discord voice-channel presence during the event.
 | `npm run db:seed` | Seed guild + default reminders |
 | `npm run db:studio` | Open Prisma Studio |
 | `npm run build` | Build both apps |
+
+## Licence
+
+Proprietary — all rights reserved. See [LICENSE](LICENSE). Read access to this
+repository is not permission to run, copy or deploy the software.

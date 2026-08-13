@@ -5,24 +5,13 @@ const API = "https://discord.com/api/v10";
 const CDN = "https://cdn.discordapp.com";
 
 /**
- * Roles a meeting can invite from, in the order they're offered. Override the
- * whole list with ATTENDEE_ROLE_IDS.
+ * Roles a meeting can invite from, in the order they're offered. Which ones
+ * belongs to the server, not to this code: pin them with ATTENDEE_ROLE_IDS,
+ * or name them with ATTENDEE_ROLE_NAMES if you'd rather survive renames of the
+ * ids than of the names.
  */
-const DEFAULT_ATTENDEE_ROLE_IDS = [
-  "1296135916431085690", // membru-vechi
-  "1281010678253223967", // membru-nou
-  "1528740902267392151", // Tehnic
-  "1528741191527567411", // NTehnic
-  "1279014393471959151", // Branding
-  "1279014453568081981", // Sustenability
-];
-
-/** Offered too, matched by Discord name since their ids aren't pinned. */
-const DEFAULT_ATTENDEE_ROLE_NAMES = ["events"];
-
 export function attendeeRoleIds(): string[] {
-  const override = env.attendeeRoleIds();
-  return override.length ? override : DEFAULT_ATTENDEE_ROLE_IDS;
+  return env.attendeeRoleIds();
 }
 
 interface RawMember {
@@ -239,6 +228,16 @@ export async function fetchRoleNames(): Promise<Map<string, string>> {
   return new Map(roles.map((r) => [r.id, r.name]));
 }
 
+/**
+ * Every role going by this name. Lets a rule be written against a name the
+ * server chooses ("Announcements") instead of an id baked into the code.
+ */
+export async function fetchRoleIdsByName(name: string): Promise<string[]> {
+  const wanted = name.toLowerCase();
+  const roles = await fetchGuildRoles();
+  return roles.filter((r) => r.name.toLowerCase() === wanted).map((r) => r.id);
+}
+
 export interface MentionOptions {
   roles: { id: string; name: string }[];
   members: { id: string; name: string; avatarUrl: string | null }[];
@@ -287,7 +286,7 @@ async function attendeeRoles(): Promise<{ id: string; name: string }[]> {
   }));
 
   const taken = new Set(wanted.map((r) => r.id));
-  for (const name of DEFAULT_ATTENDEE_ROLE_NAMES) {
+  for (const name of env.attendeeRoleNames()) {
     const match = roles.find(
       (r) => r.name.toLowerCase() === name && !taken.has(r.id),
     );

@@ -33,6 +33,8 @@ npm-debug.log*
 
 # secrets
 google-service-account*.json
+# runbooks holding this deployment's own ids, tokens and calendar links
+*.private.md
 
 # local dev database (embedded postgres)
 .devdb/

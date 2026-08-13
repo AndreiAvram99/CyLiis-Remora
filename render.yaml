@@ -29,6 +29,23 @@ envVarGroups:
         value: Remora-Admin
       - key: MANAGER_ROLE_ID
         sync: false
+      # The one owner account: deletes schedules, adjusts marks, edits expected
+      # attendees. Empty means no owner at all.
+      - key: MASTER_DISCORD_ID
+        sync: false
+      # Role shortcuts offered when picking a meeting's expected attendees, by
+      # id and/or by name. Empty means members only, no role chips.
+      - key: ATTENDEE_ROLE_IDS
+        sync: false
+      - key: ATTENDEE_ROLE_NAMES
+        sync: false
+      # Who may schedule into #announcements. Empty falls back to the role
+      # named "Announcements".
+      - key: ANNOUNCEMENTS_ROLE_ID
+        sync: false
+      # Channel names offered in the picker. Empty offers every text channel.
+      - key: CHANNEL_ALLOWLIST
+        sync: false
       - key: GOOGLE_SERVICE_ACCOUNT_JSON
         sync: false
       - key: GOOGLE_CALENDAR_ID
@@ -43,6 +60,10 @@ envVarGroups:
         sync: false
       - key: GOOGLE_CALENDAR_ENABLED
         value: "true"
+      # Drive folder holding the per-team minutes folders that meeting agendas
+      # are filed into. Without it, the Agenda button reports it isn't set up.
+      - key: GOOGLE_AGENDA_FOLDER_ID
+        sync: false
 
 services:
   - type: web

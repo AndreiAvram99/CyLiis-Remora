@@ -1,25 +1,29 @@
 import { prisma } from "@repo/db";
 import { PRINT_ONLY_CHANNELS } from "@repo/shared";
-import { ensureGuildMembers } from "./members";
+import { ensureGuildMembers, fetchRoleIdsByName } from "./members";
+import { env } from "./env";
 import { getSession, isMasterId } from "./session";
 
 interface Restriction {
   /** What the user is missing, worded for an error message. */
   need: string;
-  /** Holding any of these roles is enough. */
-  roleIds?: string[];
-  masterOnly?: boolean;
+  /** Holding a role of this name is enough, unless ids are pinned in env. */
+  roleName: string;
+  /** Ids pinned in the environment, which win over the name. */
+  pinned: () => string[];
 }
 
 /**
- * Channels that aren't open to every manager. #announcements is the team's
+ * Channels that aren't open to every manager, keyed by channel name so the rule
+ * travels to any server that uses the same names. #announcements is the team's
  * megaphone, so scheduling into it takes the Announcements role. Everything
  * else in the picker is unrestricted.
  */
 const RESTRICTED: Record<string, Restriction> = {
-  "1279013106621616128": {
+  announcements: {
     need: "the Announcements role",
-    roleIds: ["1280868748097486888"],
+    roleName: "announcements",
+    pinned: () => env.announcementsRoleIds(),
   },
 };
 
@@ -46,29 +50,44 @@ async function poster(): Promise<Poster> {
   return { isMaster: false, roleIds: member?.roles ?? [] };
 }
 
-function allowed(p: Poster, channelId: string): boolean {
-  const rule = RESTRICTED[channelId];
+function ruleFor(name?: string | null): Restriction | undefined {
+  return name ? RESTRICTED[name.toLowerCase()] : undefined;
+}
+
+/** The roles that open a restricted channel: pinned ids, else the named role. */
+async function gateRoleIds(rule: Restriction): Promise<string[]> {
+  const pinned = rule.pinned();
+  return pinned.length ? pinned : await fetchRoleIdsByName(rule.roleName);
+}
+
+async function allowed(p: Poster, name?: string | null): Promise<boolean> {
+  const rule = ruleFor(name);
   if (!rule) return true;
   if (p.isMaster) return true; // the owner posts anywhere
-  if (rule.masterOnly) return false;
-  return (rule.roleIds ?? []).some((r) => p.roleIds.includes(r));
+  const gates = await gateRoleIds(rule);
+  // An unresolvable gate keeps the channel shut rather than opening it to all.
+  return gates.length > 0 && gates.some((r) => p.roleIds.includes(r));
 }
 
 /** Narrow a channel list to the ones the signed-in user may schedule into. */
-export async function postableChannels<T extends { id: string }>(
+export async function postableChannels<T extends { id: string; name: string }>(
   channels: T[],
 ): Promise<T[]> {
   const p = await poster();
-  return channels.filter((c) => allowed(p, c.id));
+  const verdicts = await Promise.all(channels.map((c) => allowed(p, c.name)));
+  return channels.filter((_, i) => verdicts[i]);
 }
 
 /** Throws when the signed-in user may not schedule into this channel. */
 export async function assertCanPostTo(channelId: string): Promise<void> {
+  const channel = await prisma.channel.findUnique({
+    where: { id: channelId },
+    select: { name: true },
+  });
   const p = await poster();
-  if (allowed(p, channelId)) return;
-  const rule = RESTRICTED[channelId];
+  if (await allowed(p, channel?.name)) return;
   throw new Error(
-    `You need ${rule?.need ?? "permission"} to schedule in that channel.`,
+    `You need ${ruleFor(channel?.name)?.need ?? "permission"} to schedule in that channel.`,
   );
 }
 
