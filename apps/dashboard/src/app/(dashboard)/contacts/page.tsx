@@ -11,6 +11,7 @@ import {
   Phone,
   Plus,
   Sparkles,
+  Star,
 } from "lucide-react";
 import { prisma } from "@repo/db";
 import {
@@ -73,6 +74,57 @@ function Reach({
     >
       {body}
     </a>
+  );
+}
+
+type Reachable = {
+  email: string | null;
+  phone: string | null;
+  instagram: string | null;
+  linkedin: string | null;
+  website: string | null;
+};
+
+/** Every way we have of reaching someone, in one row. */
+function Reaches({ contact: c }: { contact: Reachable }) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {c.email ? (
+        <Reach icon={Mail} label={c.email} href={`mailto:${c.email}`} />
+      ) : null}
+      {c.phone ? (
+        <Reach
+          icon={Phone}
+          label={c.phone}
+          href={`tel:${c.phone.replace(/\s+/g, "")}`}
+        />
+      ) : null}
+      {c.instagram ? (
+        <Reach
+          icon={Instagram}
+          label={
+            c.instagram.startsWith("@")
+              ? c.instagram
+              : `@${c.instagram.replace(/^https?:\/\/\S+\//, "")}`
+          }
+          href={instagramUrl(c.instagram)}
+        />
+      ) : null}
+      {c.linkedin ? (
+        <Reach
+          icon={Linkedin}
+          label="LinkedIn"
+          href={externalUrl(c.linkedin)}
+        />
+      ) : null}
+      {c.website ? (
+        <Reach
+          icon={Globe}
+          label={c.website.replace(/^https?:\/\//, "").replace(/\/$/, "")}
+          href={externalUrl(c.website)}
+        />
+      ) : null}
+    </div>
   );
 }
 
@@ -181,7 +233,11 @@ export default async function ContactsPage() {
       </Card>
 
       {CONTACT_KINDS.map((kind) => {
-        const rows = contacts.filter((c) => c.kind === kind);
+        const all = contacts.filter((c) => c.kind === kind);
+        // A main sponsor is shown once, in its own frame above the grid.
+        const headline =
+          kind === "SPONSOR" ? all.filter((c) => c.featured) : [];
+        const rows = all.filter((c) => !headline.includes(c));
         const Icon = KIND_ICON[kind];
         return (
           <section key={kind} className="space-y-3">
@@ -189,17 +245,67 @@ export default async function ContactsPage() {
               <Icon size={18} className="text-brand" />
               {CONTACT_KIND_TITLES[kind]}
               <span className="text-sm font-normal text-neutral-500">
-                {rows.length}
+                {all.length}
               </span>
             </h2>
 
+            {headline.map((c) => (
+              <div key={c.id} className="sponsor-frame">
+                <div className="space-y-4 bg-neutral-900 p-6 sm:p-7">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 space-y-2">
+                      <span className="inline-flex items-center gap-1.5 rounded-xl bg-brand/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-brand">
+                        <Star size={12} className="shrink-0" />
+                        Main sponsor
+                      </span>
+                      <p className="text-2xl font-semibold tracking-tight text-neutral-100">
+                        {c.name}
+                      </p>
+                      {c.person ? (
+                        <p className="text-sm text-neutral-500">
+                          {c.person}
+                          {c.role ? ` · ${c.role}` : ""}
+                        </p>
+                      ) : null}
+                    </div>
+                    {isManager ? (
+                      <div className="flex shrink-0 items-center gap-1.5">
+                        <Link
+                          href={`/contacts/${c.id}`}
+                          title="Edit"
+                          aria-label="Edit"
+                        >
+                          <Button variant="secondary" className="w-11 px-0">
+                            <Pencil className="h-5 w-5" />
+                          </Button>
+                        </Link>
+                        {isMaster ? <DeleteContact id={c.id} /> : null}
+                      </div>
+                    ) : null}
+                  </div>
+
+                  {c.notes ? (
+                    <p className="max-w-2xl whitespace-pre-wrap text-sm text-neutral-300">
+                      {c.notes}
+                    </p>
+                  ) : null}
+
+                  <Reaches contact={c} />
+                </div>
+              </div>
+            ))}
+
             {rows.length === 0 ? (
-              <Card className="p-5">
-                <p className="text-sm text-neutral-500">
-                  None yet.
-                  {isManager ? " Add the first one with “New contact”." : null}
-                </p>
-              </Card>
+              headline.length === 0 ? (
+                <Card className="p-5">
+                  <p className="text-sm text-neutral-500">
+                    None yet.
+                    {isManager
+                      ? " Add the first one with “New contact”."
+                      : null}
+                  </p>
+                </Card>
+              ) : null
             ) : (
               <div className="grid gap-3 sm:grid-cols-2">
                 {rows.map((c) => (
@@ -232,47 +338,7 @@ export default async function ContactsPage() {
                       ) : null}
                     </div>
 
-                    <div className="flex flex-wrap gap-2">
-                      {c.email ? (
-                        <Reach
-                          icon={Mail}
-                          label={c.email}
-                          href={`mailto:${c.email}`}
-                        />
-                      ) : null}
-                      {c.phone ? (
-                        <Reach
-                          icon={Phone}
-                          label={c.phone}
-                          href={`tel:${c.phone.replace(/\s+/g, "")}`}
-                        />
-                      ) : null}
-                      {c.instagram ? (
-                        <Reach
-                          icon={Instagram}
-                          label={
-                            c.instagram.startsWith("@")
-                              ? c.instagram
-                              : `@${c.instagram.replace(/^https?:\/\/\S+\//, "")}`
-                          }
-                          href={instagramUrl(c.instagram)}
-                        />
-                      ) : null}
-                      {c.linkedin ? (
-                        <Reach
-                          icon={Linkedin}
-                          label="LinkedIn"
-                          href={externalUrl(c.linkedin)}
-                        />
-                      ) : null}
-                      {c.website ? (
-                        <Reach
-                          icon={Globe}
-                          label="Website"
-                          href={externalUrl(c.website)}
-                        />
-                      ) : null}
-                    </div>
+                    <Reaches contact={c} />
 
                     {c.notes ? (
                       <p className="whitespace-pre-wrap text-sm text-neutral-400">

@@ -71,6 +71,7 @@ const optionalText = (max: number) =>
 export const contactSchema = z.object({
   kind: z.enum(["SPONSOR", "COLLABORATION"]),
   name: z.string().trim().min(1, "A name is required").max(200),
+  featured: z.boolean().default(false),
   person: optionalText(120),
   role: optionalText(120),
   email: optionalText(200),

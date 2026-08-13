@@ -20,6 +20,7 @@ export default async function EditContactPage({
   const initial: ContactValues = {
     kind: isContactKind(contact.kind) ? contact.kind : "SPONSOR",
     name: contact.name,
+    featured: contact.featured,
     person: contact.person,
     role: contact.role,
     email: contact.email,

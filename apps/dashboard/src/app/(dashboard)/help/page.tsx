@@ -353,6 +353,11 @@ export default async function HelpPage() {
           contact.
         </Point>
         <Point>
+          A sponsor can be marked as the main one — it then sits above the rest
+          in a card with a slowly moving border, so whoever opens the page sees
+          who backs us first.
+        </Point>
+        <Point>
           Anyone in the server can read them. Remora-Admins add and edit;
           deleting is the owner&apos;s call.
         </Point>

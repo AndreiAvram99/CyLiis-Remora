@@ -14,6 +14,7 @@ import { createContact, updateContact } from "./actions";
 const EMPTY: ContactValues = {
   kind: "SPONSOR",
   name: "",
+  featured: false,
   person: null,
   role: null,
   email: null,
@@ -80,7 +81,13 @@ export function ContactForm({
                 <button
                   key={kind}
                   type="button"
-                  onClick={() => patch({ kind: kind as ContactKind })}
+                  onClick={() =>
+                    patch({
+                      kind: kind as ContactKind,
+                      // Only a sponsor can be the main one.
+                      featured: kind === "SPONSOR" ? values.featured : false,
+                    })
+                  }
                   aria-pressed={on}
                   className={`rounded-[14px] border px-4 py-3 text-left text-sm transition ${
                     on
@@ -101,6 +108,24 @@ export function ContactForm({
             })}
           </div>
         </div>
+
+        {values.kind === "SPONSOR" ? (
+          <label className="flex items-start gap-3 rounded-[14px] border border-[rgb(var(--line))] px-4 py-3 text-sm text-neutral-300">
+            <input
+              type="checkbox"
+              checked={values.featured}
+              onChange={(e) => patch({ featured: e.target.checked })}
+              className="mt-0.5 h-4 w-4 rounded border-neutral-700 bg-neutral-950"
+            />
+            <span>
+              <span className="font-medium text-neutral-100">Main sponsor</span>
+              <span className="mt-0.5 block text-xs text-neutral-500">
+                Shown on its own at the top of the sponsors, in a card with a
+                moving border.
+              </span>
+            </span>
+          </label>
+        ) : null}
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div>

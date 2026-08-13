@@ -115,3 +115,53 @@ body {
 .dark .brand-on-light {
   display: none;
 }
+
+/*
+ * A main sponsor's card. The border is a slowly turning cone of light rather
+ * than a line: the gradient sits on a pseudo element wide enough that rotating
+ * it always covers the corners, and the card itself sits on top, leaving only
+ * a hairline of it visible. Still a clean edge when the sweep is turned off.
+ */
+.sponsor-frame {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-radius: 24px; /* matches Card, so it sits in line with its siblings */
+  padding: 1.5px;
+  box-shadow: 0 18px 40px rgb(var(--pal-azure) / 0.18);
+}
+
+.sponsor-frame::before {
+  content: "";
+  position: absolute;
+  inset: -130%;
+  background: conic-gradient(
+    from 0deg,
+    rgb(var(--pal-azure) / 0.22) 0deg,
+    rgb(var(--pal-azure) / 0.22) 190deg,
+    rgb(var(--pal-sky)) 268deg,
+    rgb(var(--pal-sun)) 300deg,
+    rgb(var(--pal-flame)) 322deg,
+    rgb(var(--pal-azure) / 0.22) 360deg
+  );
+  animation: sponsor-sweep 7s linear infinite;
+  /* Promote to its own layer: the sweep then costs a composite, not a repaint. */
+  will-change: transform;
+}
+
+.sponsor-frame > * {
+  position: relative;
+  border-radius: 22.5px;
+}
+
+@keyframes sponsor-sweep {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sponsor-frame::before {
+    animation: none;
+  }
+}

@@ -292,6 +292,7 @@ model Contact {
   guildId   String
   kind      String // SPONSOR | COLLABORATION
   name      String // company or organisation
+  featured  Boolean  @default(false) // a main sponsor, shown with its own frame
   person    String? // who we actually talk to
   role      String? // their job, when it matters
   email     String?
