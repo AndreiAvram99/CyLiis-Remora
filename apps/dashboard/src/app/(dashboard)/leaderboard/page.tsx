@@ -2,6 +2,7 @@ import { Trophy } from "lucide-react";
 import { STAR_WHITE_VALUE } from "@repo/shared";
 import { Card } from "@/components/ui";
 import { BlackMark, StarMark, WhiteMark } from "@/components/marks";
+import { MemberAvatar } from "@/components/member-avatar";
 import { getAttendeeCandidates } from "@/lib/members";
 import {
   loadMarks,
@@ -16,36 +17,6 @@ import { MarksPanel } from "./marks-panel";
 import { MemberMarks } from "./member-marks";
 
 export const dynamic = "force-dynamic";
-
-function initials(name: string): string {
-  return name.slice(0, 2).toUpperCase();
-}
-
-function MemberAvatar({
-  name,
-  avatarUrl,
-}: {
-  name: string;
-  avatarUrl: string | null;
-}) {
-  if (avatarUrl) {
-    // eslint-disable-next-line @next/next/no-img-element
-    return (
-      <img
-        src={avatarUrl}
-        alt=""
-        width={28}
-        height={28}
-        className="h-7 w-7 shrink-0 rounded-full object-cover"
-      />
-    );
-  }
-  return (
-    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-neutral-800 text-[10px] font-semibold text-neutral-300">
-      {initials(name)}
-    </span>
-  );
-}
 
 /** Share of expected meetings the member actually showed up to. */
 function rate(going: number, expected: number): string {
@@ -148,12 +119,12 @@ export default async function LeaderboardPage({
                         className="flex items-center gap-2 hover:underline"
                         title="See where their marks came from"
                       >
-                        <MemberAvatar name={r.name} avatarUrl={r.avatarUrl} />
+                        <MemberAvatar name={r.name} src={r.avatarUrl} size="md" />
                         <span className="min-w-0 truncate">{r.name}</span>
                       </a>
                     ) : (
                       <span className="flex items-center gap-2">
-                        <MemberAvatar name={r.name} avatarUrl={r.avatarUrl} />
+                        <MemberAvatar name={r.name} src={r.avatarUrl} size="md" />
                         <span className="min-w-0 truncate">{r.name}</span>
                       </span>
                     )}

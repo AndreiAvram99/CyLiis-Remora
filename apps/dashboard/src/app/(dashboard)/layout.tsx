@@ -14,6 +14,7 @@ import { Avatar } from "@/components/personalization";
 import { NavLink } from "@/components/nav-link";
 import { MobileNav } from "@/components/mobile-nav";
 import { BrandMark } from "@/components/brand-mark";
+import { currentAvatarUrl } from "@/lib/members";
 
 // Settings lives under /account rather than the top bar — it's rarely used and
 // manager-only, so it doesn't earn a permanent slot.
@@ -48,6 +49,10 @@ export default async function DashboardLayout({
 }) {
   const session = await requireMember();
   const isManager = Boolean(session.user?.isManager);
+  const myAvatar = await currentAvatarUrl(
+    session.user?.discordId,
+    session.user?.image,
+  );
   const visibleNav = navItems.filter((i) => !i.managerOnly || isManager);
 
   const navLinks = (
@@ -92,10 +97,7 @@ export default async function DashboardLayout({
                   className="flex items-center gap-2 rounded-lg px-1.5 py-1 transition hover:bg-neutral-800"
                   title="Account & personalization"
                 >
-                  <Avatar
-                    name={session.user?.name}
-                    src={session.user?.image}
-                  />
+                  <Avatar name={session.user?.name} src={myAvatar} />
                 </Link>
                 <SignOutButton />
               </div>

@@ -1,6 +1,7 @@
 import { prisma, RsvpStatus } from "@repo/db";
 import { whiteCredit } from "@repo/shared";
 import { env } from "./env";
+import { ensureGuildMembers } from "./members";
 
 export interface LeaderboardRow {
   userId: string;
@@ -149,7 +150,9 @@ export async function loadMarks(): Promise<{
     ]),
   ];
 
-  // Prefer live roster names; fall back to whatever was snapshotted earlier.
+  // Prefer live roster names and pictures; fall back to whatever was
+  // snapshotted earlier, which is all that's left of members who have gone.
+  await ensureGuildMembers();
   const members = await prisma.guildMember.findMany({
     where: { id: { in: userIds } },
     select: { id: true, displayName: true, username: true, avatarUrl: true },

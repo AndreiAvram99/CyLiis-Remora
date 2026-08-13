@@ -27,15 +27,20 @@ interface RawMember {
   roles?: string[];
 }
 
+/** Animated avatars are only served as gifs; asking for png returns nothing. */
+function avatarExt(hash: string): string {
+  return hash.startsWith("a_") ? "gif" : "png";
+}
+
 /** Guild-specific avatar if the member set one, otherwise their global one. */
 function avatarUrlOf(m: RawMember): string | null {
   const userId = m.user?.id;
   if (!userId) return null;
   if (m.avatar) {
-    return `${CDN}/guilds/${env.guildId()}/users/${userId}/avatars/${m.avatar}.png?size=64`;
+    return `${CDN}/guilds/${env.guildId()}/users/${userId}/avatars/${m.avatar}.${avatarExt(m.avatar)}?size=64`;
   }
   if (m.user?.avatar) {
-    return `${CDN}/avatars/${userId}/${m.user.avatar}.png?size=64`;
+    return `${CDN}/avatars/${userId}/${m.user.avatar}.${avatarExt(m.user.avatar)}?size=64`;
   }
   return null;
 }
@@ -155,6 +160,21 @@ export async function rosterIdentities(
   );
 }
 
+/**
+ * The picture Discord serves for a member right now. A sign-in token can be
+ * weeks old and an avatar url names the picture's hash, so what was captured at
+ * login stops resolving the moment they change it; the roster knows better.
+ */
+export async function currentAvatarUrl(
+  userId: string | undefined,
+  fallback?: string | null,
+): Promise<string | null> {
+  if (!userId) return fallback ?? null;
+  await ensureGuildMembers();
+  const roster = await rosterIdentities([userId]);
+  return roster.get(userId)?.avatarUrl ?? fallback ?? null;
+}
+
 interface Named {
   userId: string;
   username?: string | null;
@@ -163,29 +183,38 @@ interface Named {
 }
 
 /**
- * Fill in RSVP names and avatars that were never captured, so a chip never
- * degrades to a bare Discord id. Prefers the live roster and falls back to the
- * event's own invitee snapshot, which still holds members who have left.
+ * Bring the names and avatars on an event's answers up to date.
+ *
+ * Rsvp and EventInvitee keep a snapshot from the moment someone answered, and a
+ * Discord avatar url names the picture's own hash — so the snapshot points at a
+ * picture that no longer exists as soon as they change it. The roster is the
+ * current truth and wins wherever it knows the member; snapshots stay as the
+ * fallback, which is what keeps people who have since left the server visible.
  */
 export async function fillIdentities(
   events: { rsvps: Named[]; invitees: Named[] }[],
 ): Promise<void> {
-  const blank = (r: Named) => !r.displayName && !r.username;
-  const missing = events.flatMap((e) =>
-    e.rsvps.filter(blank).map((r) => r.userId),
+  const everyone = events.flatMap((e) =>
+    [...e.rsvps, ...e.invitees].map((p) => p.userId),
   );
-  if (missing.length === 0) return;
+  if (everyone.length === 0) return;
 
-  const roster = await rosterIdentities(missing);
+  await ensureGuildMembers();
+  const roster = await rosterIdentities(everyone);
   for (const e of events) {
     const invited = new Map(e.invitees.map((i) => [i.userId, i]));
     for (const r of e.rsvps) {
-      if (!blank(r)) continue;
       const live = roster.get(r.userId);
       const snapshot = invited.get(r.userId);
-      r.username = live?.username ?? null;
-      r.displayName = live?.displayName ?? snapshot?.displayName ?? null;
-      r.avatarUrl = live?.avatarUrl ?? snapshot?.avatarUrl ?? null;
+      r.username = live?.username ?? r.username ?? null;
+      r.displayName =
+        live?.displayName ?? r.displayName ?? snapshot?.displayName ?? null;
+      r.avatarUrl = live?.avatarUrl ?? r.avatarUrl ?? null;
+    }
+    for (const i of e.invitees) {
+      const live = roster.get(i.userId);
+      i.displayName = live?.displayName ?? i.displayName ?? null;
+      i.avatarUrl = live?.avatarUrl ?? i.avatarUrl ?? null;
     }
   }
 }

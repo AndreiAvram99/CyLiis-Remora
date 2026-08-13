@@ -4,10 +4,8 @@ import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { X, Pencil, UserMinus } from "lucide-react";
 import type { RsvpStatusName } from "@repo/shared";
+import { MemberAvatar } from "@/components/member-avatar";
 import { setRsvpStatus, removeRsvp, dropExpectedAttendee } from "./actions";
-
-// Neutral avatar fill — status is shown by the column header, not the avatar.
-const AVATAR_NEUTRAL = "bg-neutral-800 text-neutral-300";
 
 /**
  * Answer on someone's behalf who never replied in Discord. Picking a status
@@ -127,22 +125,7 @@ export function EditableMember({
     <span
       className={`flex max-w-full items-center gap-2 rounded-full border border-neutral-800 bg-neutral-950 py-1 pl-1 pr-1.5 text-sm ${isPending ? "opacity-50" : ""}`}
     >
-      {avatarUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={avatarUrl}
-          alt={name}
-          width={24}
-          height={24}
-          className="h-6 w-6 shrink-0 rounded-full object-cover"
-        />
-      ) : (
-        <span
-          className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold ${AVATAR_NEUTRAL}`}
-        >
-          {name.slice(0, 2).toUpperCase()}
-        </span>
-      )}
+      <MemberAvatar name={name} src={avatarUrl} />
       <span className="min-w-0 max-w-[10rem] truncate">{name}</span>
       {overridden ? (
         <Pencil

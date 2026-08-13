@@ -20,6 +20,7 @@ import { channelColorOf } from "@/lib/channel-color";
 import { loadMarks } from "@/lib/marks";
 import { fillIdentities } from "@/lib/members";
 import { BlackMark } from "@/components/marks";
+import { MemberAvatar } from "@/components/member-avatar";
 import { env } from "@/lib/env";
 import { getSession, isMasterId } from "@/lib/session";
 import { formatInTz, relativeTo } from "@/lib/time";
@@ -53,48 +54,11 @@ const KIND_STYLES: Record<string, string> = {
   CUSTOM: "bg-palette-flame/20 text-palette-flame",
 };
 
-// Avatars stay neutral (understated); status is conveyed by the column header
-// color + dot, per the design system's "minimal use of color" rule.
-const AVATAR_NEUTRAL = "bg-neutral-800 text-neutral-300";
-
 // Status accents used for the group headers and dots.
 const STATUS_TONE: Record<string, { text: string; dot: string }> = {
   GOING: { text: "text-palette-azure", dot: "bg-palette-azure" },
   MOTIVATED: { text: "text-palette-sun", dot: "bg-palette-sun" },
 };
-
-function initials(name: string): string {
-  return name.slice(0, 2).toUpperCase();
-}
-
-/** The member's Discord avatar, or their initials when we don't have one. */
-function MemberAvatar({
-  name,
-  avatarUrl,
-}: {
-  name: string;
-  avatarUrl?: string | null;
-}) {
-  if (avatarUrl) {
-    // eslint-disable-next-line @next/next/no-img-element
-    return (
-      <img
-        src={avatarUrl}
-        alt={name}
-        width={24}
-        height={24}
-        className="h-6 w-6 shrink-0 rounded-full object-cover"
-      />
-    );
-  }
-  return (
-    <span
-      className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold ${AVATAR_NEUTRAL}`}
-    >
-      {initials(name)}
-    </span>
-  );
-}
 
 function MemberChip({
   name,
@@ -105,7 +69,7 @@ function MemberChip({
 }) {
   return (
     <span className="flex max-w-full items-center gap-2 rounded-full border border-neutral-800 bg-neutral-950 py-1 pl-1 pr-3 text-sm">
-      <MemberAvatar name={name} avatarUrl={avatarUrl} />
+      <MemberAvatar name={name} src={avatarUrl} />
       <span className="min-w-0 truncate">{name}</span>
     </span>
   );
@@ -208,7 +172,7 @@ function MissingZone({
               key={p.userId}
               className="flex max-w-full items-center gap-2 rounded-full border border-red-500/30 bg-neutral-950 py-1 pl-1 pr-2 text-sm"
             >
-              <MemberAvatar name={name} avatarUrl={p.avatarUrl} />
+              <MemberAvatar name={name} src={p.avatarUrl} />
               <span className="min-w-0 truncate">{name}</span>
               {started ? (
                 <BlackMark count={blackMarks.get(p.userId) ?? 1} />

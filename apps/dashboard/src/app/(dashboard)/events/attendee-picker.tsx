@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { Check, Plus, Search } from "lucide-react";
 import { Label } from "@/components/ui";
+import { MemberAvatar } from "@/components/member-avatar";
 
 export interface AttendeeOption {
   id: string;
@@ -19,26 +20,6 @@ export interface AttendeeRole {
 export interface AttendeeRoster {
   roles: AttendeeRole[];
   members: AttendeeOption[];
-}
-
-function Avatar({ name, avatarUrl }: { name: string; avatarUrl: string | null }) {
-  if (avatarUrl) {
-    // eslint-disable-next-line @next/next/no-img-element
-    return (
-      <img
-        src={avatarUrl}
-        alt=""
-        width={24}
-        height={24}
-        className="h-6 w-6 shrink-0 rounded-full object-cover"
-      />
-    );
-  }
-  return (
-    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-neutral-800 text-[10px] font-semibold text-neutral-300">
-      {name.slice(0, 2).toUpperCase()}
-    </span>
-  );
 }
 
 export function AttendeePicker({
@@ -184,7 +165,7 @@ export function AttendeePicker({
                     >
                       {on ? "✓" : ""}
                     </span>
-                    <Avatar name={m.name} avatarUrl={m.avatarUrl} />
+                    <MemberAvatar name={m.name} src={m.avatarUrl} />
                     <span className="min-w-0 truncate">{m.name}</span>
                   </button>
                 );

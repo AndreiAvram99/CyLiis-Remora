@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Settings, ChevronRight } from "lucide-react";
 import { requireMember } from "@/lib/session";
 import { Badge, Card } from "@/components/ui";
+import { currentAvatarUrl } from "@/lib/members";
 import { AccountForm } from "./account-form";
 
 export const dynamic = "force-dynamic";
@@ -9,6 +10,10 @@ export const dynamic = "force-dynamic";
 export default async function AccountPage() {
   const session = await requireMember();
   const isManager = Boolean(session.user?.isManager);
+  const discordAvatar = await currentAvatarUrl(
+    session.user?.discordId,
+    session.user?.image,
+  );
 
   return (
     <div className="mx-auto max-w-2xl space-y-8">
@@ -31,10 +36,7 @@ export default async function AccountPage() {
           Personalize how the dashboard looks for you.
         </p>
       </div>
-      <AccountForm
-        name={session.user?.name}
-        discordAvatar={session.user?.image}
-      />
+      <AccountForm name={session.user?.name} discordAvatar={discordAvatar} />
 
       {isManager ? (
         <Link href="/settings" className="block">

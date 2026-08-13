@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { AtSign, Search } from "lucide-react";
 import { Label } from "@/components/ui";
+import { MemberAvatar } from "@/components/member-avatar";
 
 export interface MentionOption {
   id: string;
@@ -14,26 +15,6 @@ export interface MentionValue {
   roleIds: string[];
   userIds: string[];
   everyone: boolean;
-}
-
-function Avatar({ name, avatarUrl }: { name: string; avatarUrl?: string | null }) {
-  if (avatarUrl) {
-    // eslint-disable-next-line @next/next/no-img-element
-    return (
-      <img
-        src={avatarUrl}
-        alt=""
-        width={24}
-        height={24}
-        className="h-6 w-6 shrink-0 rounded-full object-cover"
-      />
-    );
-  }
-  return (
-    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-neutral-800 text-[10px] font-semibold text-neutral-300">
-      {name.slice(0, 2).toUpperCase()}
-    </span>
-  );
 }
 
 function Chip({
@@ -192,7 +173,7 @@ export function MentionPicker({
                         size={13}
                         className={on ? "shrink-0 text-brand" : "shrink-0 text-neutral-600"}
                       />
-                      <Avatar name={m.name} avatarUrl={m.avatarUrl} />
+                      <MemberAvatar name={m.name} src={m.avatarUrl} />
                       <span className="min-w-0 truncate">{m.name}</span>
                     </button>
                   );

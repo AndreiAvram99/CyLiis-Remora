@@ -168,8 +168,9 @@ export function Avatar({
   src?: string | null;
 }) {
   const { avatar, accent } = usePersonalization();
+  const [broken, setBroken] = useState(false);
   const image = avatar || src;
-  if (image) {
+  if (image && !broken) {
     // eslint-disable-next-line @next/next/no-img-element
     return (
       <img
@@ -177,6 +178,7 @@ export function Avatar({
         alt={name ?? "avatar"}
         width={size}
         height={size}
+        onError={() => setBroken(true)}
         className="rounded-full object-cover ring-1 ring-neutral-700"
         style={{ width: size, height: size }}
       />
